@@ -108,12 +108,14 @@
 
     /* Etiqueta de escuela (atmósfera) */
     .tag { display: inline-flex; align-items: center; gap: 0.35rem; padding: 2px 6px; border: 1px solid var(--line); border-radius: 1px; background: rgba(0, 0, 0, 0.08);
-           font-family: 'Cinzel', serif; font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1.4; }
+           font-family: 'Cinzel', serif; font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1.4; white-space: nowrap; }
     .dark .tag { background: #04060B; color: #B4B8C6; }
     .tag .gi { font-size: 1.5em; }
 
     /* Rangos */
     .rank-icon { width: 2.6rem; height: 2.6rem; margin: 0 auto 0.5rem; display: flex; align-items: center; justify-content: center; border: 1px solid var(--gold); border-radius: 9999px; color: var(--gold); font-size: 1.35rem; transition: all 0.4s ease; }
+
+    @media (max-width: 639px) { .rank-icon { width: 2rem; height: 2rem; font-size: 1.05rem; margin-bottom: 0.35rem; } }
 
     /* Pestañas */
     nav button .gi { font-size: 1.5em; opacity: 0.55; }
@@ -176,7 +178,7 @@
       <div class="flex items-center gap-3">
         <i class="gi gi-spell-book text-3xl text-paper-accent dark:text-night-accent"></i>
         <div>
-          <h1 class="title-outline text-4xl">Lexium</h1>
+          <h1 class="title-outline text-3xl sm:text-4xl">Lexium</h1>
           <div class="flex items-center gap-2 mt-0.5">
             <span id="syncStatusDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
             <span id="syncStatusText" class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted">Sin conectar</span>
@@ -203,7 +205,7 @@
       </div>
     </div>
 
-    <nav class="max-w-5xl mx-auto px-4 flex gap-8 text-[11px] border-t border-paper-border/50 dark:border-night-border/50 overflow-x-auto">
+    <nav class="max-w-5xl mx-auto px-4 flex gap-5 sm:gap-8 text-[11px] border-t border-paper-border/50 dark:border-night-border/50 overflow-x-auto">
       <button onclick="switchTab('glossary')" id="tab-glossary" class="py-2.5 border-b-2 border-paper-ink dark:border-night-accent font-medium whitespace-nowrap transition flex items-center gap-1.5">
         <i class="gi gi-book-cover"></i><span>Glosario</span>
         <span id="glossaryCount" class="text-[11px] px-1.5 py-0.5 rounded-full bg-paper-card dark:bg-night-card">0</span>
@@ -220,10 +222,10 @@
   <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-6">
 
     <section id="view-glossary" class="space-y-5">
-      <div id="ranksPanel" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
+      <div id="ranksPanel" class="grid grid-cols-3 gap-2 sm:gap-3"></div>
       <div id="dailyPanel" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
-      <div class="no-print flex flex-col sm:flex-row sm:flex-wrap gap-3">
-        <div class="relative flex-1 sm:basis-full lg:basis-0 lg:min-w-[16rem]">
+      <div class="no-print grid grid-cols-2 sm:flex sm:flex-row sm:flex-wrap gap-2 sm:gap-3">
+        <div class="relative col-span-2 flex-1 sm:basis-full lg:basis-0 lg:min-w-[16rem]">
           <input type="text" id="glossarySearch" oninput="renderGlossary()" placeholder="Busca por palabra culta o por idea llana (ej: 'oscuro', 'triste', 'atardecer')..." class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm focus:outline-none focus:ring-2 focus:ring-paper-ink/20 dark:focus:ring-night-ink/20" />
           <i class="gi gi-magnifying-glass absolute left-3.5 top-3.5 text-sm text-paper-muted dark:text-night-muted"></i>
         </div>
@@ -796,9 +798,9 @@
         const { rank, next, progress, index } = rankFor(n);
         const me = currentUser && p.id === currentUser.id;
         return `
-        <div class="frame lift rank-card bg-paper-card dark:bg-night-card border ${me ? 'border-paper-accent/60 dark:border-night-accent/50' : 'border-paper-border dark:border-night-border'} px-4 py-5 text-center">
+        <div class="frame lift rank-card bg-paper-card dark:bg-night-card border ${me ? 'border-paper-accent/60 dark:border-night-accent/50' : 'border-paper-border dark:border-night-border'} min-w-0 px-2 py-3 sm:px-4 sm:py-5 text-center">
           <div class="rank-icon" title="Rango ${ROMAN[index] || ''}"><i class="gi gi-${rank.icon}"></i></div>
-          <p class="word-title text-2xl text-paper-accent dark:text-night-accent">${esc(rank.name)}</p>
+          <p class="word-title text-lg sm:text-2xl text-paper-accent dark:text-night-accent">${esc(rank.name)}</p>
           <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted mt-1.5 flex items-center justify-center gap-1.5">
             <span class="w-1.5 h-1.5 shrink-0 rounded-full" style="background:${authorColor(p.id)}"></span>
             <span class="truncate">${esc(p.display_name)}${me ? ' (tú)' : ''} · ${n} ${n === 1 ? 'palabra' : 'palabras'}</span>
@@ -806,7 +808,7 @@
           <div class="mt-3 h-px bg-paper-border dark:bg-night-border">
             <div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${progress}%; box-shadow:0 0 6px var(--gold)"></div>
           </div>
-          <p class="quote text-xs mt-2">${next ? `Faltan ${next.min - n} para ${esc(next.name)}` : 'Rango máximo alcanzado'}</p>
+          <p class="hidden sm:block quote text-xs mt-2">${next ? `Faltan ${next.min - n} para ${esc(next.name)}` : 'Rango máximo alcanzado'}</p>
         </div>`;
       }).join('');
     }
@@ -912,7 +914,7 @@
         <article class="frame lift bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5 flex flex-col justify-between gap-3">
           ${ribbon(item.tone)}
           <div>
-            <div class="flex items-center justify-between gap-2 pl-10">
+            <div class="flex flex-wrap items-center justify-between gap-2 pl-10">
               ${toneBadge(item.tone)}
               ${action}
             </div>
@@ -1336,7 +1338,7 @@
       window._lastReverseResults = combined;
       container.innerHTML = combined.map((item, idx) => {
         const origin = item.author_id
-          ? `<p class="text-[11px] text-paper-muted dark:text-night-muted">En el glosario de ${currentUser && item.author_id === currentUser.id ? 'ti' : esc(authorName(item.author_id))}</p>`
+          ? `<p class="text-[11px] text-paper-muted dark:text-night-muted">${currentUser && item.author_id === currentUser.id ? 'En tu glosario' : 'En el glosario de ' + esc(authorName(item.author_id))}</p>`
           : '';
         const button = iHave(item.word)
           ? `<span class="text-[11px] text-paper-muted dark:text-night-muted whitespace-nowrap">★ Guardada</span>`
@@ -1404,7 +1406,7 @@
       for (const ch of key) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
       const stable = [...glossary].sort((a, b) => String(a.id).localeCompare(String(b.id)));
       const word = stable[hash % stable.length];
-      const who = id => (currentUser && id === currentUser.id) ? 'ti' : esc(authorName(id));
+      const isMine = id => Boolean(currentUser && id === currentUser.id);
       const recent = [...glossary].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 5);
 
       panel.innerHTML = `
@@ -1412,13 +1414,13 @@
           <div class="rule"><span class="quote text-xs">Palabra del día</span></div>
           <h3 class="word-title text-3xl mt-3">${fancyWord(word.word)}</h3>
           <p class="text-sm mt-2 leading-relaxed">${esc(word.definition)}</p>
-          <p class="label-caps text-[9px] text-paper-muted dark:text-night-muted mt-2">Del glosario de ${who(word.author_id)}</p>
+          <p class="label-caps text-[9px] text-paper-muted dark:text-night-muted mt-2">${isMine(word.author_id) ? 'De tu glosario' : 'Del glosario de ' + esc(authorName(word.author_id))}</p>
         </div>
         <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
           <div class="rule"><span class="quote text-xs">Últimas incorporaciones</span></div>
           <ul class="mt-3 space-y-1.5 text-sm">
             ${recent.map(w => `<li class="flex items-baseline justify-between gap-3">
-              <span class="truncate"><strong class="font-medium">${esc(w.word)}</strong> <span class="text-xs text-paper-muted dark:text-night-muted">· de ${who(w.author_id)}</span></span>
+              <span class="truncate"><strong class="font-medium">${esc(w.word)}</strong> <span class="text-xs text-paper-muted dark:text-night-muted">· ${isMine(w.author_id) ? 'tuya' : 'de ' + esc(authorName(w.author_id))}</span></span>
               <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted whitespace-nowrap">${daysAgo(w.created_at)}</span>
             </li>`).join('')}
           </ul>
