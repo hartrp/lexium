@@ -131,7 +131,7 @@
 
     /* Impresión o PDF: solo las fichas del glosario, en tinta sobre blanco */
     @media print {
-      header, #ranksPanel, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #view-reverse, #view-review, .no-print, .ribbon-wrap { display: none !important; }
+      header, #ranksPanel, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, .no-print, .ribbon-wrap { display: none !important; }
       html { font-size: 12px; }
       body, #view-glossary article { background: #fff !important; background-image: none !important; color: #000 !important; }
       #view-glossary { display: block !important; }
@@ -297,6 +297,37 @@
 
   </main>
 
+  <div id="tonesModal" class="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <h3 class="title-outline text-3xl">Atmósferas</h3>
+        <button onclick="closeTonesModal()" class="text-paper-muted hover:text-paper-ink text-xl">✕</button>
+      </div>
+      <ul id="tonesList" class="divide-y divide-paper-border/60 dark:divide-night-border/60"></ul>
+      <div class="p-4 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border space-y-3">
+        <span class="text-xs font-semibold uppercase tracking-wider">Nueva atmósfera</span>
+        <div class="flex items-start gap-4">
+          <div id="tonePreview" class="shrink-0"></div>
+          <div class="flex-1">
+            <label for="newToneName" class="text-[11px] text-paper-muted dark:text-night-muted">Nombre</label>
+            <input type="text" id="newToneName" maxlength="40" placeholder="Ej: Marino / Salobre" class="w-full mt-0.5 px-3 py-2 rounded-xl bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border text-xs" />
+          </div>
+        </div>
+        <div>
+          <label class="text-[11px] text-paper-muted dark:text-night-muted">Color</label>
+          <div id="toneColors" class="flex flex-wrap gap-1.5 mt-1"></div>
+        </div>
+        <div>
+          <label class="text-[11px] text-paper-muted dark:text-night-muted">Icono</label>
+          <div id="toneIcons" class="flex flex-wrap gap-1.5 mt-1"></div>
+        </div>
+        <div class="flex justify-end">
+          <button onclick="createTone()" class="px-5 py-2 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg">Crear atmósfera</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="addModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between">
@@ -368,7 +399,7 @@
             <input type="text" id="inputPlain" placeholder="oscuro, triste, sombrío" class="w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-xs" />
           </div>
           <div>
-            <label class="text-xs font-medium text-paper-muted dark:text-night-muted">Atmósfera / Tono</label>
+            <label class="text-xs font-medium text-paper-muted dark:text-night-muted">Atmósfera / Tono</label> <button type="button" onclick="openTonesModal()" class="plain underline text-[11px] text-paper-accent dark:text-night-accent ml-1">+ nueva</button>
             <select id="inputTone" class="w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-xs">
               <option value="Gótico / Sombrío">Gótico / Sombrío</option>
               <option value="Naturaleza / Sensorial">Naturaleza / Sensorial</option>
@@ -414,7 +445,13 @@
       </div>
 
       <div class="p-4 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border space-y-2">
-        <span class="text-xs font-semibold uppercase tracking-wider">2. Copia de seguridad (JSON)</span>
+        <span class="text-xs font-semibold uppercase tracking-wider">2. Atmósferas</span>
+        <p class="text-xs text-paper-muted dark:text-night-muted">Las atmósferas son comunes a todo el grupo. Puedes crear nuevas con su color y su icono.</p>
+        <button onclick="closeSettingsModal(); openTonesModal()" class="px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border bg-paper-light dark:bg-night-bg">Gestionar atmósferas</button>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border space-y-2">
+        <span class="text-xs font-semibold uppercase tracking-wider">3. Copia de seguridad (JSON)</span>
         <p class="text-xs text-paper-muted dark:text-night-muted">Exporta tus palabras o importa un archivo. Lo importado se guarda a tu nombre y se saltan las que ya tienes.</p>
         <div class="flex flex-wrap gap-2 pt-1">
           <button onclick="exportGlossaryJSON()" class="px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border bg-paper-light dark:bg-night-bg">Descargar mi glosario</button>
@@ -507,7 +544,7 @@
     const SUPABASE_KEY = 'sb_publishable_l6-bp7HxfqwmJnt8R1_71g_SwrU3INi';
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const TONES = ['Gótico / Sombrío', 'Naturaleza / Sensorial', 'Psicológico / Emocional', 'Arcaísmo / Histórico', 'Cultismo / Precisión'];
+    let TONES = ['Gótico / Sombrío', 'Naturaleza / Sensorial', 'Psicológico / Emocional', 'Arcaísmo / Histórico', 'Cultismo / Precisión'];
     const AUTHOR_COLORS = ['#7C2D12', '#1E5B4F', '#4A3B8C', '#8A6A12', '#7A2E5E'];
 
     function safeParse(key) {
@@ -517,6 +554,7 @@
     let glossary = [];      // palabras de todas las autoras, tal como están en la base de datos
     let profiles = {};      // id de usuaria -> { id, display_name }
     let currentUser = null;
+    let tonesReady = false; // true cuando la base de datos ya tiene la tabla de atmósferas
     let hasExtras = true;   // false si la base de datos aún no tiene las columnas de citas y marcas
     let editingId = null;   // id de la palabra que se está editando (null = palabra nueva)
     let lastSenses = [];    // acepciones devueltas por el diccionario en la última búsqueda
@@ -531,13 +569,40 @@
     function norm(word) { return str(word).toLowerCase(); }
 
     // Cada atmósfera es una "escuela" con su color y su icono (fuente game-icons).
-    const SCHOOLS = {
+    const BASE_SCHOOLS = {
       'Gótico / Sombrío': { color: '#9A4444', icon: 'bat' },
       'Naturaleza / Sensorial': { color: '#5E8C7B', icon: 'oak-leaf' },
       'Psicológico / Emocional': { color: '#8272A0', icon: 'third-eye' },
       'Arcaísmo / Histórico': { color: '#A07A48', icon: 'ancient-columns' },
       'Cultismo / Precisión': { color: '#5F8799', icon: 'quill-ink' }
     };
+    // Las atmósferas en uso: las cinco de base más las que creéis vosotras (tabla tones).
+    let SCHOOLS = { ...BASE_SCHOOLS };
+
+    function applyTones(rows) {
+      const schools = { ...BASE_SCHOOLS };
+      (rows || []).forEach(r => {
+        const name = str(r.name);
+        // Color e icono se validan porque acaban dentro del HTML de las fichas.
+        if (!name || !/^#[0-9a-f]{6}$/i.test(r.color) || !/^[a-z0-9-]+$/.test(r.icon)) return;
+        schools[name] = { color: r.color, icon: r.icon, created_by: r.created_by || null, custom: !(name in BASE_SCHOOLS) };
+      });
+      SCHOOLS = schools;
+      TONES = Object.keys(schools);
+      renderToneOptions();
+    }
+
+    function renderToneOptions() {
+      const input = document.getElementById('inputTone');
+      const filter = document.getElementById('glossaryToneFilter');
+      const keepInput = input.value;
+      const keepFilter = filter.value;
+      const options = TONES.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+      input.innerHTML = options;
+      filter.innerHTML = '<option value="Todas">Todas las atmósferas</option>' + options;
+      if (TONES.includes(keepInput)) input.value = keepInput;
+      filter.value = TONES.includes(keepFilter) ? keepFilter : 'Todas';
+    }
 
     function schoolOf(tone) { return SCHOOLS[tone] || SCHOOLS['Cultismo / Precisión']; }
 
@@ -612,6 +677,7 @@
       renderGlossary();
       updateStatus();
       setLookupSource(lookupSource);
+      renderToneOptions();
       // onAuthStateChange avisa también de la sesión inicial guardada en el navegador.
       sb.auth.onAuthStateChange((_event, session) => {
         setTimeout(() => handleSession(session), 0);
@@ -716,9 +782,10 @@
     // ---------- CARGA DE DATOS ----------
     async function reloadFromCloud(notify = false) {
       if (!currentUser) return;
-      const [pRes, wRes] = await Promise.all([
+      const [pRes, wRes, tRes] = await Promise.all([
         sb.from('profiles').select('*'),
-        sb.from('words').select('*').order('created_at', { ascending: false })
+        sb.from('words').select('*').order('created_at', { ascending: false }),
+        sb.from('tones').select('*').order('created_at', { ascending: true })
       ]);
       if (pRes.error || wRes.error) {
         showToast('No se pudo cargar el glosario: ' + (pRes.error || wRes.error).message);
@@ -736,6 +803,8 @@
 
       glossary = wRes.data;
       hasExtras = glossary.length === 0 || 'is_favorite' in glossary[0];
+      tonesReady = !tRes.error; // false si aún no existe la tabla de atmósferas
+      applyTones(tRes.error ? [] : tRes.data);
       renderGlossary();
       updateStatus();
       applyAIAccess();
@@ -1384,6 +1453,91 @@
         str(item.source_page) ? 'p. ' + esc(str(item.source_page)) : ''
       ].filter(Boolean);
       return parts.length ? `<p class="label-caps text-[9px] text-paper-muted dark:text-night-muted text-right mt-1.5">— ${parts.join(', ')}</p>` : '';
+    }
+
+    // ---------- ATMÓSFERAS PERSONALIZADAS ----------
+    const TONE_COLORS = ['#9A4444', '#B0703C', '#A07A48', '#A8A865', '#637D51', '#5E8C7B', '#5F8799', '#4F6FA8', '#8272A0', '#91728D', '#8A7B5E', '#7A8791'];
+    const TONE_ICONS = ['raven', 'owl', 'bat', 'ghost', 'death-skull', 'candle-light', 'moon', 'sun', 'oak-leaf', 'three-leaves', 'beech', 'castle',
+                        'crown', 'mailed-fist', 'ancient-columns', 'greek-temple', 'hourglass', 'rune-stone', 'crystal-ball', 'wizard-staff',
+                        'magic-swirl', 'third-eye', 'brain', 'holy-grail', 'cut-diamond', 'scroll-unfurled', 'secret-book', 'quill-ink'];
+    let newToneColor = TONE_COLORS[7];
+    let newToneIcon = TONE_ICONS[0];
+
+    function openTonesModal() {
+      renderTonesModal();
+      document.getElementById('tonesModal').classList.remove('hidden');
+      document.getElementById('tonesModal').classList.add('flex');
+    }
+
+    function closeTonesModal() {
+      document.getElementById('tonesModal').classList.add('hidden');
+      document.getElementById('tonesModal').classList.remove('flex');
+    }
+
+    function pickToneColor(color) { if (TONE_COLORS.includes(color)) { newToneColor = color; renderTonesModal(); } }
+    function pickToneIcon(icon) { if (TONE_ICONS.includes(icon)) { newToneIcon = icon; renderTonesModal(); } }
+
+    function renderTonesModal() {
+      const usage = {};
+      glossary.forEach(w => { usage[w.tone] = (usage[w.tone] || 0) + 1; });
+      document.getElementById('tonesList').innerHTML = TONES.map((t, i) => {
+        const s = SCHOOLS[t];
+        const n = usage[t] || 0;
+        const mine = Boolean(s.custom && currentUser && s.created_by === currentUser.id);
+        const origin = !s.custom ? 'De base' : (mine ? 'Creada por ti' : 'De ' + esc(authorName(s.created_by)));
+        const del = mine && n === 0
+          ? `<button onclick="deleteTone(${i})" title="Borrar atmósfera" class="text-sm text-paper-muted dark:text-night-muted hover:text-red-500"><i class="gi gi-trash-can"></i></button>`
+          : '<span class="w-4"></span>';
+        return `<li class="flex items-center gap-3 py-2">
+          <span class="w-6 h-6 shrink-0 flex items-center justify-center text-sm" style="background-color:${s.color}; color:#F3EAD3"><i class="gi gi-${s.icon}"></i></span>
+          <span class="flex-1 min-w-0 truncate text-sm">${esc(t)}</span>
+          <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted whitespace-nowrap">${origin} · ${n} ${n === 1 ? 'palabra' : 'palabras'}</span>
+          ${del}
+        </li>`;
+      }).join('');
+      document.getElementById('toneColors').innerHTML = TONE_COLORS.map(c =>
+        `<button type="button" onclick="pickToneColor('${c}')" title="${c}" class="plain w-7 h-7 border-2 ${c === newToneColor ? 'border-paper-ink dark:border-night-ink' : 'border-transparent'}" style="background-color:${c}"></button>`).join('');
+      document.getElementById('toneIcons').innerHTML = TONE_ICONS.map(ic =>
+        `<button type="button" onclick="pickToneIcon('${ic}')" title="${ic}" class="plain w-9 h-9 flex items-center justify-center text-lg border ${ic === newToneIcon ? 'border-paper-accent dark:border-night-accent text-paper-accent dark:text-night-accent' : 'border-paper-border dark:border-night-border text-paper-muted dark:text-night-muted'}"><i class="gi gi-${ic}"></i></button>`).join('');
+      document.getElementById('tonePreview').innerHTML = `<span class="ribbon" style="background-color:${newToneColor}"><i class="gi gi-${newToneIcon}"></i></span>`;
+    }
+
+    async function createTone() {
+      if (!tonesReady) { showToast('Falta ejecutar el último schema.sql en Supabase'); return; }
+      const input = document.getElementById('newToneName');
+      const name = input.value.trim().replace(/\s+/g, ' ');
+      if (name.length < 2 || name.length > 40) { showToast('El nombre debe tener entre 2 y 40 caracteres'); return; }
+      if (TONES.some(t => norm(t) === norm(name))) { showToast('Ya existe una atmósfera con ese nombre'); return; }
+      const { data, error } = await sb.from('tones').insert({ name, color: newToneColor, icon: newToneIcon }).select().single();
+      if (error) {
+        showToast(error.code === '23505' ? 'Ya existe una atmósfera con ese nombre' : 'No se pudo crear: ' + error.message);
+        return;
+      }
+      SCHOOLS[data.name] = { color: data.color, icon: data.icon, created_by: data.created_by, custom: true };
+      TONES = Object.keys(SCHOOLS);
+      input.value = '';
+      renderToneOptions();
+      document.getElementById('inputTone').value = data.name; // queda elegida en el formulario de palabra
+      renderTonesModal();
+      showToast(`Atmósfera «${data.name}» creada`);
+    }
+
+    async function deleteTone(index) {
+      const name = TONES[index];
+      const school = SCHOOLS[name];
+      if (!name || !school || !school.custom) return;
+      if (!confirm(`¿Borrar la atmósfera «${name}»?`)) return;
+      const { data, error } = await sb.from('tones').delete().eq('name', name).select();
+      if (error || !data || data.length === 0) {
+        showToast('No se puede borrar: alguna palabra la usa o no la creaste tú');
+        return;
+      }
+      delete SCHOOLS[name];
+      TONES = Object.keys(SCHOOLS);
+      renderToneOptions();
+      renderTonesModal();
+      renderGlossary();
+      showToast(`Atmósfera «${name}» borrada`);
     }
 
     // ---------- PALABRA DEL DÍA Y ÚLTIMAS INCORPORACIONES ----------
