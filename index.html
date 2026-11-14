@@ -131,7 +131,7 @@
 
     /* Impresión o PDF: solo las fichas del glosario, en tinta sobre blanco */
     @media print {
-      header, #ranksPanel, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-guild, .no-print, .ribbon-wrap { display: none !important; }
+      header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-guild, .no-print, .ribbon-wrap { display: none !important; }
       html { font-size: 12px; }
       body, #view-glossary article { background: #fff !important; background-image: none !important; color: #000 !important; }
       #view-glossary { display: block !important; }
@@ -226,6 +226,7 @@
 
     <section id="view-glossary" class="space-y-5">
       <div id="ranksPanel" class="grid grid-cols-3 gap-2 sm:gap-3"></div>
+      <div id="dungeonStrip"></div>
       <div id="dailyPanel" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
       <div class="no-print grid grid-cols-2 sm:flex sm:flex-row sm:flex-wrap gap-2 sm:gap-3">
         <div class="relative col-span-2 flex-1 sm:basis-full lg:basis-0 lg:min-w-[16rem]">
@@ -562,6 +563,10 @@
     let glossary = [];      // palabras de todas las autoras, tal como están en la base de datos
     let profiles = {};      // id de usuaria -> { id, display_name }
     let currentUser = null;
+    let dungeonRows = [];    // jefes ya derrotados: { boss, defeated_by, defeated_at }
+    let dungeonReady = false; // true cuando la base de datos ya tiene la tabla de la mazmorra
+    let dungeon = null;      // estado de la mazmorra, calculado en refreshGuild
+    let dungeonBusy = false;
     let likes = [];          // me gusta de todo el grupo: { word_id, user_id }
     let likeMap = {};        // id de palabra -> ids de quienes le han dado me gusta
     let likesReady = false;  // true cuando la base de datos ya tiene la tabla de me gusta
@@ -797,12 +802,13 @@
     // ---------- CARGA DE DATOS ----------
     async function reloadFromCloud(notify = false) {
       if (!currentUser) return;
-      const [pRes, wRes, tRes, rRes, lRes] = await Promise.all([
+      const [pRes, wRes, tRes, rRes, lRes, dRes] = await Promise.all([
         sb.from('profiles').select('*'),
         sb.from('words').select('*').order('created_at', { ascending: false }),
         sb.from('tones').select('*').order('created_at', { ascending: true }),
         sb.from('review_sessions').select('*').order('created_at', { ascending: true }),
-        sb.from('word_likes').select('word_id, user_id')
+        sb.from('word_likes').select('word_id, user_id'),
+        sb.from('dungeon_progress').select('*')
       ]);
       if (pRes.error || wRes.error) {
         showToast('No se pudo cargar el glosario: ' + (pRes.error || wRes.error).message);
@@ -823,6 +829,8 @@
       reviewSessions = rRes.error ? [] : rRes.data;
       likes = lRes.error ? [] : lRes.data;
       likesReady = !lRes.error;
+      dungeonRows = dRes.error ? [] : dRes.data;
+      dungeonReady = !dRes.error;
       gameReady = !rRes.error && Object.values(profiles).every(p => 'class' in p);
       tonesReady = !tRes.error; // false si aún no existe la tabla de atmósferas
       applyTones(tRes.error ? [] : tRes.data);
@@ -856,7 +864,27 @@
     // ---------- EXPERIENCIA, CLASES, NIVELES Y LOGROS ----------
     // Todo se calcula a partir de lo que ya hay guardado (palabras, marcas y rondas de repaso),
     // así que no hay puntos que se puedan descuadrar. Para ajustar el juego basta con tocar estas tablas.
-    const XP = { word: 10, source: 5, used: 5, round: 5, hit: 1, roundsPerDay: 3 };
+    const XP = { word: 10, source: 5, used: 5, round: 5, hit: 1, roundsPerDay: 3, like: 2 };
+
+    // La mazmorra: jefes encadenados, sin plazo. Toda la experiencia que gana el grupo es daño al jefe actual.
+    // Al caer, cada persona recibe la recompensa y aparece el siguiente.
+    const BOSSES = [
+      { name: 'El Trasgo de las Erratas', icon: 'troll', hp: 150, reward: 20, lore: 'Cambia letras de sitio cuando nadie mira.' },
+      { name: 'La Araña del Lugar Común', icon: 'spider-face', hp: 300, reward: 30, lore: 'Teje frases hechas en cada rincón.' },
+      { name: 'El Espectro de la Página en Blanco', icon: 'spectre', hp: 500, reward: 40, lore: 'Se alimenta de las palabras que no llegan.' },
+      { name: 'La Gárgola del Tópico', icon: 'gargoyle', hp: 750, reward: 50, lore: 'Repite lo mismo desde hace siglos.' },
+      { name: 'El Minotauro del Laberinto Sintáctico', icon: 'minotaur', hp: 1000, reward: 60, lore: 'Nadie ha salido de una de sus subordinadas.' },
+      { name: 'La Medusa de las Muletillas', icon: 'medusa-head', hp: 1300, reward: 70, lore: 'Petrifica el discurso, o sea, en plan, básicamente.' },
+      { name: 'La Hidra de los Sinónimos', icon: 'hydra', hp: 1700, reward: 80, lore: 'Por cada palabra que cortas, brotan dos parecidas.' },
+      { name: 'El Kraken del Olvido', icon: 'kraken-tentacle', hp: 2200, reward: 90, lore: 'Arrastra al fondo lo que no se repasa.' },
+      { name: 'El Segador del Silencio', icon: 'grim-reaper', hp: 2800, reward: 100, lore: 'Donde pasa, no queda nada que decir.' },
+      { name: 'El Dragón de Babel', icon: 'dragon-head', hp: 3500, reward: 150, lore: 'Custodia todas las lenguas y no comparte ninguna.' }
+    ];
+
+    function defeatedBosses() {
+      const done = new Set(dungeonRows.map(r => r.boss));
+      return BOSSES.filter((b, i) => done.has(i + 1));
+    }
 
     const CLASSES = {
       mago: { icon: 'wizard-staff', names: { m: 'Mago', f: 'Maga', n: 'Mague' }, bonus: 'Un 50 % más de experiencia por cada palabra que apunta.' },
@@ -891,7 +919,9 @@
       { icon: 'swap-bag', name: 'Botín compartido', desc: 'Copia cinco palabras de otros glosarios', test: s => s.copied >= 5 },
       { icon: 'heart-plus', name: 'Palabra querida', desc: 'Recibe tu primer me gusta', test: s => s.likesReceived >= 1 },
       { icon: 'jeweled-chalice', name: 'Favorita del gremio', desc: 'Recibe diez me gusta en tus palabras', test: s => s.likesReceived >= 10 },
-      { icon: 'thumb-up', name: 'Buen ojo', desc: 'Da diez me gusta a palabras de otras personas', test: s => s.likesGiven >= 10 }
+      { icon: 'thumb-up', name: 'Buen ojo', desc: 'Da diez me gusta a palabras de otras personas', test: s => s.likesGiven >= 10 },
+      { icon: 'crossed-swords', name: 'Primera victoria', desc: 'Derrotad al primer jefe de la mazmorra', test: s => s.bossesDefeated >= 1 },
+      { icon: 'trophy-cup', name: 'Mazmorra conquistada', desc: 'Derrotad a todos los jefes', test: s => s.bossesDefeated >= BOSSES.length }
     ];
 
     // Experiencia total necesaria para llegar a un nivel: 100, 300, 600, 1000, 1500...
@@ -959,19 +989,25 @@
       });
       const currentStreak = previous && dayDiff(previous, dayKey(new Date())) <= 1 ? streak : 0;
 
-      xp = Math.round(xp);
-      const level = levelFor(xp);
-      const floor = levelFloor(level), ceil = levelFloor(level + 1);
+      const likesReceived = words.reduce((sum, w) => sum + likesFor(w.id).length, 0);
+      // Lo ganado por méritos propios es también el daño que esta persona hace a la mazmorra.
+      const damage = Math.round(xp + likesReceived * XP.like);
+      const defeated = defeatedBosses();
       const stats = {
-        userId, xp, level, toNext: ceil - xp, progress: Math.round(((xp - floor) / (ceil - floor)) * 100),
-        title: [...TITLES].reverse().find(t => level >= t.level) || TITLES[0],
+        userId, damage,
+        xp: damage + defeated.reduce((sum, b) => sum + b.reward, 0), // más las recompensas de los jefes caídos
         cls, className: className(profile),
         words: words.length, thisMonth, sourced, used, copied, byTone,
         rounds, hits, asked, perfect, currentStreak, bestStreak,
-        likesReceived: words.reduce((sum, w) => sum + likesFor(w.id).length, 0),
-        likesGiven: likes.filter(l => l.user_id === userId).length,
+        likesReceived, likesGiven: likes.filter(l => l.user_id === userId).length,
+        bossesDefeated: defeated.length,
         tonesCreated: Object.values(SCHOOLS).filter(s => s.custom && s.created_by === userId).length
       };
+      stats.level = levelFor(stats.xp);
+      const floor = levelFloor(stats.level), ceil = levelFloor(stats.level + 1);
+      stats.toNext = ceil - stats.xp;
+      stats.progress = Math.round(((stats.xp - floor) / (ceil - floor)) * 100);
+      stats.title = [...TITLES].reverse().find(t => stats.level >= t.level) || TITLES[0];
       stats.achievements = ACHIEVEMENTS.map(a => Boolean(a.test(stats)));
       return stats;
     }
@@ -986,6 +1022,117 @@
       likes.forEach(l => { (likeMap[l.word_id] = likeMap[l.word_id] || []).push(l.user_id); });
       guild = {};
       Object.keys(profiles).forEach(id => { guild[id] = computeStats(id); });
+
+      // Estado de la mazmorra
+      const total = Object.values(guild).reduce((sum, s) => sum + s.damage, 0);
+      const done = new Set(dungeonRows.map(r => r.boss));
+      const index = BOSSES.findIndex((b, i) => !done.has(i + 1)); // -1 = mazmorra conquistada
+      const spent = BOSSES.reduce((sum, b, i) => sum + (done.has(i + 1) ? b.hp : 0), 0);
+      const boss = index >= 0 ? BOSSES[index] : null;
+      dungeon = { total, index, boss, dealt: boss ? Math.max(0, Math.min(boss.hp, total - spent)) : 0 };
+      checkDungeon();
+    }
+
+    // Si el jefe actual ya no tiene vida, se registra su derrota (una sola vez para todo el grupo).
+    async function checkDungeon() {
+      if (!dungeonReady || dungeonBusy || !currentUser || !dungeon || !dungeon.boss || dungeon.dealt < dungeon.boss.hp) return;
+      dungeonBusy = true;
+      const boss = dungeon.boss;
+      const number = dungeon.index + 1;
+      const { data, error } = await sb.from('dungeon_progress').insert({ boss: number }).select().single();
+      if (error) {
+        // Lo más probable: otra persona lo registró a la vez. Se vuelve a leer el estado.
+        const again = await sb.from('dungeon_progress').select('*');
+        if (!again.error) dungeonRows = again.data;
+      } else {
+        dungeonRows.push(data);
+        showToast(`¡${boss.name} ha caído! +${boss.reward} XP para todo el gremio`);
+      }
+      dungeonBusy = false;
+      if (dungeonRows.some(r => r.boss === number)) renderGlossary();
+    }
+
+    function hpBar(dealt, hp, thick) {
+      const left = Math.max(0, hp - dealt);
+      return `<div class="${thick ? 'h-1.5' : 'h-px'} bg-paper-border dark:bg-night-border overflow-hidden">
+                <div class="h-full" style="width:${Math.round((left / hp) * 100)}%; background:#9A4444"></div>
+              </div>`;
+    }
+
+    // Tira resumida de la mazmorra, encima del glosario
+    function renderDungeonStrip() {
+      const strip = document.getElementById('dungeonStrip');
+      if (!dungeon || !currentUser || Object.keys(profiles).length === 0) { strip.innerHTML = ''; return; }
+      if (!dungeon.boss) {
+        strip.innerHTML = `<div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border px-4 py-3 flex items-center gap-3">
+          <i class="gi gi-trophy-cup text-xl text-paper-accent dark:text-night-accent"></i><span class="label-caps text-[10px]">Mazmorra conquistada</span></div>`;
+        return;
+      }
+      const b = dungeon.boss;
+      strip.innerHTML = `
+        <button type="button" onclick="switchTab('guild')" class="plain frame w-full text-left bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border px-4 py-3">
+          <span class="flex items-center gap-3">
+            <i class="gi gi-${b.icon} text-2xl" style="color:#9A4444"></i>
+            <span class="flex-1 min-w-0">
+              <span class="flex items-baseline justify-between gap-3">
+                <span class="word-title text-lg truncate">${esc(b.name)}</span>
+                <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted whitespace-nowrap">Vida ${b.hp - dungeon.dealt} de ${b.hp}</span>
+              </span>
+              <span class="block mt-1.5">${hpBar(dungeon.dealt, b.hp, true)}</span>
+            </span>
+          </span>
+        </button>`;
+    }
+
+    // Panel completo de la mazmorra, en la pestaña Gremio
+    function dungeonPanel() {
+      if (!dungeon) return '';
+      const people = Object.values(profiles).sort((a, b) => (guild[b.id]?.damage || 0) - (guild[a.id]?.damage || 0));
+      const top = Math.max(1, ...people.map(p => guild[p.id]?.damage || 0));
+      const fallen = [...dungeonRows].sort((a, b) => a.boss - b.boss).map(r => {
+        const b = BOSSES[r.boss - 1];
+        if (!b) return '';
+        const when = new Date(r.defeated_at);
+        const date = isNaN(when) ? '' : when.toLocaleDateString('es-ES');
+        const by = r.defeated_by ? (currentUser && r.defeated_by === currentUser.id ? 'tuyo' : 'de ' + authorName(r.defeated_by)) : '';
+        return `<li class="flex items-center gap-2.5 text-sm">
+          <i class="gi gi-${b.icon} text-lg text-paper-muted dark:text-night-muted"></i>
+          <span class="flex-1 min-w-0 truncate line-through decoration-1 opacity-70">${esc(b.name)}</span>
+          <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted whitespace-nowrap">${esc([date, by ? 'golpe final ' + by : ''].filter(Boolean).join(' · '))}</span>
+        </li>`;
+      }).join('');
+      const b = dungeon.boss;
+      const head = b ? `
+          <div class="rule"><span class="quote text-xs">La mazmorra · sala ${dungeon.index + 1} de ${BOSSES.length}</span></div>
+          <div class="text-center mt-5">
+            <i class="gi gi-${b.icon} text-6xl" style="color:#9A4444"></i>
+            <h3 class="word-title text-3xl mt-3">${esc(b.name)}</h3>
+            <p class="quote text-sm mt-1">${esc(b.lore)}</p>
+            <div class="max-w-md mx-auto mt-4">${hpBar(dungeon.dealt, b.hp, true)}</div>
+            <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted mt-2">Vida ${b.hp - dungeon.dealt} de ${b.hp} · al caer, +${b.reward} XP para cada persona</p>
+          </div>` : `
+          <div class="rule"><span class="quote text-xs">La mazmorra</span></div>
+          <div class="text-center mt-5">
+            <i class="gi gi-trophy-cup text-6xl text-paper-accent dark:text-night-accent"></i>
+            <h3 class="word-title text-3xl mt-3 text-paper-accent dark:text-night-accent">Mazmorra conquistada</h3>
+            <p class="quote text-sm mt-1">No queda jefe en pie.</p>
+          </div>`;
+      return `
+        <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
+          ${head}
+          <div class="rule mt-6"><span class="quote text-xs">Daño de cada persona</span></div>
+          <ul class="mt-3 space-y-2 text-sm max-w-md mx-auto">
+            ${people.map(p => {
+              const dmg = guild[p.id]?.damage || 0;
+              return `<li>
+                <span class="flex items-baseline justify-between gap-3"><span class="truncate">${esc(p.display_name)}${currentUser && p.id === currentUser.id ? ' (tú)' : ''}</span><span class="text-paper-muted dark:text-night-muted">${dmg}</span></span>
+                <span class="block h-px mt-1 bg-paper-border dark:bg-night-border"><span class="block h-px bg-paper-accent dark:bg-night-accent" style="width:${Math.round((dmg / top) * 100)}%"></span></span>
+              </li>`;
+            }).join('')}
+          </ul>
+          ${fallen ? `<div class="rule mt-6"><span class="quote text-xs">Jefes caídos</span></div><ul class="mt-3 space-y-1.5 max-w-md mx-auto">${fallen}</ul>` : ''}
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-5 text-center">Toda la experiencia que ganáis apuntando, repasando o recibiendo me gusta es daño al jefe. No hay plazo.</p>
+        </div>`;
     }
 
     // Icono del medallón: el de la clase si la tiene, o el del título
@@ -1085,10 +1232,10 @@
               <span><strong class="font-medium">${esc(a.name)}</strong><span class="block text-xs text-paper-muted dark:text-night-muted">${esc(a.desc)}</span></span>
             </li>`).join('')}
           </ul>
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra, +${XP.source} si la cita lleva obra y autoría, ${XP.used} por palabra ya usada, y ${XP.round} por ronda de repaso más ${XP.hit} por acierto (puntúan las ${XP.roundsPerDay} primeras rondas de cada día).</p>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra, +${XP.source} si la cita lleva obra y autoría, ${XP.used} por palabra ya usada, ${XP.round} por ronda de repaso más ${XP.hit} por acierto (puntúan las ${XP.roundsPerDay} primeras rondas de cada día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado.</p>
         </div>`;
 
-      panel.innerHTML = chooser + `<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">${members}</div>` + legend;
+      panel.innerHTML = dungeonPanel() + chooser + `<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">${members}</div>` + legend;
     }
 
     async function updateMyProfile(changes, okMessage) {
@@ -1125,7 +1272,7 @@
         showToast(error.code === '23505' ? `«${row.word}» ya está en tu glosario` : 'No se pudo guardar: ' + error.message);
         return false;
       }
-      const before = computeStats(currentUser.id);
+      const before = guild[currentUser.id] || computeStats(currentUser.id);
       glossary.unshift(data);
       renderGlossary();
       const after = guild[currentUser.id] || before;
@@ -1153,6 +1300,7 @@
       renderAuthorFilter();
       refreshGuild();
       renderRanks();
+      renderDungeonStrip();
       renderGuild();
       updateStatus();
       renderDaily();
@@ -1876,7 +2024,7 @@
     // Guarda la ronda terminada para la experiencia y las estadísticas.
     async function recordReview() {
       if (!gameReady || !currentUser) return;
-      const before = computeStats(currentUser.id);
+      const before = guild[currentUser.id] || computeStats(currentUser.id);
       const { data, error } = await sb.from('review_sessions').insert({ total: reviewDeck.length, hits: reviewHits }).select().single();
       if (error) { lastReviewNote = 'No se pudo registrar la ronda: ' + error.message; return; }
       reviewSessions.push(data);
