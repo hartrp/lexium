@@ -188,8 +188,8 @@
     </section>
 
     <section id="view-glossary" class="hidden space-y-5">
-      <div class="flex flex-col sm:flex-row gap-3">
-        <div class="relative flex-1">
+      <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3">
+        <div class="relative flex-1 sm:basis-full lg:basis-0 lg:min-w-[16rem]">
           <input type="text" id="glossarySearch" oninput="renderGlossary()" placeholder="Busca por palabra culta o por idea llana (ej: 'oscuro', 'triste', 'atardecer')..." class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm focus:outline-none focus:ring-2 focus:ring-paper-ink/20 dark:focus:ring-night-ink/20" />
           <span class="absolute left-3.5 top-3 text-paper-muted dark:text-night-muted text-sm">🔍</span>
         </div>
@@ -206,6 +206,13 @@
           <option value="Psicológico / Emocional">Psicológico / Emocional</option>
           <option value="Arcaísmo / Histórico">Arcaísmo / Histórico</option>
           <option value="Cultismo / Precisión">Cultismo / Precisión</option>
+        </select>
+
+        <select id="glossarySort" onchange="renderGlossary()" class="px-4 py-2.5 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm focus:outline-none">
+          <option value="recent">Más recientes</option>
+          <option value="oldest">Más antiguas</option>
+          <option value="az">A → Z</option>
+          <option value="za">Z → A</option>
         </select>
       </div>
 
@@ -237,7 +244,7 @@
   <div id="addModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between">
-        <h3 class="font-editorial text-2xl font-bold">Apuntar palabra</h3>
+        <h3 id="addModalTitle" class="font-editorial text-2xl font-bold">Apuntar palabra</h3>
         <button onclick="closeAddModal()" class="text-paper-muted hover:text-paper-ink text-xl">✕</button>
       </div>
 
@@ -245,14 +252,20 @@
         <div>
           <label class="text-xs font-medium text-paper-muted dark:text-night-muted">Palabra</label>
           <div class="flex gap-2 mt-1">
-            <input type="text" id="inputWord" placeholder="Ej: Estulticia, Arrebol, Lóbrego..." class="flex-1 px-3.5 py-2.5 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm focus:outline-none" />
+            <input type="text" id="inputWord" oninput="checkDuplicate()" placeholder="Ej: Estulticia, Arrebol, Lóbrego..." class="flex-1 px-3.5 py-2.5 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm focus:outline-none" />
             <button onclick="autocompleteWord()" id="btnAutocomplete" class="px-3.5 py-2.5 rounded-xl bg-paper-accent text-white dark:bg-night-accent dark:text-night-bg text-xs font-medium hover:opacity-90 transition whitespace-nowrap">
               ✨ Autocompletar
             </button>
           </div>
-          <p class="text-[11px] text-paper-muted dark:text-night-muted mt-1">
-            Rellena definición, sílabas, ejemplo y sinónimos llanos automáticamente con Gemini.
-          </p>
+          <div class="flex items-center gap-2 mt-2">
+            <span class="text-[11px] text-paper-muted dark:text-night-muted">Buscar en:</span>
+            <div class="inline-flex rounded-full border border-paper-border dark:border-night-border p-0.5 text-[11px]">
+              <button type="button" id="srcAi" onclick="setLookupSource('ai')" class="px-2.5 py-1 rounded-full">✨ IA</button>
+              <button type="button" id="srcDict" onclick="setLookupSource('dict')" class="px-2.5 py-1 rounded-full">📖 Diccionario</button>
+            </div>
+          </div>
+          <p id="lookupHint" class="text-[11px] text-paper-muted dark:text-night-muted mt-1"></p>
+          <div id="dupNotice" class="hidden mt-2 p-2.5 rounded-xl border border-paper-border dark:border-night-border bg-paper-card dark:bg-night-card text-[11px] space-y-1"></div>
         </div>
 
         <div class="grid grid-cols-2 gap-2">
@@ -269,6 +282,7 @@
         <div>
           <label class="text-xs font-medium text-paper-muted dark:text-night-muted">Definición precisa</label>
           <textarea id="inputDefinition" rows="2" placeholder="Acepción literaria o culta..." class="w-full mt-1 px-3.5 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm"></textarea>
+          <div id="senseList" class="hidden mt-1.5 space-y-1"></div>
         </div>
 
         <div>
@@ -296,7 +310,7 @@
 
       <div class="flex justify-end gap-2 pt-3 border-t border-paper-border dark:border-night-border">
         <button onclick="closeAddModal()" class="px-4 py-2 rounded-xl text-xs border border-paper-border dark:border-night-border">Cancelar</button>
-        <button onclick="saveWordFromModal()" class="px-5 py-2 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg">Guardar en mi glosario</button>
+        <button onclick="saveWordFromModal()" id="btnSaveWord" class="px-5 py-2 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg">Guardar en mi glosario</button>
       </div>
     </div>
   </div>
@@ -433,6 +447,9 @@
     let currentUser = null;
     let currentDiscoverTone = 'Todas';
     let currentCardIndex = 0;
+    let editingId = null;   // id de la palabra que se está editando (null = palabra nueva)
+    let lastSenses = [];    // acepciones devueltas por el diccionario en la última búsqueda
+    let lookupSource = localStorage.getItem('lexium_source') === 'dict' ? 'dict' : 'ai';
 
     // ---------- UTILIDADES ----------
     // Todo texto que venga de la base de datos o de la IA pasa por aquí antes de pintarse.
@@ -480,6 +497,7 @@
       renderDiscoverCard();
       renderGlossary();
       updateStatus();
+      setLookupSource(lookupSource);
       // onAuthStateChange avisa también de la sesión inicial guardada en el navegador.
       sb.auth.onAuthStateChange((_event, session) => {
         setTimeout(() => handleSession(session), 0);
@@ -749,11 +767,23 @@
         return;
       }
 
-      grid.innerHTML = filtered.map(item => {
+      const sort = document.getElementById('glossarySort')?.value || 'recent';
+      const byWord = (a, b) => a.word.localeCompare(b.word, 'es', { sensitivity: 'base' });
+      const byDate = (a, b) => String(a.created_at).localeCompare(String(b.created_at));
+      const sorted = [...filtered];
+      if (sort === 'az') sorted.sort(byWord);
+      else if (sort === 'za') sorted.sort((a, b) => byWord(b, a));
+      else if (sort === 'oldest') sorted.sort(byDate);
+      else sorted.sort((a, b) => byDate(b, a));
+
+      grid.innerHTML = sorted.map(item => {
         const mine = currentUser && item.author_id === currentUser.id;
         const name = authorName(item.author_id);
         const action = mine
-          ? `<button onclick="deleteGlossaryWord('${esc(item.id)}')" title="Eliminar" class="text-xs text-paper-muted hover:text-red-500">✕</button>`
+          ? `<span class="flex items-center gap-3">
+               <button onclick="openEditModal('${esc(item.id)}')" title="Editar" class="text-xs text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink">✎ Editar</button>
+               <button onclick="deleteGlossaryWord('${esc(item.id)}')" title="Eliminar" class="text-xs text-paper-muted hover:text-red-500">✕</button>
+             </span>`
           : (iHave(item.word)
               ? `<span class="text-[11px] text-paper-muted dark:text-night-muted">★ También en el tuyo</span>`
               : `<button onclick="copyWordToMine('${esc(item.id)}')" class="text-[11px] px-2.5 py-0.5 rounded-full border border-paper-border dark:border-night-border hover:bg-paper-light dark:hover:bg-night-bg transition">+ A mi glosario</button>`);
@@ -802,16 +832,202 @@
       if (item) await addWord(item);
     }
 
-    // ---------- APUNTAR PALABRA ----------
-    function openAddModal() {
+    // ---------- APUNTAR Y EDITAR PALABRA ----------
+    const MODAL_FIELDS = ['inputWord', 'inputCategory', 'inputSyllables', 'inputDefinition', 'inputExample', 'inputPlain'];
+
+    function showAddModal() {
+      const editing = Boolean(editingId);
+      document.getElementById('addModalTitle').textContent = editing ? 'Editar palabra' : 'Apuntar palabra';
+      document.getElementById('btnSaveWord').textContent = editing ? 'Guardar cambios' : 'Guardar en mi glosario';
+      renderSenses([]);
+      checkDuplicate();
       document.getElementById('addModal').classList.remove('hidden');
       document.getElementById('addModal').classList.add('flex');
       document.getElementById('inputWord').focus();
     }
 
+    function openAddModal() {
+      if (editingId) MODAL_FIELDS.forEach(id => document.getElementById(id).value = '');
+      editingId = null;
+      showAddModal();
+    }
+
+    function openEditModal(id) {
+      const item = glossary.find(w => w.id === id);
+      if (!item || !currentUser || item.author_id !== currentUser.id) return;
+      editingId = id;
+      document.getElementById('inputWord').value = item.word;
+      document.getElementById('inputCategory').value = item.category || '';
+      document.getElementById('inputSyllables').value = item.syllables || '';
+      document.getElementById('inputDefinition').value = item.definition || '';
+      document.getElementById('inputExample').value = item.example || '';
+      document.getElementById('inputPlain').value = item.plain || '';
+      if (TONES.includes(item.tone)) document.getElementById('inputTone').value = item.tone;
+      showAddModal();
+    }
+
     function closeAddModal() {
       document.getElementById('addModal').classList.add('hidden');
       document.getElementById('addModal').classList.remove('flex');
+      if (editingId) {
+        MODAL_FIELDS.forEach(id => document.getElementById(id).value = '');
+        editingId = null;
+      }
+    }
+
+    // Aviso mientras se escribe: ¿la tengo ya?, ¿la tiene otra autora?
+    function checkDuplicate() {
+      const box = document.getElementById('dupNotice');
+      const key = norm(document.getElementById('inputWord').value);
+      const matches = key ? glossary.filter(w => norm(w.word) === key && w.id !== editingId) : [];
+      if (matches.length === 0) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+
+      const linkClass = 'underline font-medium text-paper-accent dark:text-night-accent';
+      const lines = [];
+      const mine = matches.find(w => currentUser && w.author_id === currentUser.id);
+      if (mine) {
+        lines.push(`Ya tienes «${esc(mine.word)}» en tu glosario. <button type="button" onclick="openEditModal('${esc(mine.id)}')" class="${linkClass}">Editarla</button>`);
+      }
+      matches.filter(w => w !== mine).forEach(w => {
+        lines.push(`${esc(authorName(w.author_id))} ya la tiene apuntada. <button type="button" onclick="useExistingEntry('${esc(w.id)}')" class="${linkClass}">Usar su ficha</button>`);
+      });
+      box.innerHTML = lines.map(l => `<p>${l}</p>`).join('');
+      box.classList.remove('hidden');
+    }
+
+    function useExistingEntry(id) {
+      const item = glossary.find(w => w.id === id);
+      if (!item) return;
+      fillModalFields(item);
+      showToast(`Ficha de ${authorName(item.author_id)} copiada al formulario`);
+    }
+
+    // ---------- FUENTE DEL AUTOCOMPLETADO: IA O DICCIONARIO ----------
+    function autocompleteLabel() { return lookupSource === 'dict' ? '📖 Buscar' : '✨ Autocompletar'; }
+
+    function setLookupSource(source) {
+      lookupSource = source === 'dict' ? 'dict' : 'ai';
+      localStorage.setItem('lexium_source', lookupSource);
+      const on = 'px-2.5 py-1 rounded-full bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg';
+      const off = 'px-2.5 py-1 rounded-full text-paper-muted dark:text-night-muted';
+      document.getElementById('srcAi').className = lookupSource === 'ai' ? on : off;
+      document.getElementById('srcDict').className = lookupSource === 'dict' ? on : off;
+      document.getElementById('btnAutocomplete').textContent = autocompleteLabel();
+      document.getElementById('lookupHint').textContent = lookupSource === 'dict'
+        ? 'Diccionario: definición, categoría y sílabas tomadas de Wikcionario (CC BY-SA). El ejemplo y la atmósfera los pones tú.'
+        : 'IA: rellena definición, sílabas, ejemplo, ideas llanas y atmósfera con Gemini.';
+      renderSenses([]);
+    }
+
+    const WIKT_API = 'https://es.wiktionary.org/w/api.php';
+    const POS_ABBR = [
+      [/^sustantivo masculino y femenino/i, 's. m. y f.'], [/^sustantivo femenino y masculino/i, 's. m. y f.'],
+      [/^sustantivo masculino/i, 's. m.'], [/^sustantivo femenino/i, 's. f.'], [/^sustantivo/i, 's.'],
+      [/^adjetivo/i, 'adj.'], [/^verbo transitivo/i, 'v. tr.'], [/^verbo intransitivo/i, 'v. intr.'],
+      [/^verbo pronominal/i, 'v. prnl.'], [/^verbo/i, 'v.'], [/^adverbio/i, 'adv.'], [/^interjecci/i, 'interj.'],
+      [/^locuci/i, 'loc.'], [/^pronombre/i, 'pron.'], [/^preposici/i, 'prep.'], [/^conjunci/i, 'conj.'], [/^forma/i, 'forma flex.']
+    ];
+
+    async function fetchWiktEntry(title) {
+      const url = `${WIKT_API}?action=parse&prop=text&format=json&formatversion=2&redirects=1&origin=*&page=${encodeURIComponent(title)}`;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.error || !data.parse ? null : data.parse;
+    }
+
+    // Si no existe tal cual (por ejemplo, falta una tilde), busca el título más parecido.
+    async function suggestWiktTitle(word) {
+      const strip = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const url = `${WIKT_API}?action=opensearch&format=json&limit=8&namespace=0&origin=*&search=${encodeURIComponent(word)}`;
+      const data = await fetch(url).then(r => r.json());
+      return (data[1] || []).find(t => strip(t) === strip(word)) || null;
+    }
+
+    // Devuelve { word, syllables, senses: [{ category, definition, synonyms }] } de la entrada en español.
+    async function lookupDictionary(word) {
+      const typed = word.trim();
+      let parse = await fetchWiktEntry(typed.toLowerCase());
+      if (!parse && typed !== typed.toLowerCase()) parse = await fetchWiktEntry(typed);
+      if (!parse) {
+        const suggestion = await suggestWiktTitle(typed);
+        if (suggestion) parse = await fetchWiktEntry(suggestion);
+      }
+      if (!parse) throw new Error('No está en Wikcionario. Revisa la ortografía o prueba con la IA.');
+
+      const doc = new DOMParser().parseFromString(parse.text, 'text/html');
+      const spanish = doc.getElementById('Español');
+      if (!spanish) throw new Error('Wikcionario no tiene esta palabra como voz española.');
+
+      const nodes = [...doc.body.querySelectorAll('h2,h3,h4,h5,dl,tr')];
+      const senses = [];
+      let category = '';
+      let skip = false;
+      let syllables = '';
+      for (let i = nodes.indexOf(spanish) + 1; i < nodes.length; i++) {
+        const el = nodes[i];
+        if (el.tagName === 'H2') break; // empieza otro idioma
+        if (/^H[345]$/.test(el.tagName)) {
+          const heading = el.textContent.trim();
+          const found = POS_ABBR.find(([re]) => re.test(heading));
+          category = found ? found[1] : '';
+          skip = !found; // Etimología, Traducciones, etc.
+          continue;
+        }
+        if (el.tagName === 'TR') {
+          const cells = el.querySelectorAll('td,th');
+          if (!syllables && cells.length >= 2 && /silabaci/i.test(cells[0].textContent)) syllables = cells[1].textContent.trim();
+          continue;
+        }
+        if (skip || el.closest('dd')) continue;
+        const dt = el.querySelector(':scope > dt');
+        const dd = el.querySelector(':scope > dd');
+        if (!dt || !dd || !/^\d+/.test(dt.textContent.trim())) continue;
+
+        const synonyms = [];
+        dd.querySelectorAll('li').forEach(li => {
+          const label = li.querySelector('b');
+          if (!label || !/^sin[oó]nimo/i.test(label.textContent.trim())) return;
+          li.querySelectorAll('a').forEach(a => {
+            const text = a.textContent.trim();
+            const href = a.getAttribute('href') || '';
+            if (text && !/Categor|Ap%C3%A9ndice|Wikcionario:/i.test(href) && !/^tesauro$/i.test(text)) synonyms.push(text);
+          });
+        });
+        const clone = dd.cloneNode(true);
+        clone.querySelectorAll('ul,ol,dl,sup,style,table,.mw-editsection').forEach(n => n.remove());
+        const definition = clone.textContent.replace(/\s+/g, ' ').trim();
+        if (definition) senses.push({ category, definition, synonyms });
+      }
+      if (senses.length === 0) throw new Error('Wikcionario tiene la palabra, pero no se pudo leer su definición.');
+
+      const title = parse.title || typed;
+      return {
+        word: title.charAt(0).toUpperCase() + title.slice(1),
+        syllables: syllables.replace(/\s*-\s*/g, ' · '),
+        senses
+      };
+    }
+
+    function applySense(index) {
+      const sense = lastSenses[index];
+      if (!sense) return;
+      if (sense.category) document.getElementById('inputCategory').value = sense.category;
+      document.getElementById('inputDefinition').value = sense.definition;
+      if (sense.synonyms.length) document.getElementById('inputPlain').value = sense.synonyms.slice(0, 4).join(', ');
+      renderSenses(lastSenses, index);
+    }
+
+    function renderSenses(senses, selected = 0) {
+      lastSenses = senses;
+      const box = document.getElementById('senseList');
+      if (senses.length < 2) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+      box.innerHTML = `<p class="text-[11px] text-paper-muted dark:text-night-muted">Wikcionario da ${senses.length} acepciones. Elige la que buscas:</p>` +
+        senses.map((s, i) => `
+          <button type="button" onclick="applySense(${i})" class="w-full text-left text-[11px] px-2.5 py-1.5 rounded-lg border ${i === selected ? 'border-paper-ink dark:border-night-ink' : 'border-paper-border dark:border-night-border'} bg-paper-card dark:bg-night-card">
+            <span class="italic text-paper-muted dark:text-night-muted">${esc(s.category)}</span> ${esc(s.definition)}
+          </button>`).join('');
+      box.classList.remove('hidden');
     }
 
     // La IA se consulta a través de la función de servidor "gemini" de Supabase,
@@ -841,6 +1057,19 @@
       btn.disabled = true;
 
       try {
+        if (lookupSource === 'dict') {
+          const entry = await lookupDictionary(word);
+          document.getElementById('inputWord').value = entry.word;
+          if (entry.syllables) document.getElementById('inputSyllables').value = entry.syllables;
+          lastSenses = entry.senses;
+          applySense(0);
+          checkDuplicate();
+          showToast(entry.senses.length > 1
+            ? `Wikcionario: ${entry.senses.length} acepciones. Elige la que buscas.`
+            : 'Definición tomada de Wikcionario');
+          return;
+        }
+
         const prompt = `Analiza la palabra en español "${word}" y devuelve un objeto JSON con estas claves exactas:
         {
           "word": "Palabra con ortografía y tilde correcta",
@@ -853,19 +1082,24 @@
         }`;
 
         const info = await callAIJSON(prompt);
+        renderSenses([]);
         fillModalFields(info || {});
         showToast('Definición y matices generados con Gemini');
       } catch (e) {
-        // Si la IA falla, se intenta con lo que ya hay en el glosario compartido o en el diccionario local.
-        const localMatch = [...glossary, ...SEED_DISCOVER_WORDS].find(w => norm(w.word) === norm(word));
-        if (localMatch) {
-          fillModalFields(localMatch);
-          showToast('IA no disponible: autocompletado desde el glosario');
+        if (lookupSource === 'dict') {
+          showToast(e.message);
         } else {
-          showToast('Error Gemini: ' + e.message);
+          // Si la IA falla, se intenta con lo que ya hay en el glosario compartido o en el diccionario local.
+          const localMatch = [...glossary, ...SEED_DISCOVER_WORDS].find(w => norm(w.word) === norm(word));
+          if (localMatch) {
+            fillModalFields(localMatch);
+            showToast('IA no disponible: autocompletado desde el glosario');
+          } else {
+            showToast('Error Gemini: ' + e.message);
+          }
         }
       } finally {
-        btn.textContent = '✨ Autocompletar';
+        btn.textContent = autocompleteLabel();
         btn.disabled = false;
       }
     }
@@ -878,10 +1112,30 @@
       document.getElementById('inputExample').value = str(info.example);
       document.getElementById('inputPlain').value = str(info.plain);
       if (TONES.includes(info.tone)) document.getElementById('inputTone').value = info.tone;
+      checkDuplicate();
+    }
+
+    async function updateWord(id, item) {
+      const row = toRow(item);
+      if (!row.word || !row.definition) { showToast('Introduce al menos la palabra y su definición'); return false; }
+      if (myWords().some(w => w.id !== id && norm(w.word) === norm(row.word))) {
+        showToast(`Ya tienes otra ficha de «${row.word}» en tu glosario`);
+        return false;
+      }
+      const { data, error } = await sb.from('words').update(row).eq('id', id).select().single();
+      if (error) {
+        showToast(error.code === '23505' ? `Ya tienes otra ficha de «${row.word}»` : 'No se pudo guardar: ' + error.message);
+        return false;
+      }
+      glossary = glossary.map(w => w.id === id ? data : w);
+      renderGlossary();
+      renderDiscoverCard();
+      showToast(`«${row.word}» actualizada`);
+      return true;
     }
 
     async function saveWordFromModal() {
-      const saved = await addWord({
+      const item = {
         word: document.getElementById('inputWord').value,
         category: document.getElementById('inputCategory').value.trim() || 'adj.',
         syllables: document.getElementById('inputSyllables').value,
@@ -889,10 +1143,12 @@
         example: document.getElementById('inputExample').value,
         plain: document.getElementById('inputPlain').value,
         tone: document.getElementById('inputTone').value
-      });
+      };
+      const saved = editingId ? await updateWord(editingId, item) : await addWord(item);
       if (!saved) return;
+      editingId = null;
+      MODAL_FIELDS.forEach(id => document.getElementById(id).value = '');
       closeAddModal();
-      ['inputWord', 'inputCategory', 'inputSyllables', 'inputDefinition', 'inputExample', 'inputPlain'].forEach(id => document.getElementById(id).value = '');
     }
 
     async function generateNewDiscoveryBatch() {
