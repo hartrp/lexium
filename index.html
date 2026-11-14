@@ -1,16 +1,16 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lexium — Glosario literario compartido</title>
-  <meta name="theme-color" content="#F7F4EF" />
+  <meta name="theme-color" content="#0C111D" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -21,24 +21,27 @@
         extend: {
           fontFamily: {
             serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
-            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            sans: ['"Alegreya Sans"', 'system-ui', 'sans-serif'],
           },
+          borderRadius: { xl: '5px', '2xl': '6px', '3xl': '8px' },
           colors: {
+            // Modo pergamino (claro)
             paper: {
-              light: '#F7F4EF',
-              card: '#EFECE6',
-              border: '#E2DDD5',
-              ink: '#1C1B18',
-              muted: '#6E6A63',
-              accent: '#7C2D12'
+              light: '#F3EAD3',
+              card: '#EBDFC1',
+              border: '#CDBB93',
+              ink: '#2A2118',
+              muted: '#6B5E4B',
+              accent: '#8A5A12'
             },
+            // Modo biblioteca nocturna (oscuro, principal)
             night: {
-              bg: '#141413',
-              card: '#1E1E1C',
-              border: '#2E2D2A',
-              ink: '#EDEAE4',
-              muted: '#9A968E',
-              accent: '#D97757'
+              bg: '#0C111D',
+              card: '#141B2D',
+              border: '#2A3450',
+              ink: '#E8DFC8',
+              muted: '#9299AE',
+              accent: '#C9A24B'
             }
           }
         }
@@ -46,8 +49,39 @@
     }
   </script>
   <style>
-    body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+    :root { --gold: #8A5A12; --inner: rgba(138, 90, 18, 0.28); --glow: #FBF4E2; --deep: #F3EAD3; }
+    .dark { --gold: #C9A24B; --inner: rgba(201, 162, 75, 0.24); --glow: #1B2644; --deep: #0C111D; color-scheme: dark; }
+
+    body {
+      font-family: 'Alegreya Sans', system-ui, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      background-image: radial-gradient(1100px 520px at 50% -8%, var(--glow), transparent 72%);
+      background-attachment: fixed;
+      background-repeat: no-repeat;
+    }
     .font-editorial { font-family: 'Cormorant Garamond', Georgia, serif; }
+    .font-display { font-family: 'Cinzel', 'Cormorant Garamond', serif; letter-spacing: 0.06em; }
+    .label-caps { font-family: 'Cinzel', 'Cormorant Garamond', serif; text-transform: uppercase; letter-spacing: 0.12em; }
+
+    /* Marco fino interior de fichas y paneles */
+    .frame { position: relative; }
+    .frame::before { content: ''; position: absolute; inset: 5px; border: 1px solid var(--inner); border-radius: 3px; pointer-events: none; }
+
+    /* Filete con rombo central */
+    .rule { display: flex; align-items: center; gap: 0.6rem; color: var(--gold); font-size: 0.5rem; line-height: 1; }
+    .rule::before, .rule::after { content: ''; flex: 1; height: 1px; }
+    .rule::before { background: linear-gradient(90deg, transparent, var(--inner)); }
+    .rule::after { background: linear-gradient(90deg, var(--inner), transparent); }
+
+    /* Capitular */
+    .dropcap { font-family: 'Cinzel', serif; font-weight: 700; color: var(--gold); font-size: 1.12em; margin-right: 0.03em; }
+
+    /* Sello de escuela (atmósfera) */
+    .seal { display: inline-flex; align-items: center; justify-content: center; width: 1.35rem; height: 1.35rem; flex: none; border-radius: 9999px; color: #F3EAD3; font-size: 0.7rem; line-height: 1; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.45); }
+
+    /* Medallón: logotipo y rangos */
+    .medal { display: inline-flex; align-items: center; justify-content: center; flex: none; border-radius: 9999px; border: 1px solid var(--gold); box-shadow: inset 0 0 0 2px var(--deep), inset 0 0 0 3px var(--inner); color: var(--gold); font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 0.04em; }
+
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(150, 145, 135, 0.3); border-radius: 3px; }
@@ -56,10 +90,10 @@
 <body class="bg-paper-light text-paper-ink dark:bg-night-bg dark:text-night-ink min-h-screen transition-colors duration-300 flex flex-col">
 
   <div id="authView" class="fixed inset-0 z-[60] bg-paper-light dark:bg-night-bg hidden items-center justify-center p-4">
-    <form onsubmit="submitAuth(event)" class="w-full max-w-sm rounded-3xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-7 space-y-4 shadow-sm">
+    <form onsubmit="submitAuth(event)" class="frame w-full max-w-sm rounded-3xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-7 space-y-4 shadow-sm">
       <div class="text-center space-y-2">
-        <div class="w-12 h-12 mx-auto rounded-full bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg flex items-center justify-center font-editorial font-bold text-2xl">L</div>
-        <h2 class="font-editorial text-3xl font-bold tracking-tight">Lexium</h2>
+        <div class="medal w-14 h-14 text-2xl">L</div>
+        <h2 class="font-display text-2xl font-bold uppercase tracking-[0.22em] text-paper-accent dark:text-night-accent">Lexium</h2>
         <p class="text-xs text-paper-muted dark:text-night-muted">Glosario compartido. Entra con tu cuenta.</p>
       </div>
       <div id="authNameWrap" class="hidden">
@@ -75,7 +109,7 @@
         <input type="password" id="authPassword" required autocomplete="current-password" class="w-full mt-1 px-3.5 py-2.5 rounded-xl bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border text-sm focus:outline-none focus:ring-2 focus:ring-paper-ink/20 dark:focus:ring-night-ink/20" />
       </div>
       <p id="authError" class="hidden text-xs text-red-600 dark:text-red-400"></p>
-      <button type="submit" id="btnSignIn" class="w-full px-5 py-2.5 rounded-xl text-sm font-medium bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg hover:opacity-90 transition">Entrar</button>
+      <button type="submit" id="btnSignIn" class="w-full px-5 py-2.5 rounded-xl text-sm font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg hover:opacity-90 transition">Entrar</button>
       <button type="button" id="authToggle" onclick="toggleAuthMode()" class="w-full text-xs underline text-paper-accent dark:text-night-accent">¿Primera vez? Crear cuenta</button>
       <p class="text-[11px] text-center text-paper-muted dark:text-night-muted">Solo pueden registrarse los emails invitados.</p>
     </form>
@@ -84,11 +118,9 @@
   <header class="sticky top-0 z-30 backdrop-blur-md bg-paper-light/90 dark:bg-night-bg/90 border-b border-paper-border dark:border-night-border">
     <div class="max-w-5xl mx-auto px-4 py-3.5 flex items-center justify-between gap-2">
       <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-full bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg flex items-center justify-center font-editorial font-bold text-xl tracking-tighter">
-          L
-        </div>
+        <div class="medal w-10 h-10 text-lg">L</div>
         <div>
-          <h1 class="font-editorial text-2xl font-bold leading-none tracking-tight">Lexium</h1>
+          <h1 class="font-display text-xl font-bold leading-none uppercase tracking-[0.22em] text-paper-accent dark:text-night-accent">Lexium</h1>
           <div class="flex items-center gap-2 mt-0.5">
             <span id="syncStatusDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
             <span id="syncStatusText" class="text-[11px] text-paper-muted dark:text-night-muted">Sin conectar</span>
@@ -97,31 +129,31 @@
       </div>
 
       <div class="flex items-center gap-2">
-        <button onclick="openAddModal()" class="px-3.5 py-2 rounded-full bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg text-xs sm:text-sm font-medium hover:opacity-90 transition flex items-center gap-1.5 shadow-sm">
+        <button onclick="openAddModal()" class="px-3.5 py-2 rounded-md bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg text-xs sm:text-sm font-medium hover:opacity-90 transition flex items-center gap-1.5 shadow-sm">
           <span>+</span> <span>Apuntar palabra</span>
         </button>
         
-        <button onclick="reloadFromCloud(true)" id="btnQuickSync" title="Recargar el glosario compartido" class="p-2 rounded-full border border-paper-border dark:border-night-border hover:bg-paper-card dark:hover:bg-night-card transition">
+        <button onclick="reloadFromCloud(true)" id="btnQuickSync" title="Recargar el glosario compartido" class="p-2 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-card dark:hover:bg-night-card transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         </button>
 
-        <button onclick="toggleTheme()" title="Cambiar modo de lectura" class="p-2 rounded-full border border-paper-border dark:border-night-border hover:bg-paper-card dark:hover:bg-night-card transition">
-          <span id="themeIcon">🌙</span>
+        <button onclick="toggleTheme()" title="Cambiar modo de lectura" class="p-2 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-card dark:hover:bg-night-card transition">
+          <span id="themeIcon">☼</span>
         </button>
 
-        <button onclick="openSettingsModal()" title="Cuenta y copias de seguridad" class="p-2 rounded-full border border-paper-border dark:border-night-border hover:bg-paper-card dark:hover:bg-night-card transition relative">
-          <span>⚙️</span>
+        <button onclick="openSettingsModal()" title="Cuenta y copias de seguridad" class="p-2 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-card dark:hover:bg-night-card transition relative">
+          <span>⚙&#xFE0E;</span>
         </button>
       </div>
     </div>
 
-    <nav class="max-w-5xl mx-auto px-4 flex gap-6 text-sm border-t border-paper-border/50 dark:border-night-border/50 overflow-x-auto">
-      <button onclick="switchTab('glossary')" id="tab-glossary" class="py-2.5 border-b-2 border-paper-ink dark:border-night-ink font-medium whitespace-nowrap transition flex items-center gap-1.5">
+    <nav class="max-w-5xl mx-auto px-4 flex gap-6 text-[11px] label-caps border-t border-paper-border/50 dark:border-night-border/50 overflow-x-auto">
+      <button onclick="switchTab('glossary')" id="tab-glossary" class="py-2.5 border-b-2 border-paper-ink dark:border-night-accent dark:text-night-accent font-medium whitespace-nowrap transition flex items-center gap-1.5">
         <span>Glosario</span>
         <span id="glossaryCount" class="text-[11px] px-1.5 py-0.5 rounded-full bg-paper-card dark:bg-night-card">0</span>
       </button>
       <button onclick="switchTab('reverse')" id="tab-reverse" class="py-2.5 border-b-2 border-transparent text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink whitespace-nowrap transition">
-        🔍 Buscador Inverso (Al escribir)
+        Buscador inverso
       </button>
     </nav>
   </header>
@@ -133,7 +165,7 @@
       <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3">
         <div class="relative flex-1 sm:basis-full lg:basis-0 lg:min-w-[16rem]">
           <input type="text" id="glossarySearch" oninput="renderGlossary()" placeholder="Busca por palabra culta o por idea llana (ej: 'oscuro', 'triste', 'atardecer')..." class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm focus:outline-none focus:ring-2 focus:ring-paper-ink/20 dark:focus:ring-night-ink/20" />
-          <span class="absolute left-3.5 top-3 text-paper-muted dark:text-night-muted text-sm">🔍</span>
+          <svg class="absolute left-3.5 top-3 w-4 h-4 text-paper-muted dark:text-night-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M20 20l-3.5-3.5"/></svg>
         </div>
 
         <select id="glossaryAuthorFilter" onchange="renderGlossary()" class="px-4 py-2.5 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm focus:outline-none">
@@ -162,9 +194,9 @@
     </section>
 
     <section id="view-reverse" class="hidden space-y-6 max-w-3xl mx-auto">
-      <div class="rounded-3xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-6 space-y-4">
+      <div class="frame rounded-3xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-7 space-y-4">
         <div>
-          <h2 class="font-editorial text-2xl font-bold">Buscador Inverso y Conceptual</h2>
+          <h2 class="font-display text-lg font-bold text-paper-accent dark:text-night-accent">Buscador Inverso y Conceptual</h2>
           <p class="text-xs sm:text-sm text-paper-muted dark:text-night-muted mt-1">
             Describe la sensación, escena o palabra común que quieres evitar mientras escribes.
           </p>
@@ -172,7 +204,7 @@
 
         <div class="flex flex-col sm:flex-row gap-2">
           <input type="text" id="reverseInput" onkeydown="if(event.key==='Enter') runReverseSearch()" placeholder="Ej: 'olor a tierra mojada', 'luz débil entre los árboles', 'silencio tenso'..." class="flex-1 px-4 py-3 rounded-2xl bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border text-sm focus:outline-none" />
-          <button onclick="runReverseSearch()" id="btnReverseSearch" class="px-5 py-3 rounded-2xl bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg text-sm font-medium hover:opacity-90 transition whitespace-nowrap">
+          <button onclick="runReverseSearch()" id="btnReverseSearch" class="px-5 py-3 rounded-2xl bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg text-sm font-medium hover:opacity-90 transition whitespace-nowrap">
             Buscar léxico preciso
           </button>
         </div>
@@ -186,7 +218,7 @@
   <div id="addModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between">
-        <h3 id="addModalTitle" class="font-editorial text-2xl font-bold">Apuntar palabra</h3>
+        <h3 id="addModalTitle" class="font-display text-lg font-bold text-paper-accent dark:text-night-accent">Apuntar palabra</h3>
         <button onclick="closeAddModal()" class="text-paper-muted hover:text-paper-ink text-xl">✕</button>
       </div>
 
@@ -196,14 +228,14 @@
           <div class="flex gap-2 mt-1">
             <input type="text" id="inputWord" oninput="checkDuplicate()" placeholder="Ej: Estulticia, Arrebol, Lóbrego..." class="flex-1 px-3.5 py-2.5 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm focus:outline-none" />
             <button onclick="autocompleteWord()" id="btnAutocomplete" class="px-3.5 py-2.5 rounded-xl bg-paper-accent text-white dark:bg-night-accent dark:text-night-bg text-xs font-medium hover:opacity-90 transition whitespace-nowrap">
-              ✨ Autocompletar
+              Autocompletar
             </button>
           </div>
           <div id="sourceRow" class="hidden flex items-center gap-2 mt-2">
             <span class="text-[11px] text-paper-muted dark:text-night-muted">Buscar en:</span>
-            <div class="inline-flex rounded-full border border-paper-border dark:border-night-border p-0.5 text-[11px]">
-              <button type="button" id="srcDict" onclick="setLookupSource('dict')" class="px-2.5 py-1 rounded-full">📖 Diccionario</button>
-              <button type="button" id="srcAi" onclick="setLookupSource('ai')" class="px-2.5 py-1 rounded-full">✨ IA</button>
+            <div class="inline-flex rounded-md border border-paper-border dark:border-night-border p-0.5 text-[11px]">
+              <button type="button" id="srcDict" onclick="setLookupSource('dict')" class="px-2.5 py-1 rounded-md">Diccionario</button>
+              <button type="button" id="srcAi" onclick="setLookupSource('ai')" class="px-2.5 py-1 rounded-md">IA</button>
             </div>
           </div>
           <p id="lookupHint" class="text-[11px] text-paper-muted dark:text-night-muted mt-1"></p>
@@ -253,7 +285,7 @@
 
       <div class="flex justify-end gap-2 pt-3 border-t border-paper-border dark:border-night-border">
         <button onclick="closeAddModal()" class="px-4 py-2 rounded-xl text-xs border border-paper-border dark:border-night-border">Cancelar</button>
-        <button onclick="saveWordFromModal()" id="btnSaveWord" class="px-5 py-2 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg">Guardar en mi glosario</button>
+        <button onclick="saveWordFromModal()" id="btnSaveWord" class="px-5 py-2 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg">Guardar en mi glosario</button>
       </div>
     </div>
   </div>
@@ -261,7 +293,7 @@
   <div id="settingsModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between">
-        <h3 class="font-editorial text-2xl font-bold">Cuenta y copias de seguridad</h3>
+        <h3 class="font-display text-lg font-bold text-paper-accent dark:text-night-accent">Cuenta y copias de seguridad</h3>
         <button onclick="closeSettingsModal()" class="text-paper-muted hover:text-paper-ink text-xl">✕</button>
       </div>
 
@@ -288,24 +320,24 @@
         <span class="text-xs font-semibold uppercase tracking-wider">2. Copia de seguridad (JSON)</span>
         <p class="text-xs text-paper-muted dark:text-night-muted">Exporta tus palabras o importa un archivo. Lo importado se guarda a tu nombre y se saltan las que ya tienes.</p>
         <div class="flex flex-wrap gap-2 pt-1">
-          <button onclick="exportGlossaryJSON()" class="px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border bg-paper-light dark:bg-night-bg">⬇ Descargar mi glosario</button>
+          <button onclick="exportGlossaryJSON()" class="px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border bg-paper-light dark:bg-night-bg">Descargar mi glosario</button>
           <label class="px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border bg-paper-light dark:bg-night-bg cursor-pointer">
-            ⬆ Importar archivo JSON
+            Importar archivo JSON
             <input type="file" accept=".json" onchange="importGlossaryJSON(event)" class="hidden" />
           </label>
-          <button onclick="importRepoGlossary()" class="px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border bg-paper-light dark:bg-night-bg">⬆ Importar glosario.json del repositorio</button>
+          <button onclick="importRepoGlossary()" class="px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border bg-paper-light dark:bg-night-bg">Importar glosario.json del repositorio</button>
           <button onclick="importLegacyLocal()" id="btnImportLegacy" class="hidden px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border bg-paper-light dark:bg-night-bg"></button>
         </div>
       </div>
 
       <div class="flex justify-between gap-2 pt-2">
         <button onclick="signOut()" class="px-4 py-2 rounded-xl text-xs border border-paper-border dark:border-night-border">Cerrar sesión</button>
-        <button onclick="closeSettingsModal()" class="px-5 py-2 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg">Cerrar</button>
+        <button onclick="closeSettingsModal()" class="px-5 py-2 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg">Cerrar</button>
       </div>
     </div>
   </div>
 
-  <div id="toast" class="fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-2xl bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg text-xs font-medium shadow-lg hidden transition-all"></div>
+  <div id="toast" class="fixed bottom-5 right-5 z-50 px-4 py-2.5 rounded-2xl bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg text-xs font-medium shadow-lg hidden transition-all"></div>
 
   <script>
     const SEED_DISCOVER_WORDS = [
@@ -399,6 +431,27 @@
     function str(value) { return typeof value === 'string' ? value.trim() : (value == null ? '' : String(value).trim()); }
     function norm(word) { return str(word).toLowerCase(); }
 
+    // Cada atmósfera es una "escuela" con su sello de color.
+    const SCHOOLS = {
+      'Gótico / Sombrío': { color: '#8E2F3A', glyph: '☽' },
+      'Naturaleza / Sensorial': { color: '#3F7A54', glyph: '❧' },
+      'Psicológico / Emocional': { color: '#6B4FA0', glyph: '✦' },
+      'Arcaísmo / Histórico': { color: '#9A6B22', glyph: '♜' },
+      'Cultismo / Precisión': { color: '#33608F', glyph: '❖' }
+    };
+
+    function toneBadge(tone) {
+      const name = TONES.includes(tone) ? tone : 'Cultismo / Precisión';
+      const school = SCHOOLS[name];
+      return `<span class="inline-flex items-center gap-1.5"><span class="seal" style="background:${school.color}">${school.glyph}</span><span class="label-caps text-[10px] text-paper-muted dark:text-night-muted">${esc(name)}</span></span>`;
+    }
+
+    // Palabra con la inicial como capitular dorada.
+    function fancyWord(word) {
+      const w = str(word);
+      return w ? `<span class="dropcap">${esc(w.charAt(0))}</span>${esc(w.slice(1))}` : '';
+    }
+
     function showToast(msg) {
       const t = document.getElementById('toast');
       t.textContent = msg;
@@ -439,10 +492,9 @@
 
     // ---------- ARRANQUE Y SESIÓN ----------
     window.addEventListener('DOMContentLoaded', () => {
-      if (localStorage.getItem('lexico_theme') === 'dark') {
-        document.documentElement.classList.add('dark');
-        document.getElementById('themeIcon').textContent = '☀️';
-      }
+      const light = localStorage.getItem('lexico_theme') === 'light';
+      document.documentElement.classList.toggle('dark', !light);
+      document.getElementById('themeIcon').textContent = light ? '☾' : '☼';
       renderGlossary();
       updateStatus();
       setLookupSource(lookupSource);
@@ -579,7 +631,7 @@
     function toggleTheme() {
       const isDark = document.documentElement.classList.toggle('dark');
       localStorage.setItem('lexico_theme', isDark ? 'dark' : 'light');
-      document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
+      document.getElementById('themeIcon').textContent = isDark ? '☼' : '☾';
     }
 
     function switchTab(tab) {
@@ -587,7 +639,7 @@
         document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab);
         const btn = document.getElementById(`tab-${t}`);
         if (t === tab) {
-          btn.className = 'py-2.5 border-b-2 border-paper-ink dark:border-night-ink font-medium whitespace-nowrap transition flex items-center gap-1.5';
+          btn.className = 'py-2.5 border-b-2 border-paper-ink dark:border-night-accent dark:text-night-accent font-medium whitespace-nowrap transition flex items-center gap-1.5';
         } else {
           btn.className = 'py-2.5 border-b-2 border-transparent text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink whitespace-nowrap transition flex items-center gap-1.5';
         }
@@ -595,15 +647,16 @@
     }
 
     // ---------- RANGOS ----------
-    // Cada autora sube de rango según las palabras que lleva apuntadas.
+    // Cada persona sube de rango según las palabras que lleva apuntadas.
     // Para cambiar nombres o umbrales basta con editar esta lista.
     const RANKS = [
-      { name: 'Iniciado', min: 0 },
-      { name: 'Paladín', min: 10 },
-      { name: 'Brujo', min: 25 },
-      { name: 'Mago', min: 50 },
-      { name: 'Archimago', min: 100 }
+      { name: 'Aprendiz', min: 0 },
+      { name: 'Escriba', min: 10 },
+      { name: 'Cronista', min: 25 },
+      { name: 'Arcanista', min: 50 },
+      { name: 'Oráculo', min: 100 }
     ];
+    const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 
     function rankFor(count) {
       let index = 0;
@@ -611,7 +664,7 @@
       const rank = RANKS[index];
       const next = RANKS[index + 1] || null;
       const progress = next ? Math.round(((count - rank.min) / (next.min - rank.min)) * 100) : 100;
-      return { rank, next, progress };
+      return { rank, next, progress, index };
     }
 
     function wordCounts() {
@@ -626,22 +679,25 @@
         (counts[b.id] || 0) - (counts[a.id] || 0) || a.display_name.localeCompare(b.display_name, 'es'));
       panel.innerHTML = people.map(p => {
         const n = counts[p.id] || 0;
-        const { rank, next, progress } = rankFor(n);
+        const { rank, next, progress, index } = rankFor(n);
         const me = currentUser && p.id === currentUser.id;
         return `
-        <div class="rounded-2xl bg-paper-card dark:bg-night-card border ${me ? 'border-paper-ink/40 dark:border-night-ink/40' : 'border-paper-border dark:border-night-border'} p-3.5">
-          <div class="flex items-center gap-2.5">
-            <span class="w-8 h-8 shrink-0 rounded-full text-white flex items-center justify-center text-sm font-semibold" style="background:${authorColor(p.id)}">${esc(p.display_name.charAt(0).toUpperCase())}</span>
+        <div class="frame rounded-2xl bg-paper-card dark:bg-night-card border ${me ? 'border-paper-accent/60 dark:border-night-accent/60' : 'border-paper-border dark:border-night-border'} p-4">
+          <div class="flex items-center gap-3">
+            <span class="medal w-11 h-11 shrink-0 text-sm" title="Rango ${ROMAN[index] || ''}">${ROMAN[index] || ''}</span>
             <div class="min-w-0">
-              <p class="text-xs text-paper-muted dark:text-night-muted truncate">${esc(p.display_name)}${me ? ' (tú)' : ''}</p>
-              <p class="font-editorial text-xl leading-none font-bold">${esc(rank.name)}</p>
+              <p class="font-display text-base leading-tight font-bold text-paper-accent dark:text-night-accent">${esc(rank.name)}</p>
+              <p class="flex items-center gap-1.5 text-xs text-paper-muted dark:text-night-muted">
+                <span class="w-2 h-2 shrink-0 rounded-full" style="background:${authorColor(p.id)}"></span>
+                <span class="truncate">${esc(p.display_name)}${me ? ' (tú)' : ''}</span>
+              </p>
             </div>
             <span class="ml-auto text-xs text-paper-muted dark:text-night-muted whitespace-nowrap">${n} ${n === 1 ? 'palabra' : 'palabras'}</span>
           </div>
-          <div class="mt-2.5 h-1.5 rounded-full bg-paper-border dark:bg-night-border overflow-hidden">
+          <div class="mt-3 h-1 rounded-full bg-paper-border dark:bg-night-border overflow-hidden">
             <div class="h-full rounded-full bg-paper-accent dark:bg-night-accent" style="width:${progress}%"></div>
           </div>
-          <p class="mt-1 text-[11px] text-paper-muted dark:text-night-muted">${next ? `Faltan ${next.min - n} para ${esc(next.name)}` : 'Rango máximo alcanzado'}</p>
+          <p class="mt-1.5 text-[11px] text-paper-muted dark:text-night-muted">${next ? `Faltan ${next.min - n} para ${esc(next.name)}` : 'Rango máximo alcanzado'}</p>
         </div>`;
       }).join('');
     }
@@ -735,22 +791,23 @@
              </span>`
           : (iHave(item.word)
               ? `<span class="text-[11px] text-paper-muted dark:text-night-muted">★ También en el tuyo</span>`
-              : `<button onclick="copyWordToMine('${esc(item.id)}')" class="text-[11px] px-2.5 py-0.5 rounded-full border border-paper-border dark:border-night-border hover:bg-paper-light dark:hover:bg-night-bg transition">+ A mi glosario</button>`);
+              : `<button onclick="copyWordToMine('${esc(item.id)}')" class="text-[11px] px-2.5 py-0.5 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-light dark:hover:bg-night-bg transition">+ A mi glosario</button>`);
         return `
-        <article class="rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5 flex flex-col justify-between gap-3">
+        <article class="frame rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-6 flex flex-col justify-between gap-3">
           <div>
             <div class="flex items-center justify-between gap-2">
-              <span class="text-[11px] px-2.5 py-0.5 rounded-full border border-paper-border dark:border-night-border">${esc(item.tone || 'Cultismo / Precisión')}</span>
+              ${toneBadge(item.tone)}
               ${action}
             </div>
             <div class="mt-2 flex items-baseline gap-2">
-              <h3 class="font-editorial text-3xl font-bold">${esc(item.word)}</h3>
+              <h3 class="font-editorial text-3xl font-bold">${fancyWord(item.word)}</h3>
               <span class="text-xs italic text-paper-muted dark:text-night-muted">${esc(item.category)}</span>
             </div>
             <p class="text-sm mt-1.5 leading-relaxed">${esc(item.definition)}</p>
             ${item.example ? `<p class="font-editorial italic text-sm text-paper-muted dark:text-night-muted mt-2">«${esc(item.example.replace(/[«»]/g, ''))}»</p>` : ''}
           </div>
-          <div class="pt-2 border-t border-paper-border/60 dark:border-night-border/60 space-y-2 text-xs">
+          <div class="space-y-2 text-xs">
+            <div class="rule"><span>◆</span></div>
             <div class="flex items-center justify-between gap-2">
               <span class="text-paper-muted dark:text-night-muted">Idea llana: <strong class="text-paper-accent dark:text-night-accent font-medium">${esc(item.plain || '—')}</strong></span>
               <span class="text-[11px] text-paper-muted dark:text-night-muted">${esc(item.syllables)}</span>
@@ -851,7 +908,7 @@
     }
 
     // ---------- FUENTE DEL AUTOCOMPLETADO: IA O DICCIONARIO ----------
-    function autocompleteLabel() { return lookupSource === 'dict' ? '📖 Buscar' : '✨ Autocompletar'; }
+    function autocompleteLabel() { return lookupSource === 'dict' ? 'Buscar' : 'Autocompletar'; }
 
     function setLookupSource(source) {
       if (canUseAI()) {
@@ -860,8 +917,8 @@
       } else {
         lookupSource = 'dict'; // sin acceso a la IA solo hay diccionario
       }
-      const on = 'px-2.5 py-1 rounded-full bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg';
-      const off = 'px-2.5 py-1 rounded-full text-paper-muted dark:text-night-muted';
+      const on = 'px-2.5 py-1 rounded-md bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg';
+      const off = 'px-2.5 py-1 rounded-md text-paper-muted dark:text-night-muted';
       document.getElementById('srcAi').className = lookupSource === 'ai' ? on : off;
       document.getElementById('srcDict').className = lookupSource === 'dict' ? on : off;
       document.getElementById('btnAutocomplete').textContent = autocompleteLabel();
@@ -1156,14 +1213,14 @@
           : '';
         const button = iHave(item.word)
           ? `<span class="text-[11px] text-paper-muted dark:text-night-muted whitespace-nowrap">★ Guardada</span>`
-          : `<button onclick="saveReverseResult(${idx})" class="px-3 py-1.5 rounded-full text-xs border border-paper-border dark:border-night-border hover:bg-paper-ink hover:text-paper-light transition whitespace-nowrap">+ Guardar</button>`;
+          : `<button onclick="saveReverseResult(${idx})" class="px-3 py-1.5 rounded-md text-xs border border-paper-border dark:border-night-border hover:bg-paper-ink hover:text-paper-light transition whitespace-nowrap">+ Guardar</button>`;
         return `
-          <div class="p-5 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border flex items-start justify-between gap-4">
+          <div class="frame p-6 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border flex items-start justify-between gap-4">
             <div class="space-y-1">
               <div class="flex flex-wrap items-baseline gap-2">
-                <h4 class="font-editorial text-2xl font-bold">${esc(item.word)}</h4>
+                <h4 class="font-editorial text-2xl font-bold">${fancyWord(item.word)}</h4>
                 <span class="text-xs italic text-paper-muted">${esc(item.category)}</span>
-                <span class="text-[11px] px-2 py-0.5 rounded-full border border-paper-border dark:border-night-border">${esc(item.tone || 'Cultismo / Precisión')}</span>
+                ${toneBadge(item.tone)}
               </div>
               <p class="text-sm">${esc(item.definition)}</p>
               ${item.example ? `<p class="font-editorial italic text-sm text-paper-muted">«${esc(item.example.replace(/[«»]/g, ''))}»</p>` : ''}
@@ -1188,7 +1245,7 @@
       const legacy = safeParse('lexico_glossary');
       const legacyBtn = document.getElementById('btnImportLegacy');
       if (Array.isArray(legacy) && legacy.length > 0) {
-        legacyBtn.textContent = `⬆ Importar las ${legacy.length} palabras guardadas en este dispositivo`;
+        legacyBtn.textContent = `Importar las ${legacy.length} palabras guardadas en este dispositivo`;
         legacyBtn.classList.remove('hidden');
       } else {
         legacyBtn.classList.add('hidden');
