@@ -131,7 +131,7 @@
 
     /* Impresión o PDF: solo las fichas del glosario, en tinta sobre blanco */
     @media print {
-      header, #ranksPanel, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, .no-print, .ribbon-wrap { display: none !important; }
+      header, #ranksPanel, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-guild, .no-print, .ribbon-wrap { display: none !important; }
       html { font-size: 12px; }
       body, #view-glossary article { background: #fff !important; background-image: none !important; color: #000 !important; }
       #view-glossary { display: block !important; }
@@ -216,6 +216,9 @@
       <button onclick="switchTab('review')" id="tab-review" class="py-2.5 border-b-2 border-transparent text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink whitespace-nowrap transition flex items-center gap-1.5">
         <i class="gi gi-brain"></i><span>Repaso</span>
       </button>
+      <button onclick="switchTab('guild')" id="tab-guild" class="py-2.5 border-b-2 border-transparent text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink whitespace-nowrap transition flex items-center gap-1.5">
+        <i class="gi gi-tavern-sign"></i><span>Gremio</span>
+      </button>
     </nav>
   </header>
 
@@ -253,6 +256,7 @@
 
         <select id="glossarySort" onchange="renderGlossary()" class="px-4 py-2.5 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm focus:outline-none">
           <option value="recent">Más recientes</option>
+          <option value="liked">Más queridas</option>
           <option value="oldest">Más antiguas</option>
           <option value="az">A → Z</option>
           <option value="za">Z → A</option>
@@ -293,6 +297,10 @@
         <button onclick="startReview()" class="px-4 py-2.5 rounded-2xl text-xs border border-paper-border dark:border-night-border">Barajar de nuevo</button>
       </div>
       <div id="reviewCard" class="frame rounded-3xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-8 text-center min-h-[320px]"></div>
+    </section>
+
+    <section id="view-guild" class="hidden">
+      <div id="guildPanel" class="space-y-5"></div>
     </section>
 
   </main>
@@ -554,6 +562,12 @@
     let glossary = [];      // palabras de todas las autoras, tal como están en la base de datos
     let profiles = {};      // id de usuaria -> { id, display_name }
     let currentUser = null;
+    let likes = [];          // me gusta de todo el grupo: { word_id, user_id }
+    let likeMap = {};        // id de palabra -> ids de quienes le han dado me gusta
+    let likesReady = false;  // true cuando la base de datos ya tiene la tabla de me gusta
+    let gameReady = false;  // true cuando la base de datos ya tiene clases y rondas de repaso
+    let reviewSessions = []; // rondas de repaso de todo el grupo
+    let guild = {};          // id de persona -> experiencia, nivel, estadísticas y logros
     let tonesReady = false; // true cuando la base de datos ya tiene la tabla de atmósferas
     let hasExtras = true;   // false si la base de datos aún no tiene las columnas de citas y marcas
     let editingId = null;   // id de la palabra que se está editando (null = palabra nueva)
@@ -772,7 +786,8 @@
       const txt = document.getElementById('syncStatusText');
       if (currentUser) {
         dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
-        txt.textContent = authorName(currentUser.id) + ' · ' + rankFor(myWords().length).rank.name;
+        const me = guild[currentUser.id];
+        txt.textContent = authorName(currentUser.id) + (me ? ' · ' + me.title.name + ' · nivel ' + me.level : '');
       } else {
         dot.className = 'w-2 h-2 rounded-full bg-amber-500';
         txt.textContent = 'Sin conectar';
@@ -782,10 +797,12 @@
     // ---------- CARGA DE DATOS ----------
     async function reloadFromCloud(notify = false) {
       if (!currentUser) return;
-      const [pRes, wRes, tRes] = await Promise.all([
+      const [pRes, wRes, tRes, rRes, lRes] = await Promise.all([
         sb.from('profiles').select('*'),
         sb.from('words').select('*').order('created_at', { ascending: false }),
-        sb.from('tones').select('*').order('created_at', { ascending: true })
+        sb.from('tones').select('*').order('created_at', { ascending: true }),
+        sb.from('review_sessions').select('*').order('created_at', { ascending: true }),
+        sb.from('word_likes').select('word_id, user_id')
       ]);
       if (pRes.error || wRes.error) {
         showToast('No se pudo cargar el glosario: ' + (pRes.error || wRes.error).message);
@@ -803,6 +820,10 @@
 
       glossary = wRes.data;
       hasExtras = glossary.length === 0 || 'is_favorite' in glossary[0];
+      reviewSessions = rRes.error ? [] : rRes.data;
+      likes = lRes.error ? [] : lRes.data;
+      likesReady = !lRes.error;
+      gameReady = !rRes.error && Object.values(profiles).every(p => 'class' in p);
       tonesReady = !tRes.error; // false si aún no existe la tabla de atmósferas
       applyTones(tRes.error ? [] : tRes.data);
       renderGlossary();
@@ -819,7 +840,7 @@
     }
 
     function switchTab(tab) {
-      ['glossary', 'reverse', 'review'].forEach(t => {
+      ['glossary', 'reverse', 'review', 'guild'].forEach(t => {
         document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab);
         const btn = document.getElementById(`tab-${t}`);
         if (t === tab) {
@@ -829,64 +850,273 @@
         }
       });
       if (tab === 'review' && reviewDeck.length === 0) startReview();
+      if (tab === 'guild') renderGuild();
     }
 
-    // ---------- RANGOS ----------
-    // Cada persona sube de rango según las palabras que lleva apuntadas.
-    // Para cambiar nombres o umbrales basta con editar esta lista.
-    const RANKS = [
-      { name: 'Aprendiz', min: 0, icon: 'feather' },
-      { name: 'Escriba', min: 10, icon: 'quill-ink' },
-      { name: 'Cronista', min: 25, icon: 'scroll-quill' },
-      { name: 'Arcanista', min: 50, icon: 'spell-book' },
-      { name: 'Oráculo', min: 100, icon: 'all-seeing-eye' }
+    // ---------- EXPERIENCIA, CLASES, NIVELES Y LOGROS ----------
+    // Todo se calcula a partir de lo que ya hay guardado (palabras, marcas y rondas de repaso),
+    // así que no hay puntos que se puedan descuadrar. Para ajustar el juego basta con tocar estas tablas.
+    const XP = { word: 10, source: 5, used: 5, round: 5, hit: 1, roundsPerDay: 3 };
+
+    const CLASSES = {
+      mago: { icon: 'wizard-staff', names: { m: 'Mago', f: 'Maga', n: 'Mague' }, bonus: 'Un 50 % más de experiencia por cada palabra que apunta.' },
+      hechicero: { icon: 'magic-swirl', names: { m: 'Hechicero', f: 'Hechicera', n: 'Hechicere' }, bonus: 'Un 50 % más por cada acierto en el repaso, y el doble en las rondas perfectas.' },
+      bardo: { icon: 'lyre', names: { m: 'Bardo', f: 'Barda', n: 'Barde' }, bonus: 'Un 50 % más por las citas con obra y autoría y por las palabras ya usadas.' },
+      barbaro: { icon: 'barbarian', names: { m: 'Bárbaro', f: 'Bárbara', n: 'Bárbare' }, bonus: 'Un 50 % más por cada ronda de repaso completada, acierte o no.' },
+      paladin: { icon: 'templar-shield', names: { m: 'Paladín', f: 'Paladina', n: 'Paladine' }, bonus: 'Un 10 % más por cada día seguido de actividad, hasta un 50 %.' },
+      picaro: { icon: 'rogue', names: { m: 'Pícaro', f: 'Pícara', n: 'Pícare' }, bonus: 'El doble de experiencia por las palabras que copia de otros glosarios.' }
+    };
+
+    // Título según el nivel alcanzado
+    const TITLES = [
+      { name: 'Aprendiz', level: 1, icon: 'feather' },
+      { name: 'Escriba', level: 3, icon: 'quill-ink' },
+      { name: 'Cronista', level: 5, icon: 'scroll-quill' },
+      { name: 'Arcanista', level: 7, icon: 'spell-book' },
+      { name: 'Oráculo', level: 10, icon: 'all-seeing-eye' }
     ];
-    const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 
-    function rankFor(count) {
-      let index = 0;
-      RANKS.forEach((r, i) => { if (count >= r.min) index = i; });
-      const rank = RANKS[index];
-      const next = RANKS[index + 1] || null;
-      const progress = next ? Math.round(((count - rank.min) / (next.min - rank.min)) * 100) : 100;
-      return { rank, next, progress, index };
+    const ACHIEVEMENTS = [
+      { icon: 'feather', name: 'Primera palabra', desc: 'Apunta tu primera palabra', test: s => s.words >= 1 },
+      { icon: 'book-pile', name: 'Diez palabras', desc: 'Reúne diez palabras', test: s => s.words >= 10 },
+      { icon: 'bookshelf', name: 'Cincuenta palabras', desc: 'Reúne cincuenta palabras', test: s => s.words >= 50 },
+      { icon: 'laurels', name: 'Cien palabras', desc: 'Reúne cien palabras', test: s => s.words >= 100 },
+      { icon: 'polar-star', name: 'Las cinco escuelas', desc: 'Ten una palabra de cada atmósfera de base', test: s => Object.keys(BASE_SCHOOLS).every(t => s.byTone[t]) },
+      { icon: 'scroll-unfurled', name: 'Con fuentes', desc: 'Diez citas con obra y autoría', test: s => s.sourced >= 10 },
+      { icon: 'quill-ink', name: 'Pluma en mano', desc: 'Diez palabras usadas en tus textos', test: s => s.used >= 10 },
+      { icon: 'round-star', name: 'Ronda perfecta', desc: 'Acierta todas en una ronda de cinco o más', test: s => s.perfect >= 1 },
+      { icon: 'hourglass', name: 'Veinte rondas', desc: 'Completa veinte rondas de repaso', test: s => s.rounds >= 20 },
+      { icon: 'fire', name: 'Una semana sin faltar', desc: 'Siete días seguidos de actividad', test: s => s.bestStreak >= 7 },
+      { icon: 'palette', name: 'Nueva escuela', desc: 'Crea una atmósfera', test: s => s.tonesCreated >= 1 },
+      { icon: 'swap-bag', name: 'Botín compartido', desc: 'Copia cinco palabras de otros glosarios', test: s => s.copied >= 5 },
+      { icon: 'heart-plus', name: 'Palabra querida', desc: 'Recibe tu primer me gusta', test: s => s.likesReceived >= 1 },
+      { icon: 'jeweled-chalice', name: 'Favorita del gremio', desc: 'Recibe diez me gusta en tus palabras', test: s => s.likesReceived >= 10 },
+      { icon: 'thumb-up', name: 'Buen ojo', desc: 'Da diez me gusta a palabras de otras personas', test: s => s.likesGiven >= 10 }
+    ];
+
+    // Experiencia total necesaria para llegar a un nivel: 100, 300, 600, 1000, 1500...
+    function levelFloor(level) { return 50 * level * (level - 1); }
+    function levelFor(xp) { let level = 1; while (xp >= levelFloor(level + 1)) level++; return level; }
+
+    function dayKey(value) {
+      const d = new Date(value);
+      if (isNaN(d)) return '';
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    function dayDiff(a, b) { return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000); }
+
+    function className(profile) {
+      const cls = CLASSES[profile?.class];
+      if (!cls) return '';
+      return cls.names[['m', 'f', 'n'].includes(profile.class_form) ? profile.class_form : 'n'];
     }
 
-    function wordCounts() {
-      const counts = {};
-      glossary.forEach(w => { counts[w.author_id] = (counts[w.author_id] || 0) + 1; });
-      return counts;
+    function computeStats(userId) {
+      const profile = profiles[userId] || {};
+      const cls = CLASSES[profile.class] ? profile.class : null;
+      const words = glossary.filter(w => w.author_id === userId);
+      const sessions = reviewSessions.filter(s => s.user_id === userId)
+        .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+
+      const perDay = {}; // día -> experiencia ganada ese día
+      const addDay = (when, points) => { const k = dayKey(when); if (k) perDay[k] = (perDay[k] || 0) + points; };
+      let undated = 0;   // experiencia sin fecha (palabras marcadas como usadas)
+      let sourced = 0, used = 0, copied = 0, thisMonth = 0;
+      const byTone = {};
+      const monthNow = dayKey(new Date()).slice(0, 7);
+
+      words.forEach(w => {
+        let points = XP.word * (cls === 'mago' ? 1.5 : 1);
+        if (w.copied_from) { copied++; if (cls === 'picaro') points = XP.word * 2; }
+        if (str(w.source_title) && str(w.source_author)) { sourced++; points += XP.source * (cls === 'bardo' ? 1.5 : 1); }
+        addDay(w.created_at, points);
+        if (w.is_used) { used++; undated += XP.used * (cls === 'bardo' ? 1.5 : 1); }
+        byTone[w.tone] = (byTone[w.tone] || 0) + 1;
+        if (dayKey(w.created_at).slice(0, 7) === monthNow) thisMonth++;
+      });
+
+      const roundsByDay = {};
+      let rounds = 0, hits = 0, asked = 0, perfect = 0;
+      sessions.forEach(s => {
+        rounds++; hits += s.hits; asked += s.total;
+        const isPerfect = s.total >= 5 && s.hits === s.total;
+        if (isPerfect) perfect++;
+        const k = dayKey(s.created_at);
+        roundsByDay[k] = (roundsByDay[k] || 0) + 1;
+        if (roundsByDay[k] > XP.roundsPerDay) return; // solo puntúan las tres primeras rondas de cada día
+        let hitPoints = s.hits * XP.hit * (cls === 'hechicero' ? 1.5 : 1);
+        if (cls === 'hechicero' && isPerfect) hitPoints *= 2;
+        addDay(s.created_at, XP.round * (cls === 'barbaro' ? 1.5 : 1) + hitPoints);
+      });
+
+      // Rachas de días seguidos con actividad (y su bonificación para la clase paladín)
+      let xp = undated, streak = 0, bestStreak = 0, previous = null;
+      Object.keys(perDay).sort().forEach(k => {
+        streak = previous && dayDiff(previous, k) === 1 ? streak + 1 : 1;
+        bestStreak = Math.max(bestStreak, streak);
+        previous = k;
+        xp += perDay[k] * (cls === 'paladin' ? 1 + Math.min(0.5, 0.1 * (streak - 1)) : 1);
+      });
+      const currentStreak = previous && dayDiff(previous, dayKey(new Date())) <= 1 ? streak : 0;
+
+      xp = Math.round(xp);
+      const level = levelFor(xp);
+      const floor = levelFloor(level), ceil = levelFloor(level + 1);
+      const stats = {
+        userId, xp, level, toNext: ceil - xp, progress: Math.round(((xp - floor) / (ceil - floor)) * 100),
+        title: [...TITLES].reverse().find(t => level >= t.level) || TITLES[0],
+        cls, className: className(profile),
+        words: words.length, thisMonth, sourced, used, copied, byTone,
+        rounds, hits, asked, perfect, currentStreak, bestStreak,
+        likesReceived: words.reduce((sum, w) => sum + likesFor(w.id).length, 0),
+        likesGiven: likes.filter(l => l.user_id === userId).length,
+        tonesCreated: Object.values(SCHOOLS).filter(s => s.custom && s.created_by === userId).length
+      };
+      stats.achievements = ACHIEVEMENTS.map(a => Boolean(a.test(stats)));
+      return stats;
     }
 
-    function renderRanks(counts) {
+    function likesFor(wordId) { return likeMap[wordId] || []; }
+
+    function refreshGuild() {
+      // Solo cuentan los me gusta de palabras que siguen existiendo
+      const alive = new Set(glossary.map(w => w.id));
+      likes = likes.filter(l => alive.has(l.word_id));
+      likeMap = {};
+      likes.forEach(l => { (likeMap[l.word_id] = likeMap[l.word_id] || []).push(l.user_id); });
+      guild = {};
+      Object.keys(profiles).forEach(id => { guild[id] = computeStats(id); });
+    }
+
+    // Icono del medallón: el de la clase si la tiene, o el del título
+    function emblem(stats) { return stats.cls ? CLASSES[stats.cls].icon : stats.title.icon; }
+
+    function renderRanks() {
       const panel = document.getElementById('ranksPanel');
       const people = Object.values(profiles).sort((a, b) =>
-        (counts[b.id] || 0) - (counts[a.id] || 0) || a.display_name.localeCompare(b.display_name, 'es'));
+        (guild[b.id]?.xp || 0) - (guild[a.id]?.xp || 0) || a.display_name.localeCompare(b.display_name, 'es'));
       panel.innerHTML = people.map(p => {
-        const n = counts[p.id] || 0;
-        const { rank, next, progress, index } = rankFor(n);
+        const s = guild[p.id];
         const me = currentUser && p.id === currentUser.id;
         return `
-        <div class="frame lift rank-card bg-paper-card dark:bg-night-card border ${me ? 'border-paper-accent/60 dark:border-night-accent/50' : 'border-paper-border dark:border-night-border'} min-w-0 px-2 py-3 sm:px-4 sm:py-5 text-center">
-          <div class="rank-icon" title="Rango ${ROMAN[index] || ''}"><i class="gi gi-${rank.icon}"></i></div>
-          <p class="word-title text-lg sm:text-2xl text-paper-accent dark:text-night-accent">${esc(rank.name)}</p>
+        <div class="frame rank-card bg-paper-card dark:bg-night-card border ${me ? 'border-paper-accent/60 dark:border-night-accent/50' : 'border-paper-border dark:border-night-border'} min-w-0 px-2 py-3 sm:px-4 sm:py-5 text-center">
+          <div class="rank-icon" title="${esc(s.className || 'Sin clase')}"><i class="gi gi-${emblem(s)}"></i></div>
+          <p class="word-title text-lg sm:text-2xl text-paper-accent dark:text-night-accent">${esc(s.title.name)}</p>
           <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted mt-1.5 flex items-center justify-center gap-1.5">
             <span class="w-1.5 h-1.5 shrink-0 rounded-full" style="background:${authorColor(p.id)}"></span>
-            <span class="truncate">${esc(p.display_name)}${me ? ' (tú)' : ''} · ${n} ${n === 1 ? 'palabra' : 'palabras'}</span>
+            <span class="truncate">${esc(p.display_name)}${me ? ' (tú)' : ''} · nivel ${s.level}</span>
           </p>
           <div class="mt-3 h-px bg-paper-border dark:bg-night-border">
-            <div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${progress}%; box-shadow:0 0 6px var(--gold)"></div>
+            <div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div>
           </div>
-          <p class="hidden sm:block quote text-xs mt-2">${next ? `Faltan ${next.min - n} para ${esc(next.name)}` : 'Rango máximo alcanzado'}</p>
+          <p class="hidden sm:block quote text-xs mt-2">${s.xp} XP · faltan ${s.toNext} para el nivel ${s.level + 1}</p>
         </div>`;
       }).join('');
     }
 
+    function renderGuild() {
+      const panel = document.getElementById('guildPanel');
+      if (!currentUser || !guild[currentUser.id]) { panel.innerHTML = ''; return; }
+      const myProfile = profiles[currentUser.id] || {};
+      const form = ['m', 'f', 'n'].includes(myProfile.class_form) ? myProfile.class_form : 'n';
+      const sample = CLASSES[myProfile.class] || CLASSES.mago;
+
+      const chooser = `
+        <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
+          <div class="rule"><span class="quote text-xs">${myProfile.class ? 'Tu clase' : 'Elige tu clase'}</span></div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-4">
+            ${Object.entries(CLASSES).map(([key, c]) => `
+            <button type="button" onclick="chooseClass('${key}')" class="plain text-left p-3 border ${myProfile.class === key ? 'border-paper-accent dark:border-night-accent' : 'border-paper-border dark:border-night-border'}">
+              <span class="flex items-center gap-2"><i class="gi gi-${c.icon} text-xl text-paper-accent dark:text-night-accent"></i><span class="word-title text-xl">${esc(c.names[form])}</span></span>
+              <span class="block text-xs text-paper-muted dark:text-night-muted mt-1 leading-snug">${esc(c.bonus)}</span>
+            </button>`).join('')}
+          </div>
+          <div class="flex flex-wrap items-center gap-2 mt-4">
+            <span class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted">Cómo se nombra</span>
+            ${['m', 'f', 'n'].map(f => `<button type="button" onclick="setClassForm('${f}')" class="px-2.5 py-1 rounded-md text-[10px] border ${form === f ? 'border-paper-accent dark:border-night-accent text-paper-accent dark:text-night-accent' : 'border-paper-border dark:border-night-border text-paper-muted dark:text-night-muted'}">${esc(sample.names[f])}</button>`).join('')}
+          </div>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-3">Puedes cambiar de clase cuando quieras: la experiencia se recalcula con la bonificación de la nueva.</p>
+        </div>`;
+
+      const people = Object.values(profiles).sort((a, b) => (guild[b.id]?.xp || 0) - (guild[a.id]?.xp || 0));
+      const pct = (a, b) => b ? Math.round((a / b) * 100) + ' %' : '—';
+      const members = people.map(p => {
+        const s = guild[p.id];
+        const me = p.id === currentUser.id;
+        const rows = [
+          ['Palabras', s.words], ['Este mes', s.thisMonth], ['Citas con fuente', s.sourced],
+          ['Ya usadas', `${s.used} (${pct(s.used, s.words)})`], ['Rondas de repaso', s.rounds],
+          ['Aciertos', pct(s.hits, s.asked)], ['Racha actual', s.currentStreak + (s.currentStreak === 1 ? ' día' : ' días')],
+          ['Mejor racha', s.bestStreak + (s.bestStreak === 1 ? ' día' : ' días')],
+          ['Me gusta recibidos', s.likesReceived], ['Me gusta dados', s.likesGiven]
+        ];
+        const tones = Object.entries(s.byTone).sort((a, b) => b[1] - a[1]).slice(0, 6);
+        const earned = s.achievements.filter(Boolean).length;
+        return `
+        <div class="frame bg-paper-card dark:bg-night-card border ${me ? 'border-paper-accent/60 dark:border-night-accent/50' : 'border-paper-border dark:border-night-border'} p-5">
+          <div class="text-center">
+            <div class="rank-icon"><i class="gi gi-${emblem(s)}"></i></div>
+            <p class="word-title text-2xl text-paper-accent dark:text-night-accent">${esc(s.title.name)}</p>
+            <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted mt-1.5">${esc(p.display_name)}${me ? ' (tú)' : ''} · ${esc(s.className || 'Sin clase')} · nivel ${s.level}</p>
+            <div class="mt-3 h-px bg-paper-border dark:bg-night-border"><div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div></div>
+            <p class="quote text-xs mt-2">${s.xp} XP · faltan ${s.toNext} para el nivel ${s.level + 1}</p>
+          </div>
+          <dl class="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-4 text-sm">
+            ${rows.map(([k, v]) => `<dt class="label-caps text-[9px] text-paper-muted dark:text-night-muted self-center">${k}</dt><dd class="text-right">${esc(v)}</dd>`).join('')}
+          </dl>
+          ${tones.length ? `<div class="rule mt-4"><span class="quote text-xs">Por atmósfera</span></div>
+          <ul class="mt-3 space-y-1 text-xs">
+            ${tones.map(([t, n]) => `<li class="flex items-center gap-2"><i class="gi gi-${schoolOf(t).icon}" style="color:${schoolOf(t).color}"></i><span class="flex-1 min-w-0 truncate">${esc(t)}</span><span class="text-paper-muted dark:text-night-muted">${n}</span></li>`).join('')}
+          </ul>` : ''}
+          <div class="rule mt-4"><span class="quote text-xs">Logros · ${earned} de ${ACHIEVEMENTS.length}</span></div>
+          <div class="flex flex-wrap justify-center gap-1.5 mt-3">
+            ${ACHIEVEMENTS.map((a, i) => `<span title="${esc(a.name + ': ' + a.desc)}" class="w-8 h-8 flex items-center justify-center border text-base ${s.achievements[i] ? 'border-paper-accent dark:border-night-accent text-paper-accent dark:text-night-accent' : 'border-paper-border dark:border-night-border text-paper-muted dark:text-night-muted opacity-40'}"><i class="gi gi-${a.icon}"></i></span>`).join('')}
+          </div>
+        </div>`;
+      }).join('');
+
+      const mine = guild[currentUser.id];
+      const legend = `
+        <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
+          <div class="rule"><span class="quote text-xs">Tus logros</span></div>
+          <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 mt-4 text-sm">
+            ${ACHIEVEMENTS.map((a, i) => `<li class="flex items-start gap-2.5 ${mine.achievements[i] ? '' : 'opacity-50'}">
+              <i class="gi gi-${a.icon} text-lg mt-0.5 ${mine.achievements[i] ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}"></i>
+              <span><strong class="font-medium">${esc(a.name)}</strong><span class="block text-xs text-paper-muted dark:text-night-muted">${esc(a.desc)}</span></span>
+            </li>`).join('')}
+          </ul>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra, +${XP.source} si la cita lleva obra y autoría, ${XP.used} por palabra ya usada, y ${XP.round} por ronda de repaso más ${XP.hit} por acierto (puntúan las ${XP.roundsPerDay} primeras rondas de cada día).</p>
+        </div>`;
+
+      panel.innerHTML = chooser + `<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">${members}</div>` + legend;
+    }
+
+    async function updateMyProfile(changes, okMessage) {
+      if (!currentUser) return;
+      if (!gameReady) { showToast('Falta ejecutar el último schema.sql en Supabase'); return; }
+      const { data, error } = await sb.from('profiles').update(changes).eq('id', currentUser.id).select().single();
+      if (error) { showToast('No se pudo guardar: ' + error.message); return; }
+      profiles[data.id] = data;
+      renderGlossary();
+      showToast(okMessage(data));
+    }
+
+    function chooseClass(key) {
+      if (!CLASSES[key]) return;
+      updateMyProfile({ class: key }, p => `Ahora eres ${className(p)}`);
+    }
+
+    function setClassForm(form) {
+      if (!['m', 'f', 'n'].includes(form)) return;
+      updateMyProfile({ class_form: form }, () => 'Forma del nombre actualizada');
+    }
+
     // ---------- GLOSARIO ----------
     // Guarda una palabra a mi nombre. Devuelve true si se ha guardado.
-    async function addWord(item) {
+    async function addWord(item, copiedFrom = null) {
       if (!currentUser) { showToast('Inicia sesión para guardar palabras'); return false; }
       const row = toRow(item);
+      if (gameReady && copiedFrom) row.copied_from = copiedFrom; // cuenta como palabra copiada de otro glosario
       if (!row.word || !row.definition) { showToast('Introduce al menos la palabra y su definición'); return false; }
       if (iHave(row.word)) { showToast(`«${row.word}» ya está en tu glosario`); return false; }
 
@@ -895,13 +1125,14 @@
         showToast(error.code === '23505' ? `«${row.word}» ya está en tu glosario` : 'No se pudo guardar: ' + error.message);
         return false;
       }
-      const rankBefore = rankFor(myWords().length).rank.name;
+      const before = computeStats(currentUser.id);
       glossary.unshift(data);
       renderGlossary();
-      const rankAfter = rankFor(myWords().length).rank.name;
-      showToast(rankAfter !== rankBefore
-        ? `«${row.word}» guardada. ¡Asciendes a ${rankAfter}!`
-        : `«${row.word}» guardada en tu glosario`);
+      const after = guild[currentUser.id] || before;
+      const gained = after.xp - before.xp;
+      showToast(after.level > before.level
+        ? `«${row.word}» guardada · +${gained} XP. ¡Subes al nivel ${after.level}!`
+        : `«${row.word}» guardada · +${gained} XP`);
       return true;
     }
 
@@ -920,8 +1151,9 @@
 
     function renderGlossary() {
       renderAuthorFilter();
-      const counts = wordCounts();
-      renderRanks(counts);
+      refreshGuild();
+      renderRanks();
+      renderGuild();
       updateStatus();
       renderDaily();
       const query = (document.getElementById('glossarySearch')?.value || '').toLowerCase().trim();
@@ -961,7 +1193,8 @@
       const byWord = (a, b) => a.word.localeCompare(b.word, 'es', { sensitivity: 'base' });
       const byDate = (a, b) => String(a.created_at).localeCompare(String(b.created_at));
       const sorted = [...filtered];
-      if (sort === 'az') sorted.sort(byWord);
+      if (sort === 'liked') sorted.sort((a, b) => likesFor(b.id).length - likesFor(a.id).length || byDate(b, a));
+      else if (sort === 'az') sorted.sort(byWord);
       else if (sort === 'za') sorted.sort((a, b) => byWord(b, a));
       else if (sort === 'oldest') sorted.sort(byDate);
       else sorted.sort((a, b) => byDate(b, a));
@@ -969,6 +1202,12 @@
       grid.innerHTML = sorted.map(item => {
         const mine = currentUser && item.author_id === currentUser.id;
         const name = authorName(item.author_id);
+        const likers = likesFor(item.id);
+        const liked = Boolean(currentUser && likers.includes(currentUser.id));
+        const likersTitle = likers.length ? 'Le gusta a ' + likers.map(id => currentUser && id === currentUser.id ? 'ti' : authorName(id)).join(', ') : 'Me gusta';
+        const likeBtn = mine
+          ? (likers.length ? `<span title="${esc(likersTitle)}" class="text-sm text-paper-accent dark:text-night-accent whitespace-nowrap">♥ ${likers.length}</span>` : '')
+          : `<button onclick="toggleLike('${esc(item.id)}')" title="${esc(likersTitle)}" class="plain text-base leading-none whitespace-nowrap ${liked ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${liked ? '♥' : '♡'}${likers.length ? ' ' + likers.length : ''}</button>`;
         const action = mine
           ? `<span class="flex items-center gap-3">
                <button onclick="toggleFlag('${esc(item.id)}', 'is_favorite')" title="${item.is_favorite ? 'Quitar de favoritas' : 'Marcar como favorita'}" class="plain text-base leading-none ${item.is_favorite ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${item.is_favorite ? '★' : '☆'}</button>
@@ -985,7 +1224,7 @@
           <div>
             <div class="flex flex-wrap items-center justify-between gap-2 pl-10">
               ${toneBadge(item.tone)}
-              ${action}
+              <span class="flex items-center gap-3">${likeBtn}${action}</span>
             </div>
             <div class="mt-2 flex items-baseline gap-2">
               <h3 class="word-title text-3xl">${fancyWord(item.word)}</h3>
@@ -1003,7 +1242,7 @@
             </div>
             <div class="flex items-center gap-1.5 text-[11px] text-paper-muted dark:text-night-muted">
               <span class="w-4 h-4 rounded-full text-white flex items-center justify-center text-[9px] font-semibold" style="background:${authorColor(item.author_id)}">${esc(name.charAt(0).toUpperCase())}</span>
-              <span>Apuntada por ${mine ? 'ti' : esc(name)} · ${esc(rankFor(counts[item.author_id] || 0).rank.name)}</span>
+              <span>Apuntada por ${mine ? 'ti' : esc(name)} · ${esc(guild[item.author_id]?.title.name || 'Aprendiz')}</span>
             </div>
           </div>
         </article>`;
@@ -1023,7 +1262,7 @@
 
     async function copyWordToMine(id) {
       const item = glossary.find(w => w.id === id);
-      if (item) await addWord(item);
+      if (item) await addWord(item, item.author_id && currentUser && item.author_id !== currentUser.id ? item.author_id : null);
     }
 
     // ---------- APUNTAR Y EDITAR PALABRA ----------
@@ -1432,7 +1671,25 @@
 
     async function saveReverseResult(idx) {
       const item = window._lastReverseResults?.[idx];
-      if (item) await addWord(item);
+      if (item) await addWord(item, item.author_id && currentUser && item.author_id !== currentUser.id ? item.author_id : null);
+    }
+
+    // ---------- ME GUSTA ----------
+    async function toggleLike(wordId) {
+      const item = glossary.find(w => w.id === wordId);
+      if (!item || !currentUser || item.author_id === currentUser.id) return;
+      if (!likesReady) { showToast('Falta ejecutar el último schema.sql en Supabase'); return; }
+      const mine = likes.find(l => l.word_id === wordId && l.user_id === currentUser.id);
+      if (mine) {
+        const { error } = await sb.from('word_likes').delete().eq('word_id', wordId).eq('user_id', currentUser.id);
+        if (error) { showToast('No se pudo quitar el me gusta: ' + error.message); return; }
+        likes = likes.filter(l => l !== mine);
+      } else {
+        const { data, error } = await sb.from('word_likes').insert({ word_id: wordId }).select('word_id, user_id').single();
+        if (error) { showToast('No se pudo guardar el me gusta: ' + error.message); return; }
+        likes.push(data);
+      }
+      renderGlossary();
     }
 
     // ---------- MARCAS Y FUENTE DE LA CITA ----------
@@ -1586,6 +1843,7 @@
     let reviewIndex = 0;
     let reviewHits = 0;
     let reviewRevealed = false;
+    let lastReviewNote = '';
 
     function startReview() {
       const scope = document.getElementById('reviewScope').value;
@@ -1601,6 +1859,7 @@
       reviewIndex = 0;
       reviewHits = 0;
       reviewRevealed = false;
+      lastReviewNote = '';
       renderReview();
     }
 
@@ -1611,6 +1870,22 @@
       reviewIndex++;
       reviewRevealed = false;
       renderReview();
+      if (reviewIndex === reviewDeck.length) recordReview().then(renderReview);
+    }
+
+    // Guarda la ronda terminada para la experiencia y las estadísticas.
+    async function recordReview() {
+      if (!gameReady || !currentUser) return;
+      const before = computeStats(currentUser.id);
+      const { data, error } = await sb.from('review_sessions').insert({ total: reviewDeck.length, hits: reviewHits }).select().single();
+      if (error) { lastReviewNote = 'No se pudo registrar la ronda: ' + error.message; return; }
+      reviewSessions.push(data);
+      renderGlossary();
+      const after = guild[currentUser.id] || before;
+      const gained = after.xp - before.xp;
+      lastReviewNote = gained > 0
+        ? `+${gained} XP` + (after.level > before.level ? ` · ¡Subes al nivel ${after.level}!` : '')
+        : 'Hoy ya has puntuado tres rondas; esta no suma experiencia.';
     }
 
     function renderReview() {
@@ -1626,6 +1901,7 @@
           <div class="rule"><span class="quote text-xs">Ronda terminada</span></div>
           <p class="word-title text-5xl mt-8 text-paper-accent dark:text-night-accent">${reviewHits} de ${reviewDeck.length}</p>
           <p class="label-caps text-[10px] text-paper-muted dark:text-night-muted mt-2">palabras que ya sabías</p>
+          ${lastReviewNote ? `<p class="quote text-sm mt-4">${esc(lastReviewNote)}</p>` : ''}
           <div class="mt-8"><button onclick="startReview()" class="${primary}">Otra ronda</button></div>`;
         return;
       }
