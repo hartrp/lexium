@@ -116,10 +116,7 @@
     </div>
 
     <nav class="max-w-5xl mx-auto px-4 flex gap-6 text-sm border-t border-paper-border/50 dark:border-night-border/50 overflow-x-auto">
-      <button onclick="switchTab('discover')" id="tab-discover" class="py-2.5 border-b-2 border-paper-ink dark:border-night-ink font-medium whitespace-nowrap transition">
-        ✦ Descubrir
-      </button>
-      <button onclick="switchTab('glossary')" id="tab-glossary" class="py-2.5 border-b-2 border-transparent text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink whitespace-nowrap transition flex items-center gap-1.5">
+      <button onclick="switchTab('glossary')" id="tab-glossary" class="py-2.5 border-b-2 border-paper-ink dark:border-night-ink font-medium whitespace-nowrap transition flex items-center gap-1.5">
         <span>Glosario</span>
         <span id="glossaryCount" class="text-[11px] px-1.5 py-0.5 rounded-full bg-paper-card dark:bg-night-card">0</span>
       </button>
@@ -131,63 +128,8 @@
 
   <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-6">
 
-    <section id="view-discover" class="space-y-6">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2 overflow-x-auto pb-1">
-          <span class="text-xs uppercase tracking-wider text-paper-muted dark:text-night-muted mr-1">Atmósfera:</span>
-          <button onclick="setDiscoverFilter('Todas')" class="disc-filter px-3 py-1 rounded-full text-xs border border-paper-border dark:border-night-border bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg" data-tone="Todas">Todas</button>
-          <button onclick="setDiscoverFilter('Gótico / Sombrío')" class="disc-filter px-3 py-1 rounded-full text-xs border border-paper-border dark:border-night-border" data-tone="Gótico / Sombrío">Gótico / Sombrío</button>
-          <button onclick="setDiscoverFilter('Naturaleza / Sensorial')" class="disc-filter px-3 py-1 rounded-full text-xs border border-paper-border dark:border-night-border" data-tone="Naturaleza / Sensorial">Naturaleza / Sensorial</button>
-          <button onclick="setDiscoverFilter('Psicológico / Emocional')" class="disc-filter px-3 py-1 rounded-full text-xs border border-paper-border dark:border-night-border" data-tone="Psicológico / Emocional">Psicológico</button>
-          <button onclick="setDiscoverFilter('Arcaísmo / Histórico')" class="disc-filter px-3 py-1 rounded-full text-xs border border-paper-border dark:border-night-border" data-tone="Arcaísmo / Histórico">Arcaísmo / Histórico</button>
-          <button onclick="setDiscoverFilter('Cultismo / Precisión')" class="disc-filter px-3 py-1 rounded-full text-xs border border-paper-border dark:border-night-border" data-tone="Cultismo / Precisión">Cultismo / Precisión</button>
-        </div>
-
-        <button onclick="generateNewDiscoveryBatch()" id="btnGenerateBatch" class="hidden text-xs px-3.5 py-1.5 rounded-full border border-paper-border dark:border-night-border hover:bg-paper-card dark:hover:bg-night-card transition flex items-center gap-1.5">
-          <span>✨ Generar nueva tanda con Gemini</span>
-        </button>
-      </div>
-
-      <div class="relative rounded-3xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-6 sm:p-12 shadow-sm min-h-[380px] flex flex-col justify-between">
-        <div class="flex items-center justify-between text-xs text-paper-muted dark:text-night-muted">
-          <span id="cardToneBadge" class="px-3 py-1 rounded-full border border-paper-border dark:border-night-border bg-paper-light/60 dark:bg-night-bg/60 font-medium">Atmósfera</span>
-          <span id="cardCounter">1 / 10</span>
-        </div>
-
-        <div class="my-8 text-center max-w-2xl mx-auto space-y-4">
-          <div class="text-xs tracking-widest uppercase text-paper-muted dark:text-night-muted">
-            <span id="cardSyllables">in · mar · ce · si · ble</span> · <span id="cardCategory" class="italic">adj.</span>
-          </div>
-          <h2 id="cardWord" class="font-editorial text-5xl sm:text-6xl font-bold tracking-tight">Inmarcesible</h2>
-          <p id="cardDefinition" class="text-base sm:text-lg leading-relaxed text-paper-ink/90 dark:text-night-ink/90">
-            Que no se puede marchitar; que conserva intacta su fuerza, hermosura o vigencia a pesar del paso del tiempo.
-          </p>
-          <blockquote id="cardExample" class="font-editorial italic text-lg sm:text-xl text-paper-muted dark:text-night-muted pt-2 border-t border-paper-border/60 dark:border-night-border/60 max-w-lg mx-auto">
-            «Guardaba en la memoria el rastro inmarcesible de aquel último verano.»
-          </blockquote>
-          <div class="pt-2">
-            <span class="text-[11px] uppercase tracking-wider text-paper-muted dark:text-night-muted">Sustituye a la idea llana: </span>
-            <span id="cardPlain" class="text-xs font-medium text-paper-accent dark:text-night-accent">eterno, imborrable, que no se marchita</span>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between pt-4 border-t border-paper-border dark:border-night-border">
-          <button onclick="prevDiscoverCard()" class="px-4 py-2 rounded-full text-xs sm:text-sm border border-paper-border dark:border-night-border hover:bg-paper-light dark:hover:bg-night-bg transition">
-            ← Anterior
-          </button>
-
-          <button onclick="saveCurrentDiscoverCard()" id="btnSaveDiscover" class="px-5 py-2.5 rounded-full text-xs sm:text-sm font-medium bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg hover:opacity-90 transition">
-            ☆ Guardar en mi glosario
-          </button>
-
-          <button onclick="nextDiscoverCard()" class="px-4 py-2 rounded-full text-xs sm:text-sm border border-paper-border dark:border-night-border hover:bg-paper-light dark:hover:bg-night-bg transition">
-            Siguiente →
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <section id="view-glossary" class="hidden space-y-5">
+    <section id="view-glossary" class="space-y-5">
+      <div id="ranksPanel" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
       <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3">
         <div class="relative flex-1 sm:basis-full lg:basis-0 lg:min-w-[16rem]">
           <input type="text" id="glossarySearch" oninput="renderGlossary()" placeholder="Busca por palabra culta o por idea llana (ej: 'oscuro', 'triste', 'atardecer')..." class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm focus:outline-none focus:ring-2 focus:ring-paper-ink/20 dark:focus:ring-night-ink/20" />
@@ -442,12 +384,9 @@
       try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
     }
 
-    let discoverList = safeParse('lexico_discover') || SEED_DISCOVER_WORDS;
     let glossary = [];      // palabras de todas las autoras, tal como están en la base de datos
     let profiles = {};      // id de usuaria -> { id, display_name }
     let currentUser = null;
-    let currentDiscoverTone = 'Todas';
-    let currentCardIndex = 0;
     let editingId = null;   // id de la palabra que se está editando (null = palabra nueva)
     let lastSenses = [];    // acepciones devueltas por el diccionario en la última búsqueda
     let lookupSource = localStorage.getItem('lexium_source') === 'ai' ? 'ai' : 'dict'; // el diccionario es la opción por defecto
@@ -495,7 +434,6 @@
     function applyAIAccess() {
       const ai = canUseAI();
       document.getElementById('sourceRow').classList.toggle('hidden', !ai);
-      document.getElementById('btnGenerateBatch').classList.toggle('hidden', !ai);
       setLookupSource(localStorage.getItem('lexium_source'));
     }
 
@@ -505,7 +443,6 @@
         document.documentElement.classList.add('dark');
         document.getElementById('themeIcon').textContent = '☀️';
       }
-      renderDiscoverCard();
       renderGlossary();
       updateStatus();
       setLookupSource(lookupSource);
@@ -529,7 +466,6 @@
         profiles = {};
         showAuth(true);
         renderGlossary();
-        renderDiscoverCard();
         updateStatus();
         applyAIAccess();
         return;
@@ -604,7 +540,7 @@
       const txt = document.getElementById('syncStatusText');
       if (currentUser) {
         dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
-        txt.textContent = 'Conectada · ' + authorName(currentUser.id);
+        txt.textContent = authorName(currentUser.id) + ' · ' + rankFor(myWords().length).rank.name;
       } else {
         dot.className = 'w-2 h-2 rounded-full bg-amber-500';
         txt.textContent = 'Sin conectar';
@@ -634,7 +570,6 @@
 
       glossary = wRes.data;
       renderGlossary();
-      renderDiscoverCard();
       updateStatus();
       applyAIAccess();
       if (notify) showToast('Glosario actualizado');
@@ -648,7 +583,7 @@
     }
 
     function switchTab(tab) {
-      ['discover', 'glossary', 'reverse'].forEach(t => {
+      ['glossary', 'reverse'].forEach(t => {
         document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab);
         const btn = document.getElementById(`tab-${t}`);
         if (t === tab) {
@@ -659,61 +594,56 @@
       });
     }
 
-    // ---------- DESCUBRIR ----------
-    function getFilteredDiscoverList() {
-      if (currentDiscoverTone === 'Todas') return discoverList;
-      return discoverList.filter(w => w.tone === currentDiscoverTone);
+    // ---------- RANGOS ----------
+    // Cada autora sube de rango según las palabras que lleva apuntadas.
+    // Para cambiar nombres o umbrales basta con editar esta lista.
+    const RANKS = [
+      { name: 'Iniciado', min: 0 },
+      { name: 'Paladín', min: 10 },
+      { name: 'Brujo', min: 25 },
+      { name: 'Mago', min: 50 },
+      { name: 'Archimago', min: 100 }
+    ];
+
+    function rankFor(count) {
+      let index = 0;
+      RANKS.forEach((r, i) => { if (count >= r.min) index = i; });
+      const rank = RANKS[index];
+      const next = RANKS[index + 1] || null;
+      const progress = next ? Math.round(((count - rank.min) / (next.min - rank.min)) * 100) : 100;
+      return { rank, next, progress };
     }
 
-    function setDiscoverFilter(tone) {
-      currentDiscoverTone = tone;
-      currentCardIndex = 0;
-      document.querySelectorAll('.disc-filter').forEach(btn => {
-        if (btn.dataset.tone === tone) {
-          btn.className = 'disc-filter px-3 py-1 rounded-full text-xs border border-paper-border dark:border-night-border bg-paper-ink text-paper-light dark:bg-night-ink dark:text-night-bg whitespace-nowrap';
-        } else {
-          btn.className = 'disc-filter px-3 py-1 rounded-full text-xs border border-paper-border dark:border-night-border whitespace-nowrap';
-        }
-      });
-      renderDiscoverCard();
+    function wordCounts() {
+      const counts = {};
+      glossary.forEach(w => { counts[w.author_id] = (counts[w.author_id] || 0) + 1; });
+      return counts;
     }
 
-    function renderDiscoverCard() {
-      const list = getFilteredDiscoverList();
-      if (list.length === 0) {
-        document.getElementById('cardToneBadge').textContent = currentDiscoverTone;
-        document.getElementById('cardCounter').textContent = '0 / 0';
-        document.getElementById('cardSyllables').textContent = '';
-        document.getElementById('cardCategory').textContent = '';
-        document.getElementById('cardWord').textContent = '—';
-        document.getElementById('cardDefinition').textContent = 'Todavía no hay palabras de esta atmósfera en el carrusel. Genera una nueva tanda.';
-        document.getElementById('cardExample').textContent = '';
-        document.getElementById('cardPlain').textContent = '—';
-        return;
-      }
-      if (currentCardIndex >= list.length) currentCardIndex = 0;
-      if (currentCardIndex < 0) currentCardIndex = list.length - 1;
-
-      const item = list[currentCardIndex];
-      document.getElementById('cardToneBadge').textContent = item.tone || 'Cultismo / Precisión';
-      document.getElementById('cardCounter').textContent = `${currentCardIndex + 1} / ${list.length}`;
-      document.getElementById('cardSyllables').textContent = item.syllables || norm(item.word);
-      document.getElementById('cardCategory').textContent = item.category || '';
-      document.getElementById('cardWord').textContent = item.word;
-      document.getElementById('cardDefinition').textContent = item.definition;
-      document.getElementById('cardExample').textContent = item.example || '';
-      document.getElementById('cardPlain').textContent = item.plain || '—';
-
-      document.getElementById('btnSaveDiscover').textContent = iHave(item.word) ? '★ Guardada en tu glosario' : '☆ Guardar en mi glosario';
-    }
-
-    function nextDiscoverCard() { currentCardIndex++; renderDiscoverCard(); }
-    function prevDiscoverCard() { currentCardIndex--; renderDiscoverCard(); }
-
-    async function saveCurrentDiscoverCard() {
-      const item = getFilteredDiscoverList()[currentCardIndex];
-      if (!item) return;
-      await addWord(item);
+    function renderRanks(counts) {
+      const panel = document.getElementById('ranksPanel');
+      const people = Object.values(profiles).sort((a, b) =>
+        (counts[b.id] || 0) - (counts[a.id] || 0) || a.display_name.localeCompare(b.display_name, 'es'));
+      panel.innerHTML = people.map(p => {
+        const n = counts[p.id] || 0;
+        const { rank, next, progress } = rankFor(n);
+        const me = currentUser && p.id === currentUser.id;
+        return `
+        <div class="rounded-2xl bg-paper-card dark:bg-night-card border ${me ? 'border-paper-ink/40 dark:border-night-ink/40' : 'border-paper-border dark:border-night-border'} p-3.5">
+          <div class="flex items-center gap-2.5">
+            <span class="w-8 h-8 shrink-0 rounded-full text-white flex items-center justify-center text-sm font-semibold" style="background:${authorColor(p.id)}">${esc(p.display_name.charAt(0).toUpperCase())}</span>
+            <div class="min-w-0">
+              <p class="text-xs text-paper-muted dark:text-night-muted truncate">${esc(p.display_name)}${me ? ' (tú)' : ''}</p>
+              <p class="font-editorial text-xl leading-none font-bold">${esc(rank.name)}</p>
+            </div>
+            <span class="ml-auto text-xs text-paper-muted dark:text-night-muted whitespace-nowrap">${n} ${n === 1 ? 'palabra' : 'palabras'}</span>
+          </div>
+          <div class="mt-2.5 h-1.5 rounded-full bg-paper-border dark:bg-night-border overflow-hidden">
+            <div class="h-full rounded-full bg-paper-accent dark:bg-night-accent" style="width:${progress}%"></div>
+          </div>
+          <p class="mt-1 text-[11px] text-paper-muted dark:text-night-muted">${next ? `Faltan ${next.min - n} para ${esc(next.name)}` : 'Rango máximo alcanzado'}</p>
+        </div>`;
+      }).join('');
     }
 
     // ---------- GLOSARIO ----------
@@ -729,10 +659,13 @@
         showToast(error.code === '23505' ? `«${row.word}» ya está en tu glosario` : 'No se pudo guardar: ' + error.message);
         return false;
       }
+      const rankBefore = rankFor(myWords().length).rank.name;
       glossary.unshift(data);
       renderGlossary();
-      renderDiscoverCard();
-      showToast(`«${row.word}» guardada en tu glosario`);
+      const rankAfter = rankFor(myWords().length).rank.name;
+      showToast(rankAfter !== rankBefore
+        ? `«${row.word}» guardada. ¡Asciendes a ${rankAfter}!`
+        : `«${row.word}» guardada en tu glosario`);
       return true;
     }
 
@@ -751,6 +684,9 @@
 
     function renderGlossary() {
       renderAuthorFilter();
+      const counts = wordCounts();
+      renderRanks(counts);
+      updateStatus();
       const query = (document.getElementById('glossarySearch')?.value || '').toLowerCase().trim();
       const tone = document.getElementById('glossaryToneFilter')?.value || 'Todas';
       const author = document.getElementById('glossaryAuthorFilter')?.value || 'all';
@@ -774,7 +710,7 @@
       const grid = document.getElementById('glossaryGrid');
       if (filtered.length === 0) {
         const empty = glossary.length === 0
-          ? 'El glosario está vacío. Apunta tu primera palabra o guarda alguna desde Descubrir.'
+          ? 'El glosario está vacío. Apunta tu primera palabra.'
           : 'No se encontraron palabras con ese filtro.';
         grid.innerHTML = `<div class="col-span-full text-center py-12 text-paper-muted dark:text-night-muted text-sm">${empty}</div>`;
         return;
@@ -821,7 +757,7 @@
             </div>
             <div class="flex items-center gap-1.5 text-[11px] text-paper-muted dark:text-night-muted">
               <span class="w-4 h-4 rounded-full text-white flex items-center justify-center text-[9px] font-semibold" style="background:${authorColor(item.author_id)}">${esc(name.charAt(0).toUpperCase())}</span>
-              <span>Apuntada por ${mine ? 'ti' : esc(name)}</span>
+              <span>Apuntada por ${mine ? 'ti' : esc(name)} · ${esc(rankFor(counts[item.author_id] || 0).rank.name)}</span>
             </div>
           </div>
         </article>`;
@@ -836,7 +772,6 @@
       if (error) { showToast('No se pudo eliminar: ' + error.message); return; }
       glossary = glossary.filter(w => w.id !== id);
       renderGlossary();
-      renderDiscoverCard();
       showToast(`«${item.word}» eliminada`);
     }
 
@@ -1049,8 +984,8 @@
 
     // La IA se consulta a través de la función de servidor "gemini" de Supabase,
     // que guarda la clave y aplica el tope diario por usuaria.
-    async function callAIJSON(promptText) {
-      const { data, error } = await sb.functions.invoke('gemini', { body: { prompt: promptText } });
+    async function callAIJSON(promptText, extra = {}) {
+      const { data, error } = await sb.functions.invoke('gemini', { body: { prompt: promptText, ...extra } });
       if (error) {
         let msg = error.message || 'Error al consultar la IA';
         try {
@@ -1146,7 +1081,6 @@
       }
       glossary = glossary.map(w => w.id === id ? data : w);
       renderGlossary();
-      renderDiscoverCard();
       showToast(`«${row.word}» actualizada`);
       return true;
     }
@@ -1168,37 +1102,6 @@
       closeAddModal();
     }
 
-    async function generateNewDiscoveryBatch() {
-      if (!canUseAI()) return;
-      const btn = document.getElementById('btnGenerateBatch');
-      btn.textContent = 'Generando léxico...';
-      btn.disabled = true;
-      try {
-        const toneInstruction = currentDiscoverTone === 'Todas' ? 'variadas (gótico, sensorial, psicológico, histórico y cultismos)' : `centradas en la atmósfera "${currentDiscoverTone}"`;
-        const prompt = `Genera un objeto JSON con una propiedad "words" que sea un array de 6 palabras cultas, literarias y poco frecuentes del español ${toneInstruction}. Cada objeto del array debe tener: word, syllables, category, definition, example, plain, tone (usando una de: 'Gótico / Sombrío', 'Naturaleza / Sensorial', 'Psicológico / Emocional', 'Arcaísmo / Histórico', 'Cultismo / Precisión').`;
-
-        const res = await callAIJSON(prompt);
-        const raw = Array.isArray(res) ? res : res?.words;
-        const newWords = (Array.isArray(raw) ? raw : [])
-          .filter(w => w && str(w.word) && str(w.definition))
-          .map((w, i) => ({ ...toRow(w), id: 'ai_' + Date.now() + i }));
-        if (newWords.length === 0) {
-          showToast('Gemini no devolvió palabras válidas. Inténtalo de nuevo.');
-          return;
-        }
-        discoverList = [...newWords, ...discoverList];
-        localStorage.setItem('lexico_discover', JSON.stringify(discoverList));
-        currentCardIndex = 0;
-        renderDiscoverCard();
-        showToast(`${newWords.length} nuevas palabras literarias añadidas al carrusel`);
-      } catch (e) {
-        showToast('Error al generar: ' + e.message);
-      } finally {
-        btn.innerHTML = '<span>✨ Generar nueva tanda con Gemini</span>';
-        btn.disabled = false;
-      }
-    }
-
     // ---------- BUSCADOR INVERSO ----------
     async function runReverseSearch() {
       const query = document.getElementById('reverseInput').value.trim();
@@ -1218,9 +1121,10 @@
 
       let aiSuggestions = [];
       let aiError = '';
-      if (canUseAI()) try {
+      try {
         const prompt = `Un escritor busca 5 palabras cultas o literarias en español para expresar esta idea: "${query}". Devuelve un objeto JSON con una propiedad "results" que sea un array de objetos con las claves: word, syllables, category, definition, example, plain, tone ('Gótico / Sombrío', 'Naturaleza / Sensorial', 'Psicológico / Emocional', 'Arcaísmo / Histórico' o 'Cultismo / Precisión').`;
-        const res = await callAIJSON(prompt);
+        // kind 'reverse' está abierto a todas las cuentas; el servidor construye su propia consulta a partir de query.
+        const res = await callAIJSON(prompt, { kind: 'reverse', query });
         const raw = Array.isArray(res) ? res : res?.results;
         aiSuggestions = (Array.isArray(raw) ? raw : []).filter(w => w && str(w.word) && str(w.definition)).map(toRow);
       } catch (e) {
@@ -1349,7 +1253,6 @@
       if (error) { showToast('No se pudo importar: ' + error.message); return; }
       glossary = [...data, ...glossary];
       renderGlossary();
-      renderDiscoverCard();
       showToast(`${data.length} palabras importadas a tu glosario`);
     }
 
