@@ -105,6 +105,9 @@
               background-image: linear-gradient(to right, rgba(0, 0, 0, 0.3), transparent 24%, transparent 76%, rgba(0, 0, 0, 0.3)); }
     .ribbon::before { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; right: 3px; border-left: 1px dashed rgba(243, 234, 211, 0.38); border-right: 1px dashed rgba(243, 234, 211, 0.38); }
     .ribbon .gi { position: relative; }
+    /* Segunda atmósfera: un marcapáginas algo más corto al lado del principal */
+    .ribbon-wrap.second { left: 50px; }
+    .ribbon-wrap.second .ribbon { height: 2.25rem; }
 
     /* Etiqueta de escuela (atmósfera) */
     .tag { display: inline-flex; align-items: center; gap: 0.35rem; padding: 2px 6px; border: 1px solid var(--line); border-radius: 1px; background: rgba(0, 0, 0, 0.08);
@@ -408,7 +411,7 @@
             <input type="text" id="inputPlain" placeholder="oscuro, triste, sombrío" class="w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-xs" />
           </div>
           <div>
-            <label class="text-xs font-medium text-paper-muted dark:text-night-muted">Atmósfera / Tono</label> <button type="button" onclick="openTonesModal()" class="plain underline text-[11px] text-paper-accent dark:text-night-accent ml-1">+ nueva</button>
+            <label class="text-xs font-medium text-paper-muted dark:text-night-muted">Atmósfera</label> <button type="button" onclick="openTonesModal()" class="plain underline text-[11px] text-paper-accent dark:text-night-accent ml-1">+ nueva</button>
             <select id="inputTone" class="w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-xs">
               <option value="Gótico / Sombrío">Gótico / Sombrío</option>
               <option value="Naturaleza / Sensorial">Naturaleza / Sensorial</option>
@@ -417,6 +420,13 @@
               <option value="Cultismo / Precisión">Cultismo / Precisión</option>
             </select>
           </div>
+        </div>
+
+        <div>
+          <label for="inputTone2" class="text-xs font-medium text-paper-muted dark:text-night-muted">Segunda atmósfera (opcional)</label>
+          <select id="inputTone2" class="w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-xs">
+            <option value="">Ninguna</option>
+          </select>
         </div>
       </div>
 
@@ -553,7 +563,46 @@
     const SUPABASE_KEY = 'sb_publishable_l6-bp7HxfqwmJnt8R1_71g_SwrU3INi';
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let TONES = ['Gótico / Sombrío', 'Naturaleza / Sensorial', 'Psicológico / Emocional', 'Arcaísmo / Histórico', 'Cultismo / Precisión'];
+    // Atmósferas de base: clasifican la palabra por lo que describe.
+    const BASE_SCHOOLS = {
+      'Luz y color': { color: '#C39A3B', icon: 'sun' },
+      'Naturaleza y paisaje': { color: '#5E8C7B', icon: 'oak-leaf' },
+      'Sentidos': { color: '#B0703C', icon: 'sound-waves' },
+      'Cuerpo y gesto': { color: '#A8627A', icon: 'hand' },
+      'Ánimo y emoción': { color: '#8272A0', icon: 'crowned-heart' },
+      'Carácter y conducta': { color: '#7A8791', icon: 'domino-mask' },
+      'Sombra y misterio': { color: '#9A4444', icon: 'bat' },
+      'Tiempo y memoria': { color: '#4F6FA8', icon: 'hourglass' },
+      'Mundo antiguo': { color: '#A07A48', icon: 'ancient-columns' },
+      'Pensamiento y lenguaje': { color: '#5F8799', icon: 'quill-ink' }
+    };
+    const DEFAULT_TONE = 'Pensamiento y lenguaje';
+    // Las cinco atmósferas antiguas y a cuál de las nuevas equivalen
+    const LEGACY_TONES = {
+      'Gótico / Sombrío': 'Sombra y misterio',
+      'Naturaleza / Sensorial': 'Naturaleza y paisaje',
+      'Psicológico / Emocional': 'Ánimo y emoción',
+      'Arcaísmo / Histórico': 'Mundo antiguo',
+      'Cultismo / Precisión': 'Pensamiento y lenguaje'
+    };
+    let TONES = Object.keys(BASE_SCHOOLS);
+
+    function normalizeTone(tone) {
+      if (TONES.includes(tone)) return tone;
+      return TONES.includes(LEGACY_TONES[tone]) ? LEGACY_TONES[tone] : DEFAULT_TONE;
+    }
+    // Segunda atmósfera (opcional): válida, distinta de la principal, o vacía
+    function secondTone(tone2, tone) {
+      const second = TONES.includes(tone2) ? tone2 : (LEGACY_TONES[tone2] || '');
+      return second && second !== tone ? second : '';
+    }
+    function baseToneList() { return Object.keys(BASE_SCHOOLS).map(t => `'${t}'`).join(', '); }
+
+    // Las palabras de ejemplo del diccionario local, con sus atmósferas nuevas
+    const SEED_TONES = { Inmarcesible: 'Tiempo y memoria', 'Lóbrego': 'Sombra y misterio', Arrebol: 'Luz y color', Contumaz: 'Carácter y conducta',
+                         Estulticia: 'Carácter y conducta', 'Umbrío': 'Naturaleza y paisaje', Aciago: 'Sombra y misterio', Zozobra: 'Ánimo y emoción',
+                         'Atávico': 'Tiempo y memoria', Petricor: 'Sentidos' };
+    SEED_DISCOVER_WORDS.forEach(w => { w.tone = SEED_TONES[w.word] || normalizeTone(w.tone); });
     const AUTHOR_COLORS = ['#7C2D12', '#1E5B4F', '#4A3B8C', '#8A6A12', '#7A2E5E'];
 
     function safeParse(key) {
@@ -574,6 +623,7 @@
     let reviewSessions = []; // rondas de repaso de todo el grupo
     let guild = {};          // id de persona -> experiencia, nivel, estadísticas y logros
     let tonesReady = false; // true cuando la base de datos ya tiene la tabla de atmósferas
+    let hasTone2 = true;    // false si la base de datos aún no tiene la segunda atmósfera
     let hasExtras = true;   // false si la base de datos aún no tiene las columnas de citas y marcas
     let editingId = null;   // id de la palabra que se está editando (null = palabra nueva)
     let lastSenses = [];    // acepciones devueltas por el diccionario en la última búsqueda
@@ -588,13 +638,6 @@
     function norm(word) { return str(word).toLowerCase(); }
 
     // Cada atmósfera es una "escuela" con su color y su icono (fuente game-icons).
-    const BASE_SCHOOLS = {
-      'Gótico / Sombrío': { color: '#9A4444', icon: 'bat' },
-      'Naturaleza / Sensorial': { color: '#5E8C7B', icon: 'oak-leaf' },
-      'Psicológico / Emocional': { color: '#8272A0', icon: 'third-eye' },
-      'Arcaísmo / Histórico': { color: '#A07A48', icon: 'ancient-columns' },
-      'Cultismo / Precisión': { color: '#5F8799', icon: 'quill-ink' }
-    };
     // Las atmósferas en uso: las cinco de base más las que creéis vosotras (tabla tones).
     let SCHOOLS = { ...BASE_SCHOOLS };
 
@@ -603,7 +646,7 @@
       (rows || []).forEach(r => {
         const name = str(r.name);
         // Color e icono se validan porque acaban dentro del HTML de las fichas.
-        if (!name || !/^#[0-9a-f]{6}$/i.test(r.color) || !/^[a-z0-9-]+$/.test(r.icon)) return;
+        if (!name || name in LEGACY_TONES || !/^#[0-9a-f]{6}$/i.test(r.color) || !/^[a-z0-9-]+$/.test(r.icon)) return;
         schools[name] = { color: r.color, icon: r.icon, created_by: r.created_by || null, custom: !(name in BASE_SCHOOLS) };
       });
       SCHOOLS = schools;
@@ -613,30 +656,40 @@
 
     function renderToneOptions() {
       const input = document.getElementById('inputTone');
+      const input2 = document.getElementById('inputTone2');
       const filter = document.getElementById('glossaryToneFilter');
       const keepInput = input.value;
+      const keepInput2 = input2.value;
       const keepFilter = filter.value;
       const options = TONES.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
       input.innerHTML = options;
       filter.innerHTML = '<option value="Todas">Todas las atmósferas</option>' + options;
+      input2.innerHTML = '<option value="">Ninguna</option>' + options;
       if (TONES.includes(keepInput)) input.value = keepInput;
+      input2.value = TONES.includes(keepInput2) ? keepInput2 : '';
       filter.value = TONES.includes(keepFilter) ? keepFilter : 'Todas';
     }
 
-    function schoolOf(tone) { return SCHOOLS[tone] || SCHOOLS['Cultismo / Precisión']; }
+    function schoolOf(tone) { return SCHOOLS[tone] || SCHOOLS[DEFAULT_TONE]; }
 
     function toneBadge(tone) {
-      const name = TONES.includes(tone) ? tone : 'Cultismo / Precisión';
+      const name = TONES.includes(tone) ? tone : DEFAULT_TONE;
       const school = SCHOOLS[name];
       return `<span class="tag" style="border-color:${school.color}">${esc(name)}</span>`;
     }
 
-    // Marcapáginas de tela que cuelga del borde superior de la ficha, con el color y el icono de la escuela.
-    function ribbon(tone) {
-      const name = TONES.includes(tone) ? tone : 'Cultismo / Precisión';
-      const school = SCHOOLS[name];
-      return `<span class="ribbon-wrap" title="${esc(name)}"><span class="ribbon" style="background-color:${school.color}"><i class="gi gi-${school.icon}"></i></span></span>`;
+    function toneBadges(item) {
+      return `<span class="inline-flex flex-wrap items-center gap-1.5">${toneBadge(item.tone)}${item.tone2 ? toneBadge(item.tone2) : ''}</span>`;
     }
+
+    // Marcapáginas de tela que cuelga del borde superior de la ficha, con el color y el icono de la escuela.
+    function ribbon(tone, second = false) {
+      const name = TONES.includes(tone) ? tone : DEFAULT_TONE;
+      const school = SCHOOLS[name];
+      return `<span class="ribbon-wrap${second ? ' second' : ''}" title="${esc(name)}"><span class="ribbon" style="background-color:${school.color}"><i class="gi gi-${school.icon}"></i></span></span>`;
+    }
+
+    function ribbons(item) { return ribbon(item.tone) + (item.tone2 ? ribbon(item.tone2, true) : ''); }
 
     // Palabra con la inicial iluminada en dorado.
     function fancyWord(word) {
@@ -660,8 +713,9 @@
         definition: str(item.definition),
         example: str(item.example),
         plain: str(item.plain),
-        tone: TONES.includes(item.tone) ? item.tone : 'Cultismo / Precisión'
+        tone: normalizeTone(item.tone)
       };
+      if (hasTone2) row.tone2 = secondTone(item.tone2, row.tone);
       if (hasExtras) {
         row.source_title = str(item.source_title);
         row.source_author = str(item.source_author);
@@ -807,7 +861,7 @@
         sb.from('words').select('*').order('created_at', { ascending: false }),
         sb.from('tones').select('*').order('created_at', { ascending: true }),
         sb.from('review_sessions').select('*').order('created_at', { ascending: true }),
-        sb.from('word_likes').select('word_id, user_id'),
+        sb.from('word_likes').select('*'),
         sb.from('dungeon_progress').select('*')
       ]);
       if (pRes.error || wRes.error) {
@@ -834,6 +888,9 @@
       gameReady = !rRes.error && Object.values(profiles).every(p => 'class' in p);
       tonesReady = !tRes.error; // false si aún no existe la tabla de atmósferas
       applyTones(tRes.error ? [] : tRes.data);
+      hasTone2 = glossary.length === 0 || 'tone2' in glossary[0];
+      // Las palabras guardadas con atmósferas antiguas o borradas se muestran con su equivalente
+      glossary.forEach(w => { w.tone = normalizeTone(w.tone); w.tone2 = secondTone(w.tone2, w.tone); });
       renderGlossary();
       updateStatus();
       applyAIAccess();
@@ -869,17 +926,33 @@
     // La mazmorra: jefes encadenados, sin plazo. Toda la experiencia que gana el grupo es daño al jefe actual.
     // Al caer, cada persona recibe la recompensa y aparece el siguiente.
     const BOSSES = [
-      { name: 'El Trasgo de las Erratas', icon: 'troll', hp: 150, reward: 20, lore: 'Cambia letras de sitio cuando nadie mira.' },
-      { name: 'La Araña del Lugar Común', icon: 'spider-face', hp: 300, reward: 30, lore: 'Teje frases hechas en cada rincón.' },
-      { name: 'El Espectro de la Página en Blanco', icon: 'spectre', hp: 500, reward: 40, lore: 'Se alimenta de las palabras que no llegan.' },
-      { name: 'La Gárgola del Tópico', icon: 'gargoyle', hp: 750, reward: 50, lore: 'Repite lo mismo desde hace siglos.' },
-      { name: 'El Minotauro del Laberinto Sintáctico', icon: 'minotaur', hp: 1000, reward: 60, lore: 'Nadie ha salido de una de sus subordinadas.' },
-      { name: 'La Medusa de las Muletillas', icon: 'medusa-head', hp: 1300, reward: 70, lore: 'Petrifica el discurso, o sea, en plan, básicamente.' },
-      { name: 'La Hidra de los Sinónimos', icon: 'hydra', hp: 1700, reward: 80, lore: 'Por cada palabra que cortas, brotan dos parecidas.' },
-      { name: 'El Kraken del Olvido', icon: 'kraken-tentacle', hp: 2200, reward: 90, lore: 'Arrastra al fondo lo que no se repasa.' },
-      { name: 'El Segador del Silencio', icon: 'grim-reaper', hp: 2800, reward: 100, lore: 'Donde pasa, no queda nada que decir.' },
-      { name: 'El Dragón de Babel', icon: 'dragon-head', hp: 3500, reward: 150, lore: 'Custodia todas las lenguas y no comparte ninguna.' }
+      { name: 'El Trasgo de las Erratas', icon: 'troll', hp: 150, reward: 20, weak: 'Pensamiento y lenguaje', strong: 'Sombra y misterio', lore: 'Cambia letras de sitio cuando nadie mira.' },
+      { name: 'La Araña del Lugar Común', icon: 'spider-face', hp: 300, reward: 30, weak: 'Sentidos', strong: 'Naturaleza y paisaje', lore: 'Teje frases hechas en cada rincón.' },
+      { name: 'El Espectro de la Página en Blanco', icon: 'spectre', hp: 500, reward: 40, weak: 'Luz y color', strong: 'Ánimo y emoción', lore: 'Se alimenta de las palabras que no llegan.' },
+      { name: 'La Gárgola del Tópico', icon: 'gargoyle', hp: 750, reward: 50, weak: 'Naturaleza y paisaje', strong: 'Mundo antiguo', lore: 'Repite lo mismo desde hace siglos.' },
+      { name: 'El Minotauro del Laberinto Sintáctico', icon: 'minotaur', hp: 1000, reward: 60, weak: 'Carácter y conducta', strong: 'Cuerpo y gesto', lore: 'Nadie ha salido de una de sus subordinadas.' },
+      { name: 'La Medusa de las Muletillas', icon: 'medusa-head', hp: 1300, reward: 70, weak: 'Cuerpo y gesto', strong: 'Carácter y conducta', lore: 'Petrifica el discurso, o sea, en plan, básicamente.' },
+      { name: 'La Hidra de los Sinónimos', icon: 'hydra', hp: 1700, reward: 80, weak: 'Mundo antiguo', strong: 'Pensamiento y lenguaje', lore: 'Por cada palabra que cortas, brotan dos parecidas.' },
+      { name: 'El Kraken del Olvido', icon: 'kraken-tentacle', hp: 2200, reward: 90, weak: 'Tiempo y memoria', strong: 'Luz y color', lore: 'Arrastra al fondo lo que no se repasa.' },
+      { name: 'El Segador del Silencio', icon: 'grim-reaper', hp: 2800, reward: 100, weak: 'Ánimo y emoción', strong: 'Sentidos', lore: 'Donde pasa, no queda nada que decir.' },
+      { name: 'El Dragón de Babel', icon: 'dragon-head', hp: 3500, reward: 150, weak: 'Sombra y misterio', strong: 'Tiempo y memoria', lore: 'Custodia todas las lenguas y no comparte ninguna.' }
     ];
+
+    // Cuánto daño hace una palabra según sus atmósferas: doble si el jefe es débil ante alguna, mitad si las resiste.
+    function bossFactor(boss, tones) {
+      if (!boss || !tones) return 1;
+      if (tones.includes(boss.weak)) return 2;
+      if (tones.includes(boss.strong)) return 0.5;
+      return 1;
+    }
+
+    // Jefe actual y momento desde el que cuenta el daño (la caída del anterior)
+    function dungeonFrame() {
+      const done = new Set(dungeonRows.map(r => r.boss));
+      const index = BOSSES.findIndex((b, i) => !done.has(i + 1)); // -1 = mazmorra conquistada
+      const since = dungeonRows.reduce((latest, r) => Math.max(latest, Date.parse(r.defeated_at) || 0), 0);
+      return { index, boss: index >= 0 ? BOSSES[index] : null, since };
+    }
 
     function defeatedBosses() {
       const done = new Set(dungeonRows.map(r => r.boss));
@@ -905,23 +978,23 @@
     ];
 
     const ACHIEVEMENTS = [
-      { icon: 'feather', name: 'Primera palabra', desc: 'Apunta tu primera palabra', test: s => s.words >= 1 },
-      { icon: 'book-pile', name: 'Diez palabras', desc: 'Reúne diez palabras', test: s => s.words >= 10 },
-      { icon: 'bookshelf', name: 'Cincuenta palabras', desc: 'Reúne cincuenta palabras', test: s => s.words >= 50 },
-      { icon: 'laurels', name: 'Cien palabras', desc: 'Reúne cien palabras', test: s => s.words >= 100 },
-      { icon: 'polar-star', name: 'Las cinco escuelas', desc: 'Ten una palabra de cada atmósfera de base', test: s => Object.keys(BASE_SCHOOLS).every(t => s.byTone[t]) },
-      { icon: 'scroll-unfurled', name: 'Con fuentes', desc: 'Diez citas con obra y autoría', test: s => s.sourced >= 10 },
-      { icon: 'quill-ink', name: 'Pluma en mano', desc: 'Diez palabras usadas en tus textos', test: s => s.used >= 10 },
-      { icon: 'round-star', name: 'Ronda perfecta', desc: 'Acierta todas en una ronda de cinco o más', test: s => s.perfect >= 1 },
-      { icon: 'hourglass', name: 'Veinte rondas', desc: 'Completa veinte rondas de repaso', test: s => s.rounds >= 20 },
-      { icon: 'fire', name: 'Una semana sin faltar', desc: 'Siete días seguidos de actividad', test: s => s.bestStreak >= 7 },
-      { icon: 'palette', name: 'Nueva escuela', desc: 'Crea una atmósfera', test: s => s.tonesCreated >= 1 },
-      { icon: 'swap-bag', name: 'Botín compartido', desc: 'Copia cinco palabras de otros glosarios', test: s => s.copied >= 5 },
-      { icon: 'heart-plus', name: 'Palabra querida', desc: 'Recibe tu primer me gusta', test: s => s.likesReceived >= 1 },
-      { icon: 'jeweled-chalice', name: 'Favorita del gremio', desc: 'Recibe diez me gusta en tus palabras', test: s => s.likesReceived >= 10 },
-      { icon: 'thumb-up', name: 'Buen ojo', desc: 'Da diez me gusta a palabras de otras personas', test: s => s.likesGiven >= 10 },
-      { icon: 'crossed-swords', name: 'Primera victoria', desc: 'Derrotad al primer jefe de la mazmorra', test: s => s.bossesDefeated >= 1 },
-      { icon: 'trophy-cup', name: 'Mazmorra conquistada', desc: 'Derrotad a todos los jefes', test: s => s.bossesDefeated >= BOSSES.length }
+      { icon: 'feather', name: 'Inicio de la aventura', desc: 'Apunta tu primera palabra', test: s => s.words >= 1 },
+      { icon: 'book-pile', name: 'Zurrón lleno', desc: 'Reúne diez palabras', test: s => s.words >= 10 },
+      { icon: 'bookshelf', name: 'Grimorio en ciernes', desc: 'Reúne cincuenta palabras', test: s => s.words >= 50 },
+      { icon: 'laurels', name: 'Tomo legendario', desc: 'Reúne cien palabras', test: s => s.words >= 100 },
+      { icon: 'polar-star', name: 'Multiclase', desc: 'Ten palabras de cinco atmósferas distintas', test: s => Object.keys(s.byTone).length >= 5 },
+      { icon: 'scroll-unfurled', name: 'Saber arcano', desc: 'Diez citas con obra y autoría', test: s => s.sourced >= 10 },
+      { icon: 'quill-ink', name: 'Conjuro lanzado', desc: 'Usa diez palabras en tus textos', test: s => s.used >= 10 },
+      { icon: 'round-star', name: 'Veinte natural', desc: 'Acierta todas en una ronda de cinco o más', test: s => s.perfect >= 1 },
+      { icon: 'hourglass', name: 'Entrenamiento de combate', desc: 'Completa veinte rondas de repaso', test: s => s.rounds >= 20 },
+      { icon: 'fire', name: 'Guardia de siete noches', desc: 'Siete días seguidos de actividad', test: s => s.bestStreak >= 7 },
+      { icon: 'palette', name: 'Artífice de mundos', desc: 'Crea una atmósfera', test: s => s.tonesCreated >= 1 },
+      { icon: 'swap-bag', name: 'Juego de manos', desc: 'Copia cinco palabras de otros glosarios', test: s => s.copied >= 5 },
+      { icon: 'heart-plus', name: 'Carisma aumentado', desc: 'Recibe tu primer me gusta', test: s => s.likesReceived >= 1 },
+      { icon: 'jeweled-chalice', name: 'Inspiración bárdica', desc: 'Recibe diez me gusta en tus palabras', test: s => s.likesReceived >= 10 },
+      { icon: 'thumb-up', name: 'Detectar magia', desc: 'Da diez me gusta a palabras de otras personas', test: s => s.likesGiven >= 10 },
+      { icon: 'crossed-swords', name: 'Primera sangre', desc: 'Derrotad al primer jefe de la mazmorra', test: s => s.bossesDefeated >= 1 },
+      { icon: 'trophy-cup', name: 'Matadragones', desc: 'Derrotad a todos los jefes de la mazmorra', test: s => s.bossesDefeated >= BOSSES.length }
     ];
 
     // Experiencia total necesaria para llegar a un nivel: 100, 300, 600, 1000, 1500...
@@ -949,7 +1022,13 @@
         .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
 
       const perDay = {}; // día -> experiencia ganada ese día
-      const addDay = (when, points) => { const k = dayKey(when); if (k) perDay[k] = (perDay[k] || 0) + points; };
+      const events = []; // cada acción con fecha, para calcular el daño al jefe actual
+      const addDay = (when, points, tones) => {
+        const k = dayKey(when);
+        if (!k) return;
+        perDay[k] = (perDay[k] || 0) + points;
+        events.push({ at: Date.parse(when) || 0, day: k, points, tones: tones || null });
+      };
       let undated = 0;   // experiencia sin fecha (palabras marcadas como usadas)
       let sourced = 0, used = 0, copied = 0, thisMonth = 0;
       const byTone = {};
@@ -959,9 +1038,10 @@
         let points = XP.word * (cls === 'mago' ? 1.5 : 1);
         if (w.copied_from) { copied++; if (cls === 'picaro') points = XP.word * 2; }
         if (str(w.source_title) && str(w.source_author)) { sourced++; points += XP.source * (cls === 'bardo' ? 1.5 : 1); }
-        addDay(w.created_at, points);
+        addDay(w.created_at, points, [w.tone, w.tone2]);
         if (w.is_used) { used++; undated += XP.used * (cls === 'bardo' ? 1.5 : 1); }
         byTone[w.tone] = (byTone[w.tone] || 0) + 1;
+        if (w.tone2) byTone[w.tone2] = (byTone[w.tone2] || 0) + 1;
         if (dayKey(w.created_at).slice(0, 7) === monthNow) thisMonth++;
       });
 
@@ -980,22 +1060,32 @@
       });
 
       // Rachas de días seguidos con actividad (y su bonificación para la clase paladín)
+      const dayBonus = {};
       let xp = undated, streak = 0, bestStreak = 0, previous = null;
       Object.keys(perDay).sort().forEach(k => {
         streak = previous && dayDiff(previous, k) === 1 ? streak + 1 : 1;
         bestStreak = Math.max(bestStreak, streak);
         previous = k;
-        xp += perDay[k] * (cls === 'paladin' ? 1 + Math.min(0.5, 0.1 * (streak - 1)) : 1);
+        dayBonus[k] = cls === 'paladin' ? 1 + Math.min(0.5, 0.1 * (streak - 1)) : 1;
+        xp += perDay[k] * dayBonus[k];
       });
       const currentStreak = previous && dayDiff(previous, dayKey(new Date())) <= 1 ? streak : 0;
 
-      const likesReceived = words.reduce((sum, w) => sum + likesFor(w.id).length, 0);
-      // Lo ganado por méritos propios es también el daño que esta persona hace a la mazmorra.
-      const damage = Math.round(xp + likesReceived * XP.like);
+      // Me gusta recibidos: dan un poco de experiencia y también cuentan como daño
+      const myIds = new Set(words.map(w => w.id));
+      const received = likes.filter(l => myIds.has(l.word_id));
+      const likesReceived = received.length;
+      received.forEach(l => events.push({ at: Date.parse(l.created_at) || 0, day: null, points: XP.like, tones: null }));
+      const merit = Math.round(xp + likesReceived * XP.like);
+
+      // Daño al jefe actual: lo ganado desde que cayó el anterior, con sus debilidades y resistencias
+      const frame = dungeonFrame();
+      const damage = Math.round(events.filter(e => e.at > frame.since)
+        .reduce((sum, e) => sum + e.points * (e.day ? dayBonus[e.day] : 1) * bossFactor(frame.boss, e.tones), 0));
       const defeated = defeatedBosses();
       const stats = {
         userId, damage,
-        xp: damage + defeated.reduce((sum, b) => sum + b.reward, 0), // más las recompensas de los jefes caídos
+        xp: merit + defeated.reduce((sum, b) => sum + b.reward, 0), // más las recompensas de los jefes caídos
         cls, className: className(profile),
         words: words.length, thisMonth, sourced, used, copied, byTone,
         rounds, hits, asked, perfect, currentStreak, bestStreak,
@@ -1024,12 +1114,9 @@
       Object.keys(profiles).forEach(id => { guild[id] = computeStats(id); });
 
       // Estado de la mazmorra
+      const frame = dungeonFrame();
       const total = Object.values(guild).reduce((sum, s) => sum + s.damage, 0);
-      const done = new Set(dungeonRows.map(r => r.boss));
-      const index = BOSSES.findIndex((b, i) => !done.has(i + 1)); // -1 = mazmorra conquistada
-      const spent = BOSSES.reduce((sum, b, i) => sum + (done.has(i + 1) ? b.hp : 0), 0);
-      const boss = index >= 0 ? BOSSES[index] : null;
-      dungeon = { total, index, boss, dealt: boss ? Math.max(0, Math.min(boss.hp, total - spent)) : 0 };
+      dungeon = { ...frame, total, dealt: frame.boss ? Math.min(frame.boss.hp, total) : 0 };
       checkDungeon();
     }
 
@@ -1079,6 +1166,7 @@
                 <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted whitespace-nowrap">Vida ${b.hp - dungeon.dealt} de ${b.hp}</span>
               </span>
               <span class="block mt-1.5">${hpBar(dungeon.dealt, b.hp, true)}</span>
+              <span class="block mt-1.5 label-caps text-[9px] text-paper-muted dark:text-night-muted truncate">Débil ante ${esc(b.weak)} · resiste ${esc(b.strong)}</span>
             </span>
           </span>
         </button>`;
@@ -1110,6 +1198,11 @@
             <p class="quote text-sm mt-1">${esc(b.lore)}</p>
             <div class="max-w-md mx-auto mt-4">${hpBar(dungeon.dealt, b.hp, true)}</div>
             <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted mt-2">Vida ${b.hp - dungeon.dealt} de ${b.hp} · al caer, +${b.reward} XP para cada persona</p>
+            <p class="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted">Débil ante</span>${toneBadge(b.weak)}
+              <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted ml-2">Resiste</span>${toneBadge(b.strong)}
+            </p>
+            <p class="text-xs text-paper-muted dark:text-night-muted mt-2">Las palabras de la atmósfera ante la que es débil hacen el doble de daño; las de la que resiste, la mitad.</p>
           </div>` : `
           <div class="rule"><span class="quote text-xs">La mazmorra</span></div>
           <div class="text-center mt-5">
@@ -1120,7 +1213,7 @@
       return `
         <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
           ${head}
-          <div class="rule mt-6"><span class="quote text-xs">Daño de cada persona</span></div>
+          <div class="rule mt-6"><span class="quote text-xs">${b ? 'Daño a este jefe' : 'Daño de cada persona'}</span></div>
           <ul class="mt-3 space-y-2 text-sm max-w-md mx-auto">
             ${people.map(p => {
               const dmg = guild[p.id]?.damage || 0;
@@ -1131,7 +1224,7 @@
             }).join('')}
           </ul>
           ${fallen ? `<div class="rule mt-6"><span class="quote text-xs">Jefes caídos</span></div><ul class="mt-3 space-y-1.5 max-w-md mx-auto">${fallen}</ul>` : ''}
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-5 text-center">Toda la experiencia que ganáis apuntando, repasando o recibiendo me gusta es daño al jefe. No hay plazo.</p>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-5 text-center">Apuntar palabras, repasar y recibir me gusta hace daño al jefe actual. No hay plazo, y el daño que sobra al derrotarlo no pasa al siguiente.</p>
         </div>`;
     }
 
@@ -1278,9 +1371,11 @@
       renderGlossary();
       const after = guild[currentUser.id] || before;
       const gained = after.xp - before.xp;
+      const factor = dungeon && dungeon.boss ? bossFactor(dungeon.boss, [data.tone, data.tone2]) : 1;
+      const blow = factor > 1 ? ' · ¡golpe crítico al jefe!' : (factor < 1 ? ' · el jefe resiste esa atmósfera' : '');
       showToast(after.level > before.level
-        ? `«${row.word}» guardada · +${gained} XP. ¡Subes al nivel ${after.level}!`
-        : `«${row.word}» guardada · +${gained} XP`);
+        ? `«${row.word}» guardada · +${gained} XP. ¡Subes al nivel ${after.level}!${blow}`
+        : `«${row.word}» guardada · +${gained} XP${blow}`);
       return true;
     }
 
@@ -1318,7 +1413,7 @@
       document.getElementById('glossaryCount').textContent = byAuthor.length;
 
       const filtered = byAuthor.filter(item => {
-        const matchesTone = tone === 'Todas' || item.tone === tone;
+        const matchesTone = tone === 'Todas' || item.tone === tone || item.tone2 === tone;
         const matchesQuery = !query ||
           norm(item.word).includes(query) ||
           norm(item.plain).includes(query) ||
@@ -1369,10 +1464,10 @@
               : `<button onclick="copyWordToMine('${esc(item.id)}')" class="text-[11px] px-2.5 py-0.5 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-light dark:hover:bg-night-bg transition">+ A mi glosario</button>`);
         return `
         <article class="frame lift bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5 flex flex-col justify-between gap-3">
-          ${ribbon(item.tone)}
+          ${ribbons(item)}
           <div>
-            <div class="flex flex-wrap items-center justify-between gap-2 pl-10">
-              ${toneBadge(item.tone)}
+            <div class="flex flex-wrap items-center justify-between gap-2 ${item.tone2 ? 'pl-[4.9rem]' : 'pl-10'}">
+              ${toneBadges(item)}
               <span class="flex items-center gap-3">${likeBtn}${action}</span>
             </div>
             <div class="mt-2 flex items-baseline gap-2">
@@ -1415,7 +1510,7 @@
     }
 
     // ---------- APUNTAR Y EDITAR PALABRA ----------
-    const MODAL_FIELDS = ['inputWord', 'inputCategory', 'inputSyllables', 'inputDefinition', 'inputExample', 'inputPlain', 'inputSourceTitle', 'inputSourceAuthor', 'inputSourcePage'];
+    const MODAL_FIELDS = ['inputWord', 'inputCategory', 'inputSyllables', 'inputDefinition', 'inputExample', 'inputPlain', 'inputSourceTitle', 'inputSourceAuthor', 'inputSourcePage', 'inputTone2'];
 
     function showAddModal() {
       const editing = Boolean(editingId);
@@ -1447,7 +1542,8 @@
       document.getElementById('inputSourceTitle').value = item.source_title || '';
       document.getElementById('inputSourceAuthor').value = item.source_author || '';
       document.getElementById('inputSourcePage').value = item.source_page || '';
-      if (TONES.includes(item.tone)) document.getElementById('inputTone').value = item.tone;
+      document.getElementById('inputTone').value = normalizeTone(item.tone);
+      document.getElementById('inputTone2').value = secondTone(item.tone2, normalizeTone(item.tone));
       showAddModal();
     }
 
@@ -1667,7 +1763,8 @@
           "definition": "Definición culta, precisa y clara estilo diccionario RAE",
           "example": "Una frase literaria evocadora y breve que muestre su uso",
           "plain": "3 o 4 palabras sencillas o cotidianas a las que sustituye separadas por comas",
-          "tone": "Elige exactamente una: 'Gótico / Sombrío', 'Naturaleza / Sensorial', 'Psicológico / Emocional', 'Arcaísmo / Histórico' o 'Cultismo / Precisión'"
+          "tone": "La atmósfera principal, según lo que la palabra describe. Elige exactamente una de esta lista: ${baseToneList()}",
+          "tone2": "Una segunda atmósfera de la misma lista solo si la palabra encaja claramente en dos; si no, cadena vacía"
         }`;
 
         const info = await callAIJSON(prompt);
@@ -1703,7 +1800,8 @@
       document.getElementById('inputSourceTitle').value = str(info.source_title);
       document.getElementById('inputSourceAuthor').value = str(info.source_author);
       document.getElementById('inputSourcePage').value = str(info.source_page);
-      if (TONES.includes(info.tone)) document.getElementById('inputTone').value = info.tone;
+      if (info.tone) document.getElementById('inputTone').value = normalizeTone(info.tone);
+      document.getElementById('inputTone2').value = info.tone ? secondTone(info.tone2, normalizeTone(info.tone)) : '';
       checkDuplicate();
     }
 
@@ -1736,7 +1834,8 @@
         source_title: document.getElementById('inputSourceTitle').value,
         source_author: document.getElementById('inputSourceAuthor').value,
         source_page: document.getElementById('inputSourcePage').value,
-        tone: document.getElementById('inputTone').value
+        tone: document.getElementById('inputTone').value,
+        tone2: document.getElementById('inputTone2').value
       };
       const saved = editingId ? await updateWord(editingId, item) : await addWord(item);
       if (!saved) return;
@@ -1765,7 +1864,7 @@
       let aiSuggestions = [];
       let aiError = '';
       try {
-        const prompt = `Un escritor busca 5 palabras cultas o literarias en español para expresar esta idea: "${query}". Devuelve un objeto JSON con una propiedad "results" que sea un array de objetos con las claves: word, syllables, category, definition, example, plain, tone ('Gótico / Sombrío', 'Naturaleza / Sensorial', 'Psicológico / Emocional', 'Arcaísmo / Histórico' o 'Cultismo / Precisión').`;
+        const prompt = `Un escritor busca 5 palabras cultas o literarias en español para expresar esta idea: "${query}". Devuelve un objeto JSON con una propiedad "results" que sea un array de objetos con las claves: word, syllables, category, definition, example, plain, tone (una de: ${baseToneList()}) y tone2 (segunda atmósfera opcional de la misma lista, o cadena vacía).`;
         // kind 'reverse' está abierto a todas las cuentas; el servidor construye su propia consulta a partir de query.
         const res = await callAIJSON(prompt, { kind: 'reverse', query });
         const raw = Array.isArray(res) ? res : res?.results;
@@ -1801,13 +1900,13 @@
           ? `<span class="text-[11px] text-paper-muted dark:text-night-muted whitespace-nowrap">★ Guardada</span>`
           : `<button onclick="saveReverseResult(${idx})" class="px-3 py-1.5 rounded-md text-xs border border-paper-border dark:border-night-border hover:bg-paper-ink hover:text-paper-light transition whitespace-nowrap">+ Guardar</button>`;
         return `
-          <div class="frame lift p-5 pl-16 bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border flex items-start justify-between gap-4">
-            ${ribbon(item.tone)}
+          <div class="frame lift p-5 ${item.tone2 ? 'pl-24' : 'pl-16'} bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border flex items-start justify-between gap-4">
+            ${ribbons(item)}
             <div class="space-y-1">
               <div class="flex flex-wrap items-baseline gap-2">
                 <h4 class="word-title text-2xl">${fancyWord(item.word)}</h4>
                 <span class="text-xs italic text-paper-muted">${esc(item.category)}</span>
-                ${toneBadge(item.tone)}
+                ${toneBadges(item)}
               </div>
               <p class="text-sm">${esc(item.definition)}</p>
               ${item.example ? `<p class="quote text-sm">«${esc(item.example.replace(/[«»]/g, ''))}»</p>` : ''}
@@ -1834,7 +1933,7 @@
         if (error) { showToast('No se pudo quitar el me gusta: ' + error.message); return; }
         likes = likes.filter(l => l !== mine);
       } else {
-        const { data, error } = await sb.from('word_likes').insert({ word_id: wordId }).select('word_id, user_id').single();
+        const { data, error } = await sb.from('word_likes').insert({ word_id: wordId }).select().single();
         if (error) { showToast('No se pudo guardar el me gusta: ' + error.message); return; }
         likes.push(data);
       }
@@ -1885,7 +1984,7 @@
 
     function renderTonesModal() {
       const usage = {};
-      glossary.forEach(w => { usage[w.tone] = (usage[w.tone] || 0) + 1; });
+      glossary.forEach(w => { usage[w.tone] = (usage[w.tone] || 0) + 1; if (w.tone2) usage[w.tone2] = (usage[w.tone2] || 0) + 1; });
       document.getElementById('tonesList').innerHTML = TONES.map((t, i) => {
         const s = SCHOOLS[t];
         const n = usage[t] || 0;
@@ -2067,7 +2166,7 @@
           <div class="mt-8"><button onclick="revealReview()" class="${primary}">Revelar la palabra</button></div>`;
       box.innerHTML = `
           <p class="label-caps text-[10px] text-paper-muted dark:text-night-muted">Palabra ${reviewIndex + 1} de ${reviewDeck.length} · ${reviewHits} ${reviewHits === 1 ? 'acierto' : 'aciertos'}</p>
-          <div class="mt-4">${toneBadge(w.tone)}</div>
+          <div class="mt-4">${toneBadges(w)}</div>
           <p class="text-lg leading-relaxed mt-4">${esc(w.definition)}</p>
           ${w.plain ? `<p class="text-sm mt-2"><span class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted">Idea llana</span> <strong class="text-paper-accent dark:text-night-accent font-medium">${esc(w.plain)}</strong></p>` : ''}
           ${answer}`;
@@ -2127,7 +2226,7 @@
     function exportGlossaryJSON() {
       const mine = myWords().map(w => ({
         word: w.word, category: w.category, syllables: w.syllables, definition: w.definition,
-        example: w.example, plain: w.plain, tone: w.tone,
+        example: w.example, plain: w.plain, tone: w.tone, tone2: w.tone2 || '',
         source_title: w.source_title || '', source_author: w.source_author || '', source_page: w.source_page || '',
         created_at: w.created_at
       }));
