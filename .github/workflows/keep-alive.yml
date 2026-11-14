@@ -1,0 +1,24 @@
+name: Mantener Supabase activo
+
+# El plan gratuito de Supabase pausa el proyecto tras 7 días sin actividad.
+# Este workflow hace una petición mínima a la base de datos dos veces por semana.
+on:
+  schedule:
+    - cron: "17 6 * * 1,4" # lunes y jueves, 06:17 UTC
+  workflow_dispatch: # permite lanzarlo a mano desde la pestaña Actions
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping a Supabase
+        env:
+          SUPABASE_URL: https://btrlfasqlwieroievyln.supabase.co
+          # Clave pública del proyecto (no es secreta)
+          SUPABASE_KEY: sb_publishable_l6-bp7HxfqwmJnt8R1_71g_SwrU3INi
+        run: |
+          curl --fail --silent --show-error \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/ping" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}'
