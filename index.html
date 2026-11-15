@@ -165,7 +165,7 @@
 
     /* Impresión o PDF: solo las fichas del grimorio, en tinta sobre blanco */
     @media print {
-      header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-bag, #view-guild, #view-dm, #dmBossModal, #dmItemModal, #lootModal, .no-print, .ribbon-wrap { display: none !important; }
+      header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-bag, #view-guild, #view-dm, #dmBossModal, #dmItemModal, #lootModal, #tradeModal, .no-print, .ribbon-wrap { display: none !important; }
       html { font-size: 12px; }
       body::before { display: none !important; }
       body, #view-glossary article { background: #fff !important; background-image: none !important; color: #000 !important; }
@@ -561,6 +561,32 @@
     </div>
   </div>
 
+  <div id="tradeModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl">
+      <div class="flex items-center justify-between">
+        <h3 class="title-outline text-3xl">Ofrecer objeto</h3>
+        <button onclick="closeTrade()" class="text-paper-muted hover:text-paper-ink text-xl">✕</button>
+      </div>
+      <p class="quote text-sm" id="tradeWhat"></p>
+      <div>
+        <label for="tradeTo" class="text-xs font-medium text-paper-muted dark:text-night-muted">A quién</label>
+        <select id="tradeTo" onchange="renderTradeOptions()" class="w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm"></select>
+      </div>
+      <div>
+        <label for="tradeFor" class="text-xs font-medium text-paper-muted dark:text-night-muted">A cambio de</label>
+        <select id="tradeFor" onchange="renderTradeOptions()" class="w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm"></select>
+      </div>
+      <div id="tradeGoldWrap" class="hidden">
+        <label for="tradeGold" class="text-xs font-medium text-paper-muted dark:text-night-muted">Cuánto oro pides</label>
+        <input type="number" id="tradeGold" min="1" step="5" class="w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm" />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeTrade()" class="px-4 py-2 rounded-xl text-xs border border-paper-border dark:border-night-border">Cancelar</button>
+        <button onclick="sendTrade()" class="px-5 py-2 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg">Enviar oferta</button>
+      </div>
+    </div>
+  </div>
+
   <div id="addModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between">
@@ -859,6 +885,10 @@
     let lifeReady = false;    // true cuando la base de datos ya tiene duelos, cofres regalados y pociones
     let weekWinners = {};     // lunes de cada semana cerrada -> ids de quienes la ganaron
     let reviewDuel = null;    // duelo que se está jugando ahora: { id, side, started, rival }
+    let perkRows = [];        // habilidades de clase elegidas: { user_id, class, level, choice }
+    let trades = [];          // ofertas de intercambio entre personas del gremio
+    let perksReady = false;   // true cuando la base de datos ya tiene habilidades e intercambios
+    let tradeItem = null;     // id del objeto de mi zurrón que estoy ofreciendo
     let contentReady = false; // true cuando la base de datos ya tiene las tablas de jefes y objetos
     let contentFromDb = false; // true cuando los jefes que se muestran vienen de la base de datos
     let saves = [];          // palabras ajenas guardadas en el grimorio de cada persona: { word_id, user_id, is_favorite, is_used }
@@ -1112,7 +1142,7 @@
     // ---------- CARGA DE DATOS ----------
     async function reloadFromCloud(notify = false) {
       if (!currentUser) return;
-      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes, cgRes, duRes] = await Promise.all([
+      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes, cgRes, duRes, pkRes, trRes] = await Promise.all([
         sb.from('profiles').select('*'),
         sb.from('words').select('*').order('created_at', { ascending: false }),
         sb.from('tones').select('*').order('created_at', { ascending: true }),
@@ -1128,7 +1158,9 @@
         sb.from('chest_opens').select('*'),
         sb.from('consumable_uses').select('*'),
         sb.from('chest_grants').select('*'),
-        sb.from('duels').select('*').order('created_at', { ascending: true })
+        sb.from('duels').select('*').order('created_at', { ascending: true }),
+        sb.from('class_perks').select('*'),
+        sb.from('trades').select('*').order('created_at', { ascending: true })
       ]);
       if (pRes.error || wRes.error) {
         showToast('No se pudo cargar el grimorio: ' + (pRes.error || wRes.error).message);
@@ -1160,6 +1192,9 @@
       lifeReady = economyReady && !cgRes.error && !duRes.error;
       chestGrants = lifeReady ? cgRes.data : [];
       duels = lifeReady ? duRes.data : [];
+      perksReady = lifeReady && !pkRes.error && !trRes.error;
+      perkRows = perksReady ? pkRes.data : [];
+      trades = perksReady ? trRes.data : [];
       contentReady = !bRes.error && !iRes.error;
       applyGameContent(contentReady ? bRes.data : [], contentReady ? iRes.data : []);
       dungeonRows = dRes.error ? [] : dRes.data;
@@ -1227,6 +1262,10 @@
       poison: { label: 'Consumible: veneno, daño extra durante un día (%)', text: v => `Durante un día, +${v} % de daño al jefe.` },
       potion: { label: 'Consumible: poción (protege una decana)', text: () => 'Te protege una decana sin actividad, o despierta a alguien del gremio que esté en reposo.' },
       duel: { label: 'Consumible: pergamino de duelo', text: () => 'Reta a alguien del gremio a un duelo de repaso.' },
+      xp_round: { label: 'Experiencia extra por ronda de repaso', text: v => `+${v} de experiencia por cada ronda de repaso que puntúa.` },
+      shop_pct: { label: 'Descuento en la tienda (%)', text: v => `${v} % de descuento en la tienda.` },
+      sale_pct: { label: 'Más oro al vender botín (%)', text: v => `+${v} % de oro al vender el botín de los cofres.` },
+      no_pick: { label: 'Abre los cofres menores sin ganzúa', text: () => 'Abres los cofres menores sin ganzúa.' },
       weak_factor: { label: 'Golpe más fuerte a la debilidad del jefe', text: v => `Los golpes a la debilidad del jefe hacen ×${String(2 + v).replace('.', ',')} en lugar de ×2.` }
     };
 
@@ -1243,7 +1282,8 @@
       level: { label: 'Cofre menor', icon: 'chest', weights: { 'común': 60, 'raro': 30, 'épico': 9, 'legendario': 1 } }
     };
     // Oro: se gana con lo que más enseña (repasar, usar las palabras, la constancia) y con los jefes
-    CHESTS.prestige = { label: 'Cofre de prestigio', icon: 'open-treasure-chest', free: true, weights: { 'común': 0, 'raro': 30, 'épico': 45, 'legendario': 25 } };
+    CHESTS.level.sale = 10; CHESTS.boss.sale = 25; // oro por vender un cofre sin abrir
+    CHESTS.prestige = { label: 'Cofre de prestigio', icon: 'open-treasure-chest', free: true, sale: 40, weights: { 'común': 0, 'raro': 30, 'épico': 45, 'legendario': 25 } };
     const GOLD = { round: 3, hit: 1, used: 5, day: 2, noLoot: 30 };
     // Vida: tres corazones; se pierde uno por cada decana (10 días) sin actividad. Empieza a contar en esta fecha.
     const LIFE = { start: '2026-11-16T00:00:00', days: 10, hearts: 3 };
@@ -1251,6 +1291,56 @@
     const DUEL = { words: 10, win: 3, draw: 2, lose: 1, chestEvery: 10 };
     // Clasificación semanal (de lunes a domingo): premio en oro desde la semana indicada
     const WEEK = { start: '2026-11-16', gold: 50 };
+
+    // Habilidades de clase: en cada uno de estos niveles se elige una de dos. Usan el mismo motor de efectos.
+    const PERK_LEVELS = [3, 5, 7, 10];
+    const pk = (name, type, value) => ({ name, type, value });
+    const PERKS = {
+      mago: {
+        3: [pk('Prestidigitación', 'xp_word', 2), pk('Familiar', 'extra_round', 1)],
+        5: [pk('Bola de fuego', 'damage_pct', 15), pk('Identificar', 'xp_source', 3)],
+        7: [pk('Contrahechizo', 'weak_factor', 1), pk('Bolsa de componentes', 'shop_pct', 20)],
+        10: [pk('Deseo', 'xp_word', 5), pk('Lluvia de meteoritos', 'damage_pct', 40)]
+      },
+      hechicero: {
+        3: [pk('Hechizo acelerado', 'extra_round', 1), pk('Linaje dracónico', 'damage_pct', 10)],
+        5: [pk('Hechizo potenciado', 'xp_hit', 1), pk('Marea de caos', 'gold_pct', 50)],
+        7: [pk('Hechizo gemelo', 'xp_round', 5), pk('Alas de dragón', 'damage_pct', 20)],
+        10: [pk('Restauración arcana', 'extra_round', 2), pk('Palabra de poder', 'xp_hit', 2)]
+      },
+      bardo: {
+        3: [pk('Inspiración bárdica', 'xp_like', 2), pk('Canción de descanso', 'xp_used', 3)],
+        5: [pk('Aprendiz de mucho', 'xp_save', 2), pk('Saber popular', 'xp_source', 3)],
+        7: [pk('Palabras cortantes', 'damage_pct', 20), pk('Labia', 'sale_pct', 50)],
+        10: [pk('Secretos mágicos', 'xp_source', 5), pk('Inspiración superior', 'xp_like', 5)]
+      },
+      barbaro: {
+        3: [pk('Furia', 'damage_pct', 15), pk('Ataque temerario', 'xp_round', 3)],
+        5: [pk('Ataque adicional', 'extra_round', 1), pk('Instinto salvaje', 'gold_pct', 50)],
+        7: [pk('Crítico brutal', 'weak_factor', 1), pk('Aguante incansable', 'xp_round', 5)],
+        10: [pk('Furia primigenia', 'damage_pct', 40), pk('Furia persistente', 'extra_round', 2)]
+      },
+      paladin: {
+        3: [pk('Castigo divino', 'damage_pct', 15), pk('Imposición de manos', 'xp_used', 2)],
+        5: [pk('Aura de protección', 'extra_round', 1), pk('Sentido divino', 'xp_word', 2)],
+        7: [pk('Castigo mejorado', 'damage_pct', 25), pk('Diezmo', 'gold_pct', 50)],
+        10: [pk('Juramento sagrado', 'xp_word', 4), pk('Azote sagrado', 'weak_factor', 1)]
+      },
+      picaro: {
+        3: [pk('Ataque furtivo', 'damage_pct', 15), pk('Manos rápidas', 'no_pick', 1)],
+        5: [pk('Pericia', 'xp_save', 3), pk('Contactos del gremio', 'shop_pct', 25)],
+        7: [pk('Perista de confianza', 'sale_pct', 75), pk('Talento fiable', 'xp_hit', 1)],
+        10: [pk('Golpe de suerte', 'weak_factor', 1), pk('Ladronía maestra', 'xp_save', 5)]
+      }
+    };
+
+    // Habilidades que tiene elegidas una persona para su clase actual
+    function classPerks(userId, cls) {
+      if (!PERKS[cls]) return [];
+      return perkRows.filter(r => r.user_id === userId && r.class === cls && PERKS[cls][r.level])
+        .map(r => PERKS[cls][r.level][r.choice === 'b' ? 1 : 0])
+        .map(p => ({ name: p.name, effect_type: p.type, effect_value: p.value, effect_tone: '' }));
+    }
 
     function effectText(item) {
       const effect = EFFECTS[item.effect_type] || EFFECTS.none;
@@ -1435,6 +1525,8 @@
       const active = (o, at) => at === null || at > o.since;
       // Equipo: cada objeto cuenta mientras estuvo equipado (los periodos pasados quedan guardados)
       const gear = gearIntervals(userId);
+      // Las habilidades de clase cuentan siempre, como la bonificación de la clase
+      classPerks(userId, cls).forEach(p => gear.push({ item: p, from: -Infinity, to: Infinity }));
       const worn = (g, at) => at === null ? g.to === Infinity : (at >= g.from && at < g.to);
       // Suma de un tipo de efecto entre las reliquias del gremio y el equipo propio activos en ese momento
       const fx = (type, at) =>
@@ -1497,7 +1589,7 @@
         if (roundsByDay[k] > XP.roundsPerDay + fx('extra_round', at)) return; // solo puntúan las primeras rondas de cada día
         let hitPoints = s.hits * (XP.hit + fx('xp_hit', at)) * (cls === 'hechicero' ? 1.5 : 1);
         if (cls === 'hechicero' && isPerfect) hitPoints *= 2;
-        addDay(s.created_at, XP.round * (cls === 'barbaro' ? 1.5 : 1) + hitPoints);
+        addDay(s.created_at, (XP.round + fx('xp_round', at)) * (cls === 'barbaro' ? 1.5 : 1) + hitPoints);
         goldEarned += (GOLD.round + s.hits * GOLD.hit) * (1 + fx('gold_pct', at) / 100);
       });
 
@@ -1570,9 +1662,10 @@
       stats.week = Math.round(stats.weekly[weekKey(Date.now())] || 0);
       stats.weeksWon = 0; // se rellena en refreshGuild, comparando con el resto del gremio
       stats.life = life;
+      stats.perk = { shop: Math.min(90, fx('shop_pct', null)), sale: fx('sale_pct', null), noPick: fx('no_pick', null) > 0 };
       Object.assign(stats, duelStats(userId));
       stats.finishers = dungeonRows.filter(r => r.defeated_by === userId).length;
-      stats.chestsOpened = chestOpens.filter(c => c.user_id === userId).length;
+      stats.chestsOpened = chestOpens.filter(c => c.user_id === userId && !c.sold).length;
       stats.chests = pendingChests(userId, stats.level, stats.prestige);
 
       stats.achievements = ACHIEVEMENTS.map(a => Boolean(a.test(stats)));
@@ -1814,6 +1907,7 @@
             ${['m', 'f', 'n'].map(f => `<button type="button" onclick="setClassForm('${f}')" class="px-2.5 py-1 rounded-md text-[10px] border ${form === f ? 'border-paper-accent dark:border-night-accent text-paper-accent dark:text-night-accent' : 'border-paper-border dark:border-night-border text-paper-muted dark:text-night-muted'}">${esc(sample.names[f])}</button>`).join('')}
           </div>
           <p class="text-xs text-paper-muted dark:text-night-muted mt-3">Puedes cambiar de clase cuando quieras: la experiencia se recalcula con la bonificación de la nueva.</p>
+          ${perksBlock(myProfile.class, guild[currentUser.id].level)}
         </div>`;
 
       const people = Object.values(profiles).sort((a, b) => (guild[b.id]?.xp || 0) - (guild[a.id]?.xp || 0));
@@ -1841,6 +1935,7 @@
             <p class="quote text-xs mt-2">${s.xp} XP · faltan ${s.toNext} para el nivel ${s.level + 1}</p>
             ${heartsRow(s)}
             ${gearRow(p.id)}
+            ${perkLine(p.id, s.cls)}
           </div>
           <dl class="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-4 text-sm">
             ${rows.map(([k, v]) => `<dt class="label-caps text-[9px] text-paper-muted dark:text-night-muted self-center">${k}</dt><dd class="text-right">${esc(v)}</dd>`).join('')}
@@ -2894,10 +2989,11 @@
         <div class="${section}">
           <div class="rule"><span class="quote text-xs">Cofres por abrir</span></div>
           <ul class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
-            ${me.chests.map(c => `<li class="flex items-center gap-3 py-2.5">
+            ${me.chests.map(c => `<li class="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
               <i class="gi gi-${CHESTS[c.tier].icon} text-2xl text-paper-accent dark:text-night-accent"></i>
               <span class="flex-1 min-w-0"><span class="block truncate">${esc(c.name)}</span><span class="block label-caps text-[9px] text-paper-muted dark:text-night-muted">${CHESTS[c.tier].label}</span></span>
-              <button onclick="openChest('${esc(c.source)}')" class="${smallGold}">${CHESTS[c.tier].free ? 'Abrir' : 'Abrir con ganzúa'}</button>
+              <button onclick="openChest('${esc(c.source)}')" class="${smallGold}">${chestFree(c, me) ? 'Abrir' : 'Abrir con ganzúa'}</button>
+              <button onclick="sellChest('${esc(c.source)}')" class="${small}">Vender por ${CHESTS[c.tier].sale}</button>
             </li>`).join('')}
           </ul>
         </div>` : '';
@@ -2915,7 +3011,7 @@
       const spare = gearMine.filter(u => !u.equipped);
       const consumables = {};
       mine.filter(u => itemsById[u.item_id].kind === 'consumable').forEach(u => { (consumables[u.item_id] = consumables[u.item_id] || []).push(u); });
-      const sale = it => it.price > 0 ? Math.floor(it.price / 2) : (RARITY[it.rarity] || RARITY['común']).sale;
+      const sale = it => saleValue(it, me);
       const inventory = `
         <div class="${section}">
           <div class="rule"><span class="quote text-xs">Equipo</span></div>
@@ -2924,7 +3020,8 @@
           ${spare.length || Object.keys(consumables).length ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-4">
             ${spare.map(u => { const it = itemsById[u.item_id]; return itemCard(it,
               (it.slot ? `<button onclick="equipItem('${esc(u.id)}')" class="${smallGold}">Equipar</button>` : '') +
-              `<button onclick="sellItem('${esc(u.id)}')" class="${small}">Vender por ${sale(it)}</button>`); }).join('')}
+              `<button onclick="sellItem('${esc(u.id)}')" class="${small}">Vender por ${sale(it)}</button>` +
+              (perksReady && others.length ? `<button onclick="openTrade('${esc(u.id)}')" class="${small}">Ofrecer</button>` : '')); }).join('')}
             ${Object.entries(consumables).map(([id, units]) => { const it = itemsById[id]; return itemCard(it,
               `<span class="label-caps text-[9px] text-paper-muted dark:text-night-muted w-full">Tienes ${units.length}</span>` +
               (it.effect_type === 'poison' ? `<button onclick="usePoison('${esc(units[0].id)}')" class="${smallGold}">Usar</button>` : '') +
@@ -2939,11 +3036,190 @@
         <div class="${section}">
           <div class="rule"><span class="quote text-xs">Tienda</span></div>
           ${stock.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-4">
-            ${stock.map(it => itemCard(it, `<button onclick="buyItem('${esc(it.id)}')" class="${me.gold >= it.price ? smallGold : small}"${me.gold >= it.price ? '' : ' disabled'}>${it.price} de oro</button>`)).join('')}
+            ${stock.map(it => itemCard(it, `<button onclick="buyItem('${esc(it.id)}')" class="${me.gold >= priceFor(it, me) ? smallGold : small}"${me.gold >= priceFor(it, me) ? '' : ' disabled'}>${priceFor(it, me)} de oro</button>`)).join('')}
           </div>` : '<p class="quote text-sm text-center mt-4">La tienda está vacía.</p>'}
         </div>`;
 
-      panel.innerHTML = purse + chests + inventory + shop;
+      panel.innerHTML = purse + chests + tradesBlock() + inventory + shop;
+    }
+
+    // Precio de la tienda para una persona (con su descuento) y lo que le dan al vender
+    function priceFor(item, stats) { return Math.max(1, Math.round(item.price * (1 - ((stats && stats.perk ? stats.perk.shop : 0) / 100)))); }
+    function saleValue(item, stats) {
+      if (item.price > 0) return Math.floor(item.price / 2); // lo de tienda, a mitad de precio y sin bonificación
+      return Math.round((RARITY[item.rarity] || RARITY['común']).sale * (1 + ((stats && stats.perk ? stats.perk.sale : 0) / 100)));
+    }
+    // Los cofres de prestigio no piden ganzúa; los menores tampoco con la habilidad adecuada
+    function chestFree(chest, stats) { return Boolean(CHESTS[chest.tier].free || (chest.tier === 'level' && stats && stats.perk && stats.perk.noPick)); }
+
+    async function sellChest(source) {
+      const me = currentUser ? guild[currentUser.id] : null;
+      if (!economyGuard() || !me) return;
+      const chest = me.chests.find(c => c.source === source);
+      if (!chest) return;
+      const value = CHESTS[chest.tier].sale;
+      if (!confirm(`¿Vender «${chest.name}» sin abrir por ${value} de oro?`)) return;
+      try {
+        const sold = await sb.from('chest_opens').insert({ source, item_id: null, gold: value, sold: true }).select().single();
+        if (sold.error) throw new Error('No se pudo vender el cofre: ' + sold.error.message);
+        chestOpens.push(sold.data);
+        await spendGold(value, 'Venta de cofre: ' + chest.name);
+        renderGlossary();
+        showToast(`Has vendido «${chest.name}» por ${value} de oro`);
+      } catch (e) { showToast(e.message); renderGlossary(); }
+    }
+
+    // ---------- INTERCAMBIOS ----------
+    // Una oferta sigue en pie mientras los objetos sigan en el zurrón de quien los tenía y sin equipar
+    function tradeAlive(t) {
+      const has = (id, owner) => userItems.some(u => u.id === id && u.user_id === owner && !u.equipped && itemsById[u.item_id]);
+      return t.status === 'open' && has(t.give_item, t.from_id) && (!t.want_item || has(t.want_item, t.to_id));
+    }
+
+    function tradeText(t) {
+      const name = id => { const u = userItems.find(x => x.id === id); return u && itemsById[u.item_id] ? '«' + itemsById[u.item_id].name + '»' : 'un objeto'; };
+      return name(t.give_item) + (t.want_item ? ' a cambio de ' + name(t.want_item) : t.gold > 0 ? ' a cambio de ' + t.gold + ' de oro' : ', de regalo');
+    }
+
+    function tradesBlock() {
+      if (!perksReady || !currentUser) return '';
+      const me = currentUser.id;
+      const small = 'px-2.5 py-1 rounded-md text-[10px] border border-paper-border dark:border-night-border';
+      const smallGold = 'px-2.5 py-1 rounded-md text-[10px] bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg';
+      const rows = trades.filter(t => tradeAlive(t) && (t.from_id === me || t.to_id === me)).map(t => t.to_id === me
+        ? `<li class="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5"><i class="gi gi-swap-bag text-xl text-paper-accent dark:text-night-accent"></i>
+            <span class="flex-1 min-w-0">${esc(authorName(t.from_id))} te ofrece ${esc(tradeText(t))}</span>
+            <button onclick="acceptTrade('${esc(t.id)}')" class="${smallGold}">Aceptar</button>
+            <button onclick="answerTrade('${esc(t.id)}', 'declined')" class="${small}">Rechazar</button></li>`
+        : `<li class="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5"><i class="gi gi-hourglass text-xl text-paper-muted dark:text-night-muted"></i>
+            <span class="flex-1 min-w-0">Ofreces a ${esc(authorName(t.to_id))} ${esc(tradeText(t))}</span>
+            <button onclick="answerTrade('${esc(t.id)}', 'cancelled')" class="${small}">Retirar</button></li>`).join('');
+      return rows ? `
+        <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
+          <div class="rule"><span class="quote text-xs">Intercambios</span></div>
+          <ul class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">${rows}</ul>
+        </div>` : '';
+    }
+
+    function perksGuard() {
+      if (!economyGuard()) return false;
+      if (!perksReady) { showToast('Falta ejecutar el último schema.sql en Supabase'); return false; }
+      return true;
+    }
+
+    function openTrade(userItemId) {
+      const u = myItems().find(x => x.id === userItemId);
+      if (!perksGuard() || !u || u.equipped) return;
+      tradeItem = u.id;
+      const others = Object.values(profiles).filter(p => p.id !== currentUser.id);
+      document.getElementById('tradeWhat').textContent = 'Ofreces «' + itemsById[u.item_id].name + '».';
+      document.getElementById('tradeTo').innerHTML = others.map(p => `<option value="${esc(p.id)}">${esc(p.display_name)}</option>`).join('');
+      document.getElementById('tradeGold').value = 20;
+      renderTradeOptions();
+      document.getElementById('tradeModal').classList.remove('hidden');
+      document.getElementById('tradeModal').classList.add('flex');
+    }
+
+    function closeTrade() {
+      tradeItem = null;
+      document.getElementById('tradeModal').classList.add('hidden');
+      document.getElementById('tradeModal').classList.remove('flex');
+    }
+
+    // Lo que se puede pedir a cambio: nada, oro o un objeto sin equipar de la otra persona
+    function renderTradeOptions() {
+      const to = document.getElementById('tradeTo').value;
+      const select = document.getElementById('tradeFor');
+      const keep = select.value;
+      const theirs = userItems.filter(u => u.user_id === to && !u.equipped && itemsById[u.item_id]);
+      const options = [['gift', 'Nada: es un regalo'], ['gold', 'Oro'], ...theirs.map(u => ['item:' + u.id, 'Su «' + itemsById[u.item_id].name + '»'])];
+      select.innerHTML = options.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('');
+      select.value = options.some(([v]) => v === keep) ? keep : 'gift';
+      document.getElementById('tradeGoldWrap').classList.toggle('hidden', select.value !== 'gold');
+    }
+
+    async function sendTrade() {
+      const u = myItems().find(x => x.id === tradeItem);
+      const to = document.getElementById('tradeTo').value;
+      const what = document.getElementById('tradeFor').value;
+      if (!perksGuard() || !u || u.equipped || !profiles[to] || to === currentUser.id) return;
+      const gold = what === 'gold' ? parseInt(document.getElementById('tradeGold').value, 10) || 0 : 0;
+      if (what === 'gold' && gold <= 0) { showToast('Indica cuánto oro pides'); return; }
+      if (trades.some(t => tradeAlive(t) && t.give_item === u.id)) { showToast('Ese objeto ya está en otra oferta'); return; }
+      const row = { to_id: to, give_item: u.id, want_item: what.startsWith('item:') ? what.slice(5) : null, gold };
+      const { data, error } = await sb.from('trades').insert(row).select().single();
+      if (error) { showToast('No se pudo enviar la oferta: ' + error.message); return; }
+      trades.push(data);
+      closeTrade();
+      renderGlossary();
+      showToast(`Oferta enviada a ${authorName(to)}`);
+    }
+
+    // El cambio de dueño lo hace la base de datos, de una vez y comprobando que todo sigue en su sitio
+    async function acceptTrade(tradeId) {
+      const t = trades.find(x => x.id === tradeId);
+      const me = currentUser ? guild[currentUser.id] : null;
+      if (!perksGuard() || !t || !me || t.to_id !== currentUser.id || !tradeAlive(t)) return;
+      if (t.gold > me.gold) { showToast('No te llega el oro para esta oferta'); return; }
+      if (!confirm(`¿Aceptar? ${authorName(t.from_id)} te da ${tradeText(t)}.`)) return;
+      const { error } = await sb.rpc('accept_trade', { p_trade: t.id });
+      if (error) { showToast('No se pudo completar: ' + error.message); return; }
+      await reloadFromCloud();
+      showToast('Intercambio hecho');
+    }
+
+    async function answerTrade(tradeId, status) {
+      const t = trades.find(x => x.id === tradeId);
+      if (!perksGuard() || !t || !['declined', 'cancelled'].includes(status)) return;
+      if (status === 'declined' ? t.to_id !== currentUser.id : t.from_id !== currentUser.id) return;
+      const { data, error } = await sb.from('trades').update({ status }).eq('id', t.id).select().single();
+      if (error) { showToast('No se pudo actualizar la oferta: ' + error.message); return; }
+      trades = trades.map(x => x.id === t.id ? data : x);
+      renderGlossary();
+    }
+
+    // ---------- HABILIDADES DE CLASE ----------
+    function perksBlock(cls, level) {
+      if (!perksReady || !PERKS[cls] || !currentUser) return '';
+      const chosen = {};
+      perkRows.filter(r => r.user_id === currentUser.id && r.class === cls).forEach(r => { chosen[r.level] = r.choice; });
+      return `
+          <div class="rule mt-6"><span class="quote text-xs">Habilidades de clase</span></div>
+          <div class="space-y-2 mt-4">
+            ${PERK_LEVELS.map(lv => `
+            <div class="grid grid-cols-[3rem_1fr_1fr] gap-2 items-stretch ${level < lv ? 'opacity-50' : ''}">
+              <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted self-center">Nivel ${lv}</span>
+              ${['a', 'b'].map((ch, i) => { const p = PERKS[cls][lv][i]; return `
+              <button type="button" onclick="choosePerk(${lv}, '${ch}')"${level < lv ? ' disabled' : ''} class="plain text-left p-2.5 border ${chosen[lv] === ch ? 'border-paper-accent dark:border-night-accent' : 'border-paper-border dark:border-night-border'}">
+                <span class="word-title text-lg block leading-tight ${chosen[lv] === ch ? 'text-paper-accent dark:text-night-accent' : ''}">${esc(p.name)}</span>
+                <span class="block text-xs text-paper-muted dark:text-night-muted mt-0.5 leading-snug">${esc(effectText({ effect_type: p.type, effect_value: p.value }))}</span>
+              </button>`; }).join('')}
+            </div>`).join('')}
+          </div>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-3">En los niveles 3, 5, 7 y 10 eliges una de dos habilidades. Puedes cambiarlas cuando quieras, y cada clase guarda las suyas.</p>`;
+    }
+
+    // Nombres de las habilidades elegidas, para la ficha del gremio
+    function perkLine(userId, cls) {
+      const names = classPerks(userId, cls).map(p => p.name);
+      return names.length ? `<p class="text-xs text-paper-muted dark:text-night-muted mt-2">${esc(names.join(' · '))}</p>` : '';
+    }
+
+    async function choosePerk(level, choice) {
+      const me = currentUser ? guild[currentUser.id] : null;
+      if (!perksGuard() || !me || !me.cls || !PERK_LEVELS.includes(level) || !['a', 'b'].includes(choice)) return;
+      if (me.level < level) { showToast(`Esta habilidad se elige al llegar al nivel ${level}`); return; }
+      const key = { user_id: currentUser.id, class: me.cls, level };
+      const existing = perkRows.find(r => r.user_id === key.user_id && r.class === key.class && r.level === level);
+      if (existing && existing.choice === choice) return;
+      const res = existing
+        ? await sb.from('class_perks').update({ choice }).match(key).select().single()
+        : await sb.from('class_perks').insert({ class: me.cls, level, choice }).select().single();
+      if (res.error) { showToast('No se pudo guardar la habilidad: ' + res.error.message); return; }
+      perkRows = perkRows.filter(r => r !== existing);
+      perkRows.push(res.data);
+      renderGlossary();
+      showToast(`Habilidad elegida: ${PERKS[me.cls][level][choice === 'b' ? 1 : 0].name}`);
     }
 
     function economyGuard() {
@@ -2962,14 +3238,15 @@
       const it = itemsById[itemId];
       const me = currentUser ? guild[currentUser.id] : null;
       if (!economyGuard() || !it || !me) return;
-      if (me.gold < it.price) { showToast('No te llega el oro'); return; }
+      const price = priceFor(it, me);
+      if (me.gold < price) { showToast('No te llega el oro'); return; }
       try {
         const { data, error } = await sb.from('user_items').insert({ item_id: itemId, source: 'tienda' }).select().single();
         if (error) throw new Error('No se pudo comprar: ' + error.message);
         userItems.push(data);
-        await spendGold(-it.price, 'Compra: ' + it.name);
+        await spendGold(-price, 'Compra: ' + it.name);
         renderGlossary();
-        showToast(`Has comprado «${it.name}» por ${it.price} de oro`);
+        showToast(`Has comprado «${it.name}» por ${price} de oro`);
       } catch (e) { showToast(e.message); }
     }
 
@@ -3015,7 +3292,7 @@
       const u = myItems().find(x => x.id === userItemId);
       if (!economyGuard() || !u) return;
       const it = itemsById[u.item_id];
-      const value = it.price > 0 ? Math.floor(it.price / 2) : (RARITY[it.rarity] || RARITY['común']).sale;
+      const value = saleValue(it, guild[currentUser.id]);
       if (!confirm(`¿Vender «${it.name}» por ${value} de oro?`)) return;
       try {
         if (u.equipped) await closeEquip(u);
@@ -3068,7 +3345,7 @@
       if (!economyGuard() || !me) return;
       const chest = me.chests.find(c => c.source === source);
       if (!chest) return;
-      const free = Boolean(CHESTS[chest.tier].free); // los cofres de prestigio no necesitan ganzúa
+      const free = chestFree(chest, me);
       const pick = free ? null : myItems().find(u => itemsById[u.item_id].effect_type === 'lockpick');
       if (!free && !pick) { showToast('Necesitas una ganzúa. Se compran en la tienda.'); return; }
       const item = rollLoot(chest.tier);
