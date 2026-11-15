@@ -70,6 +70,18 @@
     }
     .font-editorial { font-family: 'EB Garamond', Georgia, serif; }
 
+    /* Dragón de fondo: la ilustración (fondo-dragon.png, junto a index.html) se usa como máscara
+       y toma el dorado de la app. La variable --dragon regula cuánto se nota (0 = invisible). */
+    body::before, #authView::before {
+      content: ''; position: fixed; right: -2vw; bottom: -2vh; width: min(92vw, 600px); height: 96vh;
+      background-color: var(--gold); opacity: var(--dragon, 0.12); pointer-events: none;
+      -webkit-mask: url('fondo-dragon.png') no-repeat right bottom / contain;
+      mask: url('fondo-dragon.png') no-repeat right bottom / contain;
+    }
+    body::before { z-index: -1; }
+    #authView::before { z-index: 0; opacity: 0.2; }
+    #authView > form { z-index: 1; }
+
     /* Títulos en gótica rellena dorada (el contorno fino no se leía bien) */
     .title-outline { font-family: 'LexiumDisplay', 'Grenze Gotisch', serif; font-weight: 400; color: var(--gold);
                      text-shadow: 1px 1px 2px var(--deep-shadow); letter-spacing: 0; line-height: 1.1; }
@@ -124,6 +136,14 @@
     nav button .gi { font-size: 1.5em; opacity: 0.55; }
     nav button.font-medium .gi { color: var(--gold); opacity: 1; }
 
+    /* En móvil las cuatro pestañas se reparten el ancho, con el icono encima del nombre */
+    @media (max-width: 639px) {
+      header nav { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 !important; padding-left: 0.25rem; padding-right: 0.25rem; overflow: visible !important; }
+      header nav button { flex-direction: column; justify-content: center; min-width: 0; gap: 3px !important; padding: 0.45rem 0 0.4rem !important; font-size: 8.5px; letter-spacing: 0.08em; white-space: normal !important; }
+      header nav button .gi { font-size: 1.3rem; }
+      #glossaryCount, .tab-long { display: none; }
+    }
+
     /* Campos */
     input, textarea, select { font-family: 'EB Garamond', Georgia, serif; font-size: 0.95rem !important; transition: border-color 0.3s ease; }
     .dark input, .dark textarea, .dark select { background-color: var(--field) !important; box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.55); }
@@ -136,6 +156,7 @@
     @media print {
       header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-guild, .no-print, .ribbon-wrap { display: none !important; }
       html { font-size: 12px; }
+      body::before { display: none !important; }
       body, #view-glossary article { background: #fff !important; background-image: none !important; color: #000 !important; }
       #view-glossary { display: block !important; }
       #view-glossary article { box-shadow: none !important; border: 1px solid #999 !important; break-inside: avoid; }
@@ -214,7 +235,7 @@
         <span id="glossaryCount" class="text-[11px] px-1.5 py-0.5 rounded-full bg-paper-card dark:bg-night-card">0</span>
       </button>
       <button onclick="switchTab('reverse')" id="tab-reverse" class="py-2.5 border-b-2 border-transparent text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink whitespace-nowrap transition flex items-center gap-1.5">
-        <i class="gi gi-crystal-ball"></i><span>Buscador inverso</span>
+        <i class="gi gi-crystal-ball"></i><span>Buscador<span class="tab-long"> inverso</span></span>
       </button>
       <button onclick="switchTab('review')" id="tab-review" class="py-2.5 border-b-2 border-transparent text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink whitespace-nowrap transition flex items-center gap-1.5">
         <i class="gi gi-brain"></i><span>Repaso</span>
@@ -616,6 +637,8 @@
     let dungeonReady = false; // true cuando la base de datos ya tiene la tabla de la mazmorra
     let dungeon = null;      // estado de la mazmorra, calculado en refreshGuild
     let dungeonBusy = false;
+    let saves = [];          // palabras ajenas guardadas en el glosario de cada persona: { word_id, user_id, is_favorite, is_used }
+    let savesReady = false;  // true cuando la base de datos ya tiene la tabla de guardadas
     let likes = [];          // me gusta de todo el grupo: { word_id, user_id }
     let likeMap = {};        // id de palabra -> ids de quienes le han dado me gusta
     let likesReady = false;  // true cuando la base de datos ya tiene la tabla de me gusta
@@ -725,7 +748,16 @@
     }
 
     function myWords() { return currentUser ? glossary.filter(w => w.author_id === currentUser.id) : []; }
-    function iHave(word) { const k = norm(word); return myWords().some(w => norm(w.word) === k); }
+    // Mi guardado de una palabra ajena, si lo tengo
+    function mySave(wordId) { return currentUser ? saves.find(s => s.word_id === wordId && s.user_id === currentUser.id) || null : null; }
+    // Mi relación con una palabra: si está en mi glosario (porque es mía o la guardé) y mis marcas sobre ella
+    function myMarks(item) {
+      if (!currentUser) return { inMine: false, fav: false, used: false };
+      if (item.author_id === currentUser.id) return { inMine: true, fav: Boolean(item.is_favorite), used: Boolean(item.is_used) };
+      const save = mySave(item.id);
+      return { inMine: Boolean(save), fav: Boolean(save && save.is_favorite), used: Boolean(save && save.is_used) };
+    }
+    function iHave(word) { const k = norm(word); return glossary.some(w => norm(w.word) === k && myMarks(w).inMine); }
     function authorName(id) { return profiles[id]?.display_name || 'Autoría desconocida'; }
     function authorColor(id) {
       const ids = Object.keys(profiles).sort();
@@ -856,13 +888,14 @@
     // ---------- CARGA DE DATOS ----------
     async function reloadFromCloud(notify = false) {
       if (!currentUser) return;
-      const [pRes, wRes, tRes, rRes, lRes, dRes] = await Promise.all([
+      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes] = await Promise.all([
         sb.from('profiles').select('*'),
         sb.from('words').select('*').order('created_at', { ascending: false }),
         sb.from('tones').select('*').order('created_at', { ascending: true }),
         sb.from('review_sessions').select('*').order('created_at', { ascending: true }),
         sb.from('word_likes').select('*'),
-        sb.from('dungeon_progress').select('*')
+        sb.from('dungeon_progress').select('*'),
+        sb.from('word_saves').select('*')
       ]);
       if (pRes.error || wRes.error) {
         showToast('No se pudo cargar el glosario: ' + (pRes.error || wRes.error).message);
@@ -883,6 +916,8 @@
       reviewSessions = rRes.error ? [] : rRes.data;
       likes = lRes.error ? [] : lRes.data;
       likesReady = !lRes.error;
+      saves = sRes.error ? [] : sRes.data;
+      savesReady = !sRes.error;
       dungeonRows = dRes.error ? [] : dRes.data;
       dungeonReady = !dRes.error;
       gameReady = !rRes.error && Object.values(profiles).every(p => 'class' in p);
@@ -921,27 +956,46 @@
     // ---------- EXPERIENCIA, CLASES, NIVELES Y LOGROS ----------
     // Todo se calcula a partir de lo que ya hay guardado (palabras, marcas y rondas de repaso),
     // así que no hay puntos que se puedan descuadrar. Para ajustar el juego basta con tocar estas tablas.
-    const XP = { word: 10, source: 5, used: 5, round: 5, hit: 1, roundsPerDay: 3, like: 2 };
+    const XP = { word: 10, source: 5, used: 5, round: 5, hit: 1, roundsPerDay: 3, like: 2, save: 4 };
+    const LEVEL_DAMAGE = 0.05; // cada nivel por encima del primero suma un 5 % de daño a los jefes
 
     // La mazmorra: jefes encadenados, sin plazo. Toda la experiencia que gana el grupo es daño al jefe actual.
     // Al caer, cada persona recibe la recompensa y aparece el siguiente.
+    // Cada jefe suelta una reliquia para todo el gremio al caer. Su efecto vale desde ese momento.
     const BOSSES = [
-      { name: 'El Trasgo de las Erratas', icon: 'troll', hp: 1000, reward: 20, weak: 'Pensamiento y lenguaje', strong: 'Sombra y misterio', lore: 'Cambia letras de sitio cuando nadie mira.' },
-      { name: 'La Araña del Lugar Común', icon: 'spider-face', hp: 2000, reward: 30, weak: 'Sentidos', strong: 'Naturaleza y paisaje', lore: 'Teje frases hechas en cada rincón.' },
-      { name: 'El Espectro de la Página en Blanco', icon: 'spectre', hp: 3000, reward: 40, weak: 'Luz y color', strong: 'Ánimo y emoción', lore: 'Se alimenta de las palabras que no llegan.' },
-      { name: 'La Gárgola del Tópico', icon: 'gargoyle', hp: 750, reward: 4000, weak: 'Naturaleza y paisaje', strong: 'Mundo antiguo', lore: 'Repite lo mismo desde hace siglos.' },
-      { name: 'El Minotauro del Laberinto Sintáctico', icon: 'minotaur', hp: 5000, reward: 60, weak: 'Carácter y conducta', strong: 'Cuerpo y gesto', lore: 'Nadie ha salido de una de sus subordinadas.' },
-      { name: 'La Medusa de las Muletillas', icon: 'medusa-head', hp: 6000, reward: 70, weak: 'Cuerpo y gesto', strong: 'Carácter y conducta', lore: 'Petrifica el discurso, o sea, en plan, básicamente.' },
-      { name: 'La Hidra de los Sinónimos', icon: 'hydra', hp: 7000, reward: 80, weak: 'Mundo antiguo', strong: 'Pensamiento y lenguaje', lore: 'Por cada palabra que cortas, brotan dos parecidas.' },
-      { name: 'El Kraken del Olvido', icon: 'kraken-tentacle', hp: 8000, reward: 90, weak: 'Tiempo y memoria', strong: 'Luz y color', lore: 'Arrastra al fondo lo que no se repasa.' },
-      { name: 'El Segador del Silencio', icon: 'grim-reaper', hp: 9000, reward: 100, weak: 'Ánimo y emoción', strong: 'Sentidos', lore: 'Donde pasa, no queda nada que decir.' },
-      { name: 'El Dragón de Babel', icon: 'dragon-head', hp: 10000, reward: 150, weak: 'Sombra y misterio', strong: 'Tiempo y memoria', lore: 'Custodia todas las lenguas y no comparte ninguna.' }
+      { name: 'El Trasgo de las Erratas', icon: 'troll', hp: 1000, reward: 20, weak: 'Pensamiento y lenguaje', strong: 'Sombra y misterio', lore: 'Cambia letras de sitio cuando nadie mira.',
+        relic: { key: 'pluma', icon: 'quill', name: 'Pluma correctora', effect: '+1 de experiencia por cada palabra apuntada.' } },
+      { name: 'La Araña del Lugar Común', icon: 'spider-face', hp: 2000, reward: 30, weak: 'Sentidos', strong: 'Naturaleza y paisaje', lore: 'Teje frases hechas en cada rincón.',
+        relic: { key: 'hilo', icon: 'gem-chain', name: 'Hilo de seda', effect: '+1 de experiencia por cada cita con obra y autoría.' } },
+      { name: 'El Espectro de la Página en Blanco', icon: 'spectre', hp: 3000, reward: 40, weak: 'Luz y color', strong: 'Ánimo y emoción', lore: 'Se alimenta de las palabras que no llegan.',
+        relic: { key: 'vela', icon: 'candle-light', name: 'Vela inextinguible', effect: 'Puntúa una ronda de repaso más cada día.' } },
+      { name: 'La Gárgola del Tópico', icon: 'gargoyle', hp: 4000, reward: 50, weak: 'Naturaleza y paisaje', strong: 'Mundo antiguo', lore: 'Repite lo mismo desde hace siglos.',
+        relic: { key: 'cincel', icon: 'stone-tablet', name: 'Cincel de piedra', effect: '+10 % de daño a los jefes.' } },
+      { name: 'El Minotauro del Laberinto Sintáctico', icon: 'minotaur', hp: 5000, reward: 60, weak: 'Carácter y conducta', strong: 'Cuerpo y gesto', lore: 'Nadie ha salido de una de sus subordinadas.',
+        relic: { key: 'ovillo', icon: 'magic-swirl', name: 'Ovillo de Ariadna', effect: '+1 de experiencia por cada acierto en el repaso.' } },
+      { name: 'La Medusa de las Muletillas', icon: 'medusa-head', hp: 6000, reward: 70, weak: 'Cuerpo y gesto', strong: 'Carácter y conducta', lore: 'Petrifica el discurso, o sea, en plan, básicamente.',
+        relic: { key: 'espejo', icon: 'crystal-ball', name: 'Espejo bruñido', effect: '+1 de experiencia por cada me gusta recibido.' } },
+      { name: 'La Hidra de los Sinónimos', icon: 'hydra', hp: 7000, reward: 80, weak: 'Mundo antiguo', strong: 'Pensamiento y lenguaje', lore: 'Por cada palabra que cortas, brotan dos parecidas.',
+        relic: { key: 'colmillo', icon: 'daggers', name: 'Colmillo de hidra', effect: 'Los golpes a la debilidad del jefe hacen ×2,5 en lugar de ×2.' } },
+      { name: 'El Kraken del Olvido', icon: 'kraken-tentacle', hp: 8000, reward: 90, weak: 'Tiempo y memoria', strong: 'Luz y color', lore: 'Arrastra al fondo lo que no se repasa.',
+        relic: { key: 'brujula', icon: 'treasure-map', name: 'Brújula del abismo', effect: '+2 de experiencia por cada palabra marcada como usada.' } },
+      { name: 'El Segador del Silencio', icon: 'grim-reaper', hp: 9000, reward: 100, weak: 'Ánimo y emoción', strong: 'Sentidos', lore: 'Donde pasa, no queda nada que decir.',
+        relic: { key: 'reloj', icon: 'sands-of-time', name: 'Reloj de arena negra', effect: '+10 % de daño a los jefes.' } },
+      { name: 'El Dragón de Babel', icon: 'dragon-head', hp: 10000, reward: 150, weak: 'Sombra y misterio', strong: 'Tiempo y memoria', lore: 'Custodia todas las lenguas y no comparte ninguna.',
+        relic: { key: 'escama', icon: 'cut-diamond', name: 'Escama de Babel', effect: '+2 de experiencia por cada palabra apuntada.' } }
     ];
 
+    // Reliquias que ya tiene el gremio: clave -> momento en que se consiguió
+    function relicState() {
+      const owned = {};
+      dungeonRows.forEach(r => { const b = BOSSES[r.boss - 1]; if (b) owned[b.relic.key] = Date.parse(r.defeated_at) || 0; });
+      return owned;
+    }
+
     // Cuánto daño hace una palabra según sus atmósferas: doble si el jefe es débil ante alguna, mitad si las resiste.
-    function bossFactor(boss, tones) {
+    function bossFactor(boss, tones, weakFactor = 2) {
       if (!boss || !tones) return 1;
-      if (tones.includes(boss.weak)) return 2;
+      if (tones.includes(boss.weak)) return weakFactor;
       if (tones.includes(boss.strong)) return 0.5;
       return 1;
     }
@@ -965,7 +1019,7 @@
       bardo: { icon: 'lyre', names: { m: 'Bardo', f: 'Barda', n: 'Barde' }, bonus: 'Un 50 % más por las citas con obra y autoría y por las palabras ya usadas.' },
       barbaro: { icon: 'barbarian', names: { m: 'Bárbaro', f: 'Bárbara', n: 'Bárbare' }, bonus: 'Un 50 % más por cada ronda de repaso completada, acierte o no.' },
       paladin: { icon: 'templar-shield', names: { m: 'Paladín', f: 'Paladina', n: 'Paladine' }, bonus: 'Un 10 % más por cada día seguido de actividad, hasta un 50 %.' },
-      picaro: { icon: 'rogue', names: { m: 'Pícaro', f: 'Pícara', n: 'Pícare' }, bonus: 'El doble de experiencia por las palabras que copia de otros glosarios.' }
+      picaro: { icon: 'rogue', names: { m: 'Pícaro', f: 'Pícara', n: 'Pícare' }, bonus: 'Gana 10 de experiencia, en lugar de 4, por cada palabra ajena que guarda en su glosario.' }
     };
 
     // Título según el nivel alcanzado
@@ -989,7 +1043,7 @@
       { icon: 'hourglass', name: 'Entrenamiento de combate', desc: 'Completa veinte rondas de repaso', test: s => s.rounds >= 20 },
       { icon: 'fire', name: 'Guardia de siete noches', desc: 'Siete días seguidos de actividad', test: s => s.bestStreak >= 7 },
       { icon: 'palette', name: 'Artífice de mundos', desc: 'Crea una atmósfera', test: s => s.tonesCreated >= 1 },
-      { icon: 'swap-bag', name: 'Juego de manos', desc: 'Copia cinco palabras de otros glosarios', test: s => s.copied >= 5 },
+      { icon: 'swap-bag', name: 'Juego de manos', desc: 'Guarda en tu glosario cinco palabras de otras personas', test: s => s.saved >= 5 },
       { icon: 'heart-plus', name: 'Carisma aumentado', desc: 'Recibe tu primer me gusta', test: s => s.likesReceived >= 1 },
       { icon: 'jeweled-chalice', name: 'Inspiración bárdica', desc: 'Recibe diez me gusta en tus palabras', test: s => s.likesReceived >= 10 },
       { icon: 'thumb-up', name: 'Detectar magia', desc: 'Da diez me gusta a palabras de otras personas', test: s => s.likesGiven >= 10 },
@@ -1020,6 +1074,13 @@
       const words = glossary.filter(w => w.author_id === userId);
       const sessions = reviewSessions.filter(s => s.user_id === userId)
         .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+      const byId = {};
+      glossary.forEach(w => { byId[w.id] = w; });
+      const mySaves = saves.filter(s => s.user_id === userId && byId[s.word_id] && byId[s.word_id].author_id !== userId);
+
+      // Reliquias del gremio: cada una vale desde el momento en que cayó su jefe
+      const relics = relicState();
+      const has = (key, at) => key in relics && (at === null || at > relics[key]);
 
       const perDay = {}; // día -> experiencia ganada ese día
       const events = []; // cada acción con fecha, para calcular el daño al jefe actual
@@ -1030,19 +1091,30 @@
         events.push({ at: Date.parse(when) || 0, day: k, points, tones: tones || null });
       };
       let undated = 0;   // experiencia sin fecha (palabras marcadas como usadas)
-      let sourced = 0, used = 0, copied = 0, thisMonth = 0;
+      let sourced = 0, used = 0, thisMonth = 0;
       const byTone = {};
       const monthNow = dayKey(new Date()).slice(0, 7);
+      const usedPoints = (XP.used + (has('brujula', null) ? 2 : 0)) * (cls === 'bardo' ? 1.5 : 1);
 
       words.forEach(w => {
-        let points = XP.word * (cls === 'mago' ? 1.5 : 1);
-        if (w.copied_from) { copied++; if (cls === 'picaro') points = XP.word * 2; }
-        if (str(w.source_title) && str(w.source_author)) { sourced++; points += XP.source * (cls === 'bardo' ? 1.5 : 1); }
+        const at = Date.parse(w.created_at) || 0;
+        let points = (XP.word + (has('pluma', at) ? 1 : 0) + (has('escama', at) ? 2 : 0)) * (cls === 'mago' ? 1.5 : 1);
+        if (str(w.source_title) && str(w.source_author)) {
+          sourced++;
+          points += (XP.source + (has('hilo', at) ? 1 : 0)) * (cls === 'bardo' ? 1.5 : 1);
+        }
         addDay(w.created_at, points, [w.tone, w.tone2]);
-        if (w.is_used) { used++; undated += XP.used * (cls === 'bardo' ? 1.5 : 1); }
+        if (w.is_used) { used++; undated += usedPoints; }
         byTone[w.tone] = (byTone[w.tone] || 0) + 1;
         if (w.tone2) byTone[w.tone2] = (byTone[w.tone2] || 0) + 1;
         if (dayKey(w.created_at).slice(0, 7) === monthNow) thisMonth++;
+      });
+
+      // Palabras de otras personas guardadas en su glosario
+      mySaves.forEach(s => {
+        const w = byId[s.word_id];
+        addDay(s.created_at, cls === 'picaro' ? XP.word : XP.save, [w.tone, w.tone2]);
+        if (s.is_used) { used++; undated += usedPoints; }
       });
 
       const roundsByDay = {};
@@ -1051,10 +1123,11 @@
         rounds++; hits += s.hits; asked += s.total;
         const isPerfect = s.total >= 5 && s.hits === s.total;
         if (isPerfect) perfect++;
+        const at = Date.parse(s.created_at) || 0;
         const k = dayKey(s.created_at);
         roundsByDay[k] = (roundsByDay[k] || 0) + 1;
-        if (roundsByDay[k] > XP.roundsPerDay) return; // solo puntúan las tres primeras rondas de cada día
-        let hitPoints = s.hits * XP.hit * (cls === 'hechicero' ? 1.5 : 1);
+        if (roundsByDay[k] > XP.roundsPerDay + (has('vela', at) ? 1 : 0)) return; // solo puntúan las primeras rondas de cada día
+        let hitPoints = s.hits * (XP.hit + (has('ovillo', at) ? 1 : 0)) * (cls === 'hechicero' ? 1.5 : 1);
         if (cls === 'hechicero' && isPerfect) hitPoints *= 2;
         addDay(s.created_at, XP.round * (cls === 'barbaro' ? 1.5 : 1) + hitPoints);
       });
@@ -1074,22 +1147,21 @@
       // Me gusta recibidos: dan un poco de experiencia y también cuentan como daño
       const myIds = new Set(words.map(w => w.id));
       const received = likes.filter(l => myIds.has(l.word_id));
-      const likesReceived = received.length;
-      received.forEach(l => events.push({ at: Date.parse(l.created_at) || 0, day: null, points: XP.like, tones: null }));
-      const merit = Math.round(xp + likesReceived * XP.like);
+      received.forEach(l => {
+        const at = Date.parse(l.created_at) || 0;
+        const points = XP.like + (has('espejo', at) ? 1 : 0);
+        xp += points;
+        events.push({ at, day: null, points, tones: null });
+      });
 
-      // Daño al jefe actual: lo ganado desde que cayó el anterior, con sus debilidades y resistencias
-      const frame = dungeonFrame();
-      const damage = Math.round(events.filter(e => e.at > frame.since)
-        .reduce((sum, e) => sum + e.points * (e.day ? dayBonus[e.day] : 1) * bossFactor(frame.boss, e.tones), 0));
       const defeated = defeatedBosses();
       const stats = {
-        userId, damage,
-        xp: merit + defeated.reduce((sum, b) => sum + b.reward, 0), // más las recompensas de los jefes caídos
+        userId,
+        xp: Math.round(xp) + defeated.reduce((sum, b) => sum + b.reward, 0), // más las recompensas de los jefes caídos
         cls, className: className(profile),
-        words: words.length, thisMonth, sourced, used, copied, byTone,
+        words: words.length, saved: mySaves.length, thisMonth, sourced, used, byTone,
         rounds, hits, asked, perfect, currentStreak, bestStreak,
-        likesReceived, likesGiven: likes.filter(l => l.user_id === userId).length,
+        likesReceived: received.length, likesGiven: likes.filter(l => l.user_id === userId).length,
         bossesDefeated: defeated.length,
         tonesCreated: Object.values(SCHOOLS).filter(s => s.custom && s.created_by === userId).length
       };
@@ -1098,6 +1170,15 @@
       stats.toNext = ceil - stats.xp;
       stats.progress = Math.round(((stats.xp - floor) / (ceil - floor)) * 100);
       stats.title = [...TITLES].reverse().find(t => stats.level >= t.level) || TITLES[0];
+
+      // Daño al jefe actual: lo hecho desde que cayó el anterior, con sus debilidades y resistencias,
+      // más la bonificación por nivel y por las reliquias de daño.
+      const frame = dungeonFrame();
+      stats.damageBonus = (1 + LEVEL_DAMAGE * (stats.level - 1)) * (1 + ('cincel' in relics ? 0.1 : 0) + ('reloj' in relics ? 0.1 : 0));
+      const weakFactor = 'colmillo' in relics ? 2.5 : 2;
+      stats.damage = Math.round(stats.damageBonus * events.filter(e => e.at > frame.since)
+        .reduce((sum, e) => sum + e.points * (e.day ? dayBonus[e.day] : 1) * bossFactor(frame.boss, e.tones, weakFactor), 0));
+
       stats.achievements = ACHIEVEMENTS.map(a => Boolean(a.test(stats)));
       return stats;
     }
@@ -1108,6 +1189,7 @@
       // Solo cuentan los me gusta de palabras que siguen existiendo
       const alive = new Set(glossary.map(w => w.id));
       likes = likes.filter(l => alive.has(l.word_id));
+      saves = saves.filter(s => alive.has(s.word_id));
       likeMap = {};
       likes.forEach(l => { (likeMap[l.word_id] = likeMap[l.word_id] || []).push(l.user_id); });
       guild = {};
@@ -1133,7 +1215,7 @@
         if (!again.error) dungeonRows = again.data;
       } else {
         dungeonRows.push(data);
-        showToast(`¡${boss.name} ha caído! +${boss.reward} XP para todo el gremio`);
+        showToast(`¡${boss.name} ha caído! +${boss.reward} XP para todo el gremio y la reliquia «${boss.relic.name}»`);
       }
       dungeonBusy = false;
       if (dungeonRows.some(r => r.boss === number)) renderGlossary();
@@ -1172,6 +1254,24 @@
         </button>`;
     }
 
+    // Reliquias: las conseguidas, con su efecto; las demás, ocultas hasta que caiga su jefe
+    function relicsBlock() {
+      const owned = relicState();
+      return `
+          <div class="rule mt-6"><span class="quote text-xs">Botín del gremio</span></div>
+          <ul class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            ${BOSSES.map(b => b.relic.key in owned
+              ? `<li class="flex items-start gap-2.5">
+                   <i class="gi gi-${b.relic.icon} text-lg mt-0.5 text-paper-accent dark:text-night-accent"></i>
+                   <span><strong class="font-medium">${esc(b.relic.name)}</strong><span class="block text-xs text-paper-muted dark:text-night-muted">${esc(b.relic.effect)}</span></span>
+                 </li>`
+              : `<li class="flex items-start gap-2.5 opacity-50">
+                   <i class="gi gi-locked-chest text-lg mt-0.5 text-paper-muted dark:text-night-muted"></i>
+                   <span><strong class="font-medium">Reliquia desconocida</strong><span class="block text-xs text-paper-muted dark:text-night-muted">La guarda ${esc(b.name)}</span></span>
+                 </li>`).join('')}
+          </ul>`;
+    }
+
     // Panel completo de la mazmorra, en la pestaña Gremio
     function dungeonPanel() {
       if (!dungeon) return '';
@@ -1197,7 +1297,7 @@
             <h3 class="word-title text-3xl mt-3">${esc(b.name)}</h3>
             <p class="quote text-sm mt-1">${esc(b.lore)}</p>
             <div class="max-w-md mx-auto mt-4">${hpBar(dungeon.dealt, b.hp, true)}</div>
-            <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted mt-2">Vida ${b.hp - dungeon.dealt} de ${b.hp} · al caer, +${b.reward} XP para cada persona</p>
+            <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted mt-2">Vida ${b.hp - dungeon.dealt} de ${b.hp} · al caer, +${b.reward} XP para cada persona y una reliquia</p>
             <p class="mt-4 flex flex-wrap items-center justify-center gap-2">
               <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted">Débil ante</span>${toneBadge(b.weak)}
               <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted ml-2">Resiste</span>${toneBadge(b.strong)}
@@ -1223,6 +1323,7 @@
               </li>`;
             }).join('')}
           </ul>
+          ${relicsBlock()}
           ${fallen ? `<div class="rule mt-6"><span class="quote text-xs">Jefes caídos</span></div><ul class="mt-3 space-y-1.5 max-w-md mx-auto">${fallen}</ul>` : ''}
           <p class="text-xs text-paper-muted dark:text-night-muted mt-5 text-center">Apuntar palabras, repasar y recibir me gusta hace daño al jefe actual. No hay plazo, y el daño que sobra al derrotarlo no pasa al siguiente.</p>
         </div>`;
@@ -1289,6 +1390,7 @@
           ['Ya usadas', `${s.used} (${pct(s.used, s.words)})`], ['Rondas de repaso', s.rounds],
           ['Aciertos', pct(s.hits, s.asked)], ['Racha actual', s.currentStreak + (s.currentStreak === 1 ? ' día' : ' días')],
           ['Mejor racha', s.bestStreak + (s.bestStreak === 1 ? ' día' : ' días')],
+          ['Guardadas de otros', s.saved], ['Daño a los jefes', '+' + Math.round((s.damageBonus - 1) * 100) + ' %'],
           ['Me gusta recibidos', s.likesReceived], ['Me gusta dados', s.likesGiven]
         ];
         const tones = Object.entries(s.byTone).sort((a, b) => b[1] - a[1]).slice(0, 6);
@@ -1326,7 +1428,7 @@
               <span><strong class="font-medium">${esc(a.name)}</strong><span class="block text-xs text-paper-muted dark:text-night-muted">${esc(a.desc)}</span></span>
             </li>`).join('')}
           </ul>
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra, +${XP.source} si la cita lleva obra y autoría, ${XP.used} por palabra ya usada, ${XP.round} por ronda de repaso más ${XP.hit} por acierto (puntúan las ${XP.roundsPerDay} primeras rondas de cada día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado.</p>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save} por cada palabra ajena que guardas en tu glosario, ${XP.used} por palabra ya usada, ${XP.round} por ronda de repaso más ${XP.hit} por acierto (puntúan las ${XP.roundsPerDay} primeras rondas de cada día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${Math.round(LEVEL_DAMAGE * 100)} % de daño a los jefes.</p>
         </div>`;
 
       panel.innerHTML = dungeonPanel() + chooser + `<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">${members}</div>` + legend;
@@ -1354,12 +1456,16 @@
 
     // ---------- GLOSARIO ----------
     // Guarda una palabra a mi nombre. Devuelve true si se ha guardado.
-    async function addWord(item, copiedFrom = null) {
+    async function addWord(item) {
       if (!currentUser) { showToast('Inicia sesión para guardar palabras'); return false; }
       const row = toRow(item);
-      if (gameReady && copiedFrom) row.copied_from = copiedFrom; // cuenta como palabra copiada de otro glosario
       if (!row.word || !row.definition) { showToast('Introduce al menos la palabra y su definición'); return false; }
       if (iHave(row.word)) { showToast(`«${row.word}» ya está en tu glosario`); return false; }
+      const existing = glossary.find(w => norm(w.word) === norm(row.word));
+      if (existing) {
+        showToast(`«${row.word}» ya está en el glosario de ${authorName(existing.author_id)}. Guárdala en el tuyo en lugar de duplicarla.`);
+        return false;
+      }
 
       const { data, error } = await sb.from('words').insert(row).select().single();
       if (error) {
@@ -1407,7 +1513,7 @@
 
       const byAuthor = glossary.filter(item => {
         if (author === 'all') return true;
-        if (author === 'mine') return currentUser && item.author_id === currentUser.id;
+        if (author === 'mine') return myMarks(item).inMine;
         return item.author_id === author;
       });
       document.getElementById('glossaryCount').textContent = byAuthor.length;
@@ -1418,9 +1524,9 @@
           norm(item.word).includes(query) ||
           norm(item.plain).includes(query) ||
           norm(item.definition).includes(query);
-        const own = currentUser && item.author_id === currentUser.id;
+        const marks = myMarks(item);
         const matchesMark = mark === 'all' ||
-          (own && (mark === 'fav' ? item.is_favorite : mark === 'used' ? item.is_used : !item.is_used));
+          (marks.inMine && (mark === 'fav' ? marks.fav : mark === 'used' ? marks.used : !marks.used));
         return matchesTone && matchesQuery && matchesMark;
       });
 
@@ -1446,6 +1552,8 @@
       grid.innerHTML = sorted.map(item => {
         const mine = currentUser && item.author_id === currentUser.id;
         const name = authorName(item.author_id);
+        const marks = myMarks(item);
+        const saved = !mine && marks.inMine;
         const likers = likesFor(item.id);
         const liked = Boolean(currentUser && likers.includes(currentUser.id));
         const likersTitle = likers.length ? 'Le gusta a ' + likers.map(id => currentUser && id === currentUser.id ? 'ti' : authorName(id)).join(', ') : 'Me gusta';
@@ -1459,9 +1567,15 @@
                <button onclick="openEditModal('${esc(item.id)}')" title="Editar" class="text-sm text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink"><i class="gi gi-quill"></i></button>
                <button onclick="deleteGlossaryWord('${esc(item.id)}')" title="Eliminar" class="text-sm text-paper-muted dark:text-night-muted hover:text-red-500"><i class="gi gi-trash-can"></i></button>
              </span>`
-          : (iHave(item.word)
-              ? `<span class="text-[11px] text-paper-muted dark:text-night-muted">★ También en el tuyo</span>`
-              : `<button onclick="copyWordToMine('${esc(item.id)}')" class="text-[11px] px-2.5 py-0.5 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-light dark:hover:bg-night-bg transition">+ A mi glosario</button>`);
+          : (saved
+              ? `<span class="flex items-center gap-3">
+                   <button onclick="toggleFlag('${esc(item.id)}', 'is_favorite')" title="${marks.fav ? 'Quitar de favoritas' : 'Marcar como favorita'}" class="plain text-base leading-none ${marks.fav ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${marks.fav ? '★' : '☆'}</button>
+                   <button onclick="toggleFlag('${esc(item.id)}', 'is_used')" title="${marks.used ? 'Ya la has usado en un texto. Pulsa para desmarcar' : 'Marcar como ya usada en un texto'}" class="text-[10px] ${marks.used ? 'text-emerald-500' : 'text-paper-muted dark:text-night-muted'}"><i class="gi gi-check-mark"></i> ${marks.used ? 'Usada' : 'Sin usar'}</button>
+                   <button onclick="toggleSave('${esc(item.id)}')" title="Quitar de tu glosario" class="text-sm text-paper-muted dark:text-night-muted hover:text-red-500"><i class="gi gi-cancel"></i></button>
+                 </span>`
+              : (myWords().some(w => norm(w.word) === norm(item.word))
+                  ? `<span class="text-[11px] text-paper-muted dark:text-night-muted">★ También en el tuyo</span>`
+                  : `<button onclick="toggleSave('${esc(item.id)}')" class="text-[11px] px-2.5 py-0.5 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-light dark:hover:bg-night-bg transition">+ A mi glosario</button>`));
         return `
         <article class="frame lift bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5 flex flex-col justify-between gap-3">
           ${ribbons(item)}
@@ -1486,7 +1600,7 @@
             </div>
             <div class="flex items-center gap-1.5 text-[11px] text-paper-muted dark:text-night-muted">
               <span class="w-4 h-4 rounded-full text-white flex items-center justify-center text-[9px] font-semibold" style="background:${authorColor(item.author_id)}">${esc(name.charAt(0).toUpperCase())}</span>
-              <span>Apuntada por ${mine ? 'ti' : esc(name)} · ${esc([guild[item.author_id]?.className, guild[item.author_id]?.title.name || 'Aprendiz'].filter(Boolean).join(' · '))}</span>
+              <span>Apuntada por ${mine ? 'ti' : esc(name)} · ${esc([guild[item.author_id]?.className, guild[item.author_id]?.title.name || 'Aprendiz'].filter(Boolean).join(' · '))}${saved ? ' · en tu glosario' : ''}</span>
             </div>
           </div>
         </article>`;
@@ -1496,7 +1610,9 @@
     async function deleteGlossaryWord(id) {
       const item = glossary.find(w => w.id === id);
       if (!item) return;
-      if (!confirm(`¿Eliminar «${item.word}» de tu glosario?`)) return;
+      const keepers = saves.filter(s => s.word_id === id).length;
+      const warning = keepers ? ` También desaparecerá del glosario de ${keepers === 1 ? 'la persona que la guardó' : 'las ' + keepers + ' personas que la guardaron'}.` : '';
+      if (!confirm(`¿Eliminar «${item.word}» de tu glosario?${warning}`)) return;
       const { error } = await sb.from('words').delete().eq('id', id);
       if (error) { showToast('No se pudo eliminar: ' + error.message); return; }
       glossary = glossary.filter(w => w.id !== id);
@@ -1504,9 +1620,38 @@
       showToast(`«${item.word}» eliminada`);
     }
 
-    async function copyWordToMine(id) {
-      const item = glossary.find(w => w.id === id);
-      if (item) await addWord(item, item.author_id && currentUser && item.author_id !== currentUser.id ? item.author_id : null);
+    // Guardar o quitar de mi glosario una palabra de otra persona, sin duplicarla
+    async function toggleSave(wordId) {
+      const item = glossary.find(w => w.id === wordId);
+      if (!item || !currentUser || item.author_id === currentUser.id) return false;
+      if (!savesReady) { showToast('Falta ejecutar el último schema.sql en Supabase'); return false; }
+      const mine = mySave(wordId);
+      if (mine) {
+        if (!confirm(`¿Quitar «${item.word}» de tu glosario? La palabra seguirá en el de ${authorName(item.author_id)}.`)) return false;
+        const { error } = await sb.from('word_saves').delete().eq('word_id', wordId).eq('user_id', currentUser.id);
+        if (error) { showToast('No se pudo quitar: ' + error.message); return false; }
+        saves = saves.filter(s => s !== mine);
+        renderGlossary();
+        showToast(`«${item.word}» ya no está en tu glosario`);
+        return true;
+      }
+      const before = guild[currentUser.id] || computeStats(currentUser.id);
+      const { data, error } = await sb.from('word_saves').insert({ word_id: wordId }).select().single();
+      if (error) { showToast('No se pudo guardar: ' + error.message); return false; }
+      saves.push(data);
+      renderGlossary();
+      const after = guild[currentUser.id] || before;
+      showToast(`«${item.word}» guardada en tu glosario · +${after.xp - before.xp} XP`);
+      return true;
+    }
+
+    async function saveToMine(wordId) {
+      if (!mySave(wordId)) return toggleSave(wordId);
+      return true;
+    }
+
+    async function saveFromNotice(wordId) {
+      if (await saveToMine(wordId)) closeAddModal();
     }
 
     // ---------- APUNTAR Y EDITAR PALABRA ----------
@@ -1570,17 +1715,12 @@
         lines.push(`Ya tienes «${esc(mine.word)}» en tu glosario. <button type="button" onclick="openEditModal('${esc(mine.id)}')" class="${linkClass}">Editarla</button>`);
       }
       matches.filter(w => w !== mine).forEach(w => {
-        lines.push(`${esc(authorName(w.author_id))} ya la tiene apuntada. <button type="button" onclick="useExistingEntry('${esc(w.id)}')" class="${linkClass}">Usar su ficha</button>`);
+        lines.push(mySave(w.id)
+          ? `${esc(authorName(w.author_id))} ya la tiene apuntada y la tienes guardada en tu glosario.`
+          : `${esc(authorName(w.author_id))} ya la tiene apuntada. En lugar de duplicarla, <button type="button" onclick="saveFromNotice('${esc(w.id)}')" class="${linkClass}">guárdala en tu glosario</button>.`);
       });
       box.innerHTML = lines.map(l => `<p>${l}</p>`).join('');
       box.classList.remove('hidden');
-    }
-
-    function useExistingEntry(id) {
-      const item = glossary.find(w => w.id === id);
-      if (!item) return;
-      fillModalFields(item);
-      showToast(`Ficha de ${authorName(item.author_id)} copiada al formulario`);
     }
 
     // ---------- FUENTE DEL AUTOCOMPLETADO: IA O DICCIONARIO ----------
@@ -1808,6 +1948,12 @@
     async function updateWord(id, item) {
       const row = toRow(item);
       if (!row.word || !row.definition) { showToast('Introduce al menos la palabra y su definición'); return false; }
+      const original = glossary.find(w => w.id === id);
+      const clash = glossary.find(w => w.id !== id && norm(w.word) === norm(row.word));
+      if (clash && clash.author_id !== currentUser.id && original && norm(original.word) !== norm(row.word)) {
+        showToast(`«${row.word}» ya está en el glosario de ${authorName(clash.author_id)}`);
+        return false;
+      }
       if (myWords().some(w => w.id !== id && norm(w.word) === norm(row.word))) {
         showToast(`Ya tienes otra ficha de «${row.word}» en tu glosario`);
         return false;
@@ -1898,7 +2044,7 @@
           : '';
         const button = iHave(item.word)
           ? `<span class="text-[11px] text-paper-muted dark:text-night-muted whitespace-nowrap">★ Guardada</span>`
-          : `<button onclick="saveReverseResult(${idx})" class="px-3 py-1.5 rounded-md text-xs border border-paper-border dark:border-night-border hover:bg-paper-ink hover:text-paper-light transition whitespace-nowrap">+ Guardar</button>`;
+          : `<button onclick="saveReverseResult(${idx})" data-idx="${idx}" class="px-3 py-1.5 rounded-md text-xs border border-paper-border dark:border-night-border hover:bg-paper-ink hover:text-paper-light transition whitespace-nowrap">+ Guardar</button>`;
         return `
           <div class="frame lift p-5 ${item.tone2 ? 'pl-24' : 'pl-16'} bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border flex items-start justify-between gap-4">
             ${ribbons(item)}
@@ -1919,7 +2065,20 @@
 
     async function saveReverseResult(idx) {
       const item = window._lastReverseResults?.[idx];
-      if (item) await addWord(item, item.author_id && currentUser && item.author_id !== currentUser.id ? item.author_id : null);
+      if (!item) return;
+      // Si la palabra ya está en el glosario de otra persona se guarda la suya; si la propone la IA, se apunta como nueva.
+      const saved = item.author_id && item.id && currentUser && item.author_id !== currentUser.id
+        ? await saveToMine(item.id)
+        : await addWord(item);
+      if (saved) runReverseSearchRefresh();
+    }
+
+    // Vuelve a pintar los resultados para que el botón pase a «Guardada»
+    function runReverseSearchRefresh() {
+      document.querySelectorAll('#reverseResults button[data-idx]').forEach(btn => {
+        const item = window._lastReverseResults?.[Number(btn.dataset.idx)];
+        if (item && iHave(item.word)) { btn.textContent = '★ Guardada'; btn.disabled = true; }
+      });
     }
 
     // ---------- ME GUSTA ----------
@@ -1943,7 +2102,17 @@
     // ---------- MARCAS Y FUENTE DE LA CITA ----------
     async function toggleFlag(id, field) {
       const item = glossary.find(w => w.id === id);
-      if (!item || !currentUser || item.author_id !== currentUser.id) return;
+      if (!item || !currentUser) return;
+      if (item.author_id !== currentUser.id) {
+        // Palabra ajena guardada: la marca es mía y vive en mi guardado, no en la ficha
+        const save = mySave(id);
+        if (!save) return;
+        const res = await sb.from('word_saves').update({ [field]: !save[field] }).eq('word_id', id).eq('user_id', currentUser.id).select().single();
+        if (res.error) { showToast('No se pudo guardar la marca: ' + res.error.message); return; }
+        saves = saves.map(s => s === save ? res.data : s);
+        renderGlossary();
+        return;
+      }
       if (!hasExtras) { showToast('Falta ejecutar el último schema.sql en Supabase'); return; }
       const { data, error } = await sb.from('words').update({ [field]: !item[field] }).eq('id', id).select().single();
       if (error) { showToast('No se pudo guardar la marca: ' + error.message); return; }
@@ -2096,9 +2265,9 @@
     function startReview() {
       const scope = document.getElementById('reviewScope').value;
       let pool = glossary.filter(w => str(w.definition));
-      if (scope !== 'all') pool = pool.filter(w => currentUser && w.author_id === currentUser.id);
-      if (scope === 'fav') pool = pool.filter(w => w.is_favorite);
-      if (scope === 'unused') pool = pool.filter(w => !w.is_used);
+      if (scope !== 'all') pool = pool.filter(w => myMarks(w).inMine);
+      if (scope === 'fav') pool = pool.filter(w => myMarks(w).fav);
+      if (scope === 'unused') pool = pool.filter(w => !myMarks(w).used);
       for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -2241,7 +2410,7 @@
     async function importItems(items) {
       if (!currentUser) return;
       if (!Array.isArray(items)) { showToast('El archivo JSON no tiene un formato válido'); return; }
-      const have = new Set(myWords().map(w => norm(w.word)));
+      const have = new Set(glossary.map(w => norm(w.word))); // no se importa lo que ya tiene alguien del gremio
       const rows = [];
       items.forEach(item => {
         if (!item || typeof item.word !== 'string') return;
