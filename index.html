@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lexium — Glosario literario compartido</title>
+  <title>Lexium — Grimorio literario compartido</title>
   <meta name="theme-color" content="#06080F" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -85,7 +85,7 @@
     /* Títulos en gótica rellena dorada (el contorno fino no se leía bien) */
     .title-outline { font-family: 'LexiumDisplay', 'Grenze Gotisch', serif; font-weight: 400; color: var(--gold);
                      text-shadow: 1px 1px 2px var(--deep-shadow); letter-spacing: 0; line-height: 1.1; }
-    /* Palabras del glosario: gótica rellena, legible */
+    /* Palabras del grimorio: gótica rellena, legible */
     .word-title { font-family: 'LexiumDisplay', 'Grenze Gotisch', serif; font-weight: 400; line-height: 1.05; text-shadow: 1px 1px 2px var(--deep-shadow); }
     .dropcap { color: var(--gold); }
 
@@ -163,7 +163,7 @@
     #toast { font-family: 'Cinzel', serif; text-transform: uppercase; letter-spacing: 0.08em; }
     .dark #toast { background: #080B13 !important; color: var(--gold) !important; border: 1px solid var(--gold); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8); }
 
-    /* Impresión o PDF: solo las fichas del glosario, en tinta sobre blanco */
+    /* Impresión o PDF: solo las fichas del grimorio, en tinta sobre blanco */
     @media print {
       header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-bag, #view-guild, #view-dm, #dmBossModal, #dmItemModal, #lootModal, .no-print, .ribbon-wrap { display: none !important; }
       html { font-size: 12px; }
@@ -187,7 +187,7 @@
       <div class="text-center space-y-2">
         <i class="gi gi-spell-book text-5xl text-paper-accent dark:text-night-accent"></i>
         <h2 class="title-outline text-5xl">Lexium</h2>
-        <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted">Glosario compartido · Entra con tu cuenta</p>
+        <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted">Grimorio compartido · Entra con tu cuenta</p>
       </div>
       <div id="authNameWrap" class="hidden">
         <label for="authName" class="text-xs font-medium text-paper-muted dark:text-night-muted">Tu nombre de autora</label>
@@ -226,7 +226,7 @@
           <i class="gi gi-quill-ink text-base"></i> <span class="hidden sm:inline">Apuntar palabra</span>
         </button>
         
-        <button onclick="reloadFromCloud(true)" id="btnQuickSync" title="Recargar el glosario compartido" class="p-2 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-card dark:hover:bg-night-card transition">
+        <button onclick="reloadFromCloud(true)" id="btnQuickSync" title="Recargar el grimorio compartido" class="p-2 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-card dark:hover:bg-night-card transition">
           <i class="gi gi-cycle"></i>
         </button>
 
@@ -242,14 +242,14 @@
 
     <nav class="max-w-5xl mx-auto px-4 flex gap-5 sm:gap-8 text-[11px] border-t border-paper-border/50 dark:border-night-border/50 overflow-x-auto">
       <button onclick="switchTab('glossary')" id="tab-glossary" class="py-2.5 border-b-2 border-paper-ink dark:border-night-accent font-medium whitespace-nowrap transition flex items-center gap-1.5">
-        <i class="gi gi-book-cover"></i><span>Glosario</span>
+        <i class="gi gi-book-cover"></i><span>Grimorio</span>
         <span id="glossaryCount" class="text-[11px] px-1.5 py-0.5 rounded-full bg-paper-card dark:bg-night-card">0</span>
       </button>
       <button onclick="switchTab('reverse')" id="tab-reverse" class="py-2.5 border-b-2 border-transparent text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink whitespace-nowrap transition flex items-center gap-1.5">
-        <i class="gi gi-crystal-ball"></i><span>Buscador<span class="tab-long"> inverso</span></span>
+        <i class="gi gi-crystal-ball"></i><span>Magia<span class="tab-long"> inversa</span></span>
       </button>
       <button onclick="switchTab('review')" id="tab-review" class="py-2.5 border-b-2 border-transparent text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink whitespace-nowrap transition flex items-center gap-1.5">
-        <i class="gi gi-brain"></i><span>Repaso</span>
+        <i class="gi gi-target-dummy"></i><span>Entren<span class="tab-long">amient</span>o</span>
       </button>
       <button onclick="switchTab('bag')" id="tab-bag" class="py-2.5 border-b-2 border-transparent text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink whitespace-nowrap transition flex items-center gap-1.5">
         <i class="gi gi-swap-bag"></i><span>Zurrón</span>
@@ -277,7 +277,7 @@
 
         <select id="glossaryAuthorFilter" onchange="renderGlossary()" class="px-4 py-2.5 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm focus:outline-none">
           <option value="all">Todos los autores</option>
-          <option value="mine">Solo mi glosario</option>
+          <option value="mine">Solo mi grimorio</option>
         </select>
 
         <select id="glossaryToneFilter" onchange="renderGlossary()" class="px-4 py-2.5 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm focus:outline-none">
@@ -653,7 +653,7 @@
 
       <div class="flex justify-end gap-2 pt-3 border-t border-paper-border dark:border-night-border">
         <button onclick="closeAddModal()" class="px-4 py-2 rounded-xl text-xs border border-paper-border dark:border-night-border">Cancelar</button>
-        <button onclick="saveWordFromModal()" id="btnSaveWord" class="px-5 py-2 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg">Guardar en mi glosario</button>
+        <button onclick="saveWordFromModal()" id="btnSaveWord" class="px-5 py-2 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg">Guardar en mi grimorio</button>
       </div>
     </div>
   </div>
@@ -704,7 +704,7 @@
         <span class="text-xs font-semibold uppercase tracking-wider">3. Copia de seguridad (JSON)</span>
         <p class="text-xs text-paper-muted dark:text-night-muted">Exporta tus palabras o importa un archivo. Lo importado se guarda a tu nombre y se saltan las que ya tienes.</p>
         <div class="flex flex-wrap gap-2 pt-1">
-          <button onclick="exportGlossaryJSON()" class="px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border bg-paper-light dark:bg-night-bg">Descargar mi glosario</button>
+          <button onclick="exportGlossaryJSON()" class="px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border bg-paper-light dark:bg-night-bg">Descargar mi grimorio</button>
           <button onclick="printGlossary()" class="px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border bg-paper-light dark:bg-night-bg">Imprimir o guardar en PDF</button>
           <label class="px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border bg-paper-light dark:bg-night-bg cursor-pointer">
             Importar archivo JSON
@@ -854,9 +854,14 @@
     let chestOpens = [];      // cofres ya abiertos: { user_id, source }
     let itemUses = [];        // consumibles usados (veneno)
     let economyReady = false; // true cuando la base de datos ya tiene las tablas de inventario y oro
+    let chestGrants = [];     // cofres regalados por el máster: { id, user_id, tier, note }
+    let duels = [];           // duelos de repaso entre dos personas
+    let lifeReady = false;    // true cuando la base de datos ya tiene duelos, cofres regalados y pociones
+    let weekWinners = {};     // lunes de cada semana cerrada -> ids de quienes la ganaron
+    let reviewDuel = null;    // duelo que se está jugando ahora: { id, side, started, rival }
     let contentReady = false; // true cuando la base de datos ya tiene las tablas de jefes y objetos
     let contentFromDb = false; // true cuando los jefes que se muestran vienen de la base de datos
-    let saves = [];          // palabras ajenas guardadas en el glosario de cada persona: { word_id, user_id, is_favorite, is_used }
+    let saves = [];          // palabras ajenas guardadas en el grimorio de cada persona: { word_id, user_id, is_favorite, is_used }
     let savesReady = false;  // true cuando la base de datos ya tiene la tabla de guardadas
     let likes = [];          // me gusta de todo el grupo: { word_id, user_id }
     let likeMap = {};        // id de palabra -> ids de quienes le han dado me gusta
@@ -969,7 +974,7 @@
     function myWords() { return currentUser ? glossary.filter(w => w.author_id === currentUser.id) : []; }
     // Mi guardado de una palabra ajena, si lo tengo
     function mySave(wordId) { return currentUser ? saves.find(s => s.word_id === wordId && s.user_id === currentUser.id) || null : null; }
-    // Mi relación con una palabra: si está en mi glosario (porque es mía o la guardé) y mis marcas sobre ella
+    // Mi relación con una palabra: si está en mi grimorio (porque es mía o la guardé) y mis marcas sobre ella
     function myMarks(item) {
       if (!currentUser) return { inMine: false, fav: false, used: false };
       if (item.author_id === currentUser.id) return { inMine: true, fav: Boolean(item.is_favorite), used: Boolean(item.is_used) };
@@ -1107,7 +1112,7 @@
     // ---------- CARGA DE DATOS ----------
     async function reloadFromCloud(notify = false) {
       if (!currentUser) return;
-      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes] = await Promise.all([
+      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes, cgRes, duRes] = await Promise.all([
         sb.from('profiles').select('*'),
         sb.from('words').select('*').order('created_at', { ascending: false }),
         sb.from('tones').select('*').order('created_at', { ascending: true }),
@@ -1121,10 +1126,12 @@
         sb.from('equip_history').select('*'),
         sb.from('gold_ledger').select('*'),
         sb.from('chest_opens').select('*'),
-        sb.from('consumable_uses').select('*')
+        sb.from('consumable_uses').select('*'),
+        sb.from('chest_grants').select('*'),
+        sb.from('duels').select('*').order('created_at', { ascending: true })
       ]);
       if (pRes.error || wRes.error) {
-        showToast('No se pudo cargar el glosario: ' + (pRes.error || wRes.error).message);
+        showToast('No se pudo cargar el grimorio: ' + (pRes.error || wRes.error).message);
         return;
       }
       profiles = {};
@@ -1150,6 +1157,9 @@
       ledger = economyReady ? glRes.data : [];
       chestOpens = economyReady ? coRes.data : [];
       itemUses = economyReady ? cuRes.data : [];
+      lifeReady = economyReady && !cgRes.error && !duRes.error;
+      chestGrants = lifeReady ? cgRes.data : [];
+      duels = lifeReady ? duRes.data : [];
       contentReady = !bRes.error && !iRes.error;
       applyGameContent(contentReady ? bRes.data : [], contentReady ? iRes.data : []);
       dungeonRows = dRes.error ? [] : dRes.data;
@@ -1163,7 +1173,7 @@
       renderGlossary();
       updateStatus();
       applyAIAccess();
-      if (notify) showToast('Glosario actualizado');
+      if (notify) showToast('Grimorio actualizado');
     }
 
     // ---------- TEMA Y PESTAÑAS ----------
@@ -1215,6 +1225,8 @@
       gold_pct: { label: 'Oro extra en las rondas de repaso (%)', text: v => `+${v} % de oro en las rondas de repaso.` },
       lockpick: { label: 'Consumible: abre un cofre', text: () => 'Abre un cofre.' },
       poison: { label: 'Consumible: veneno, daño extra durante un día (%)', text: v => `Durante un día, +${v} % de daño al jefe.` },
+      potion: { label: 'Consumible: poción (protege una decana)', text: () => 'Te protege una decana sin actividad, o despierta a alguien del gremio que esté en reposo.' },
+      duel: { label: 'Consumible: pergamino de duelo', text: () => 'Reta a alguien del gremio a un duelo de repaso.' },
       weak_factor: { label: 'Golpe más fuerte a la debilidad del jefe', text: v => `Los golpes a la debilidad del jefe hacen ×${String(2 + v).replace('.', ',')} en lugar de ×2.` }
     };
 
@@ -1231,7 +1243,14 @@
       level: { label: 'Cofre menor', icon: 'chest', weights: { 'común': 60, 'raro': 30, 'épico': 9, 'legendario': 1 } }
     };
     // Oro: se gana con lo que más enseña (repasar, usar las palabras, la constancia) y con los jefes
+    CHESTS.prestige = { label: 'Cofre de prestigio', icon: 'open-treasure-chest', free: true, weights: { 'común': 0, 'raro': 30, 'épico': 45, 'legendario': 25 } };
     const GOLD = { round: 3, hit: 1, used: 5, day: 2, noLoot: 30 };
+    // Vida: tres corazones; se pierde uno por cada decana (10 días) sin actividad. Empieza a contar en esta fecha.
+    const LIFE = { start: '2026-11-16T00:00:00', days: 10, hearts: 3 };
+    // Duelos: palabras por duelo y prestigio que dan; cada tanto prestigio, un cofre de prestigio
+    const DUEL = { words: 10, win: 3, draw: 2, lose: 1, chestEvery: 10 };
+    // Clasificación semanal (de lunes a domingo): premio en oro desde la semana indicada
+    const WEEK = { start: '2026-11-16', gold: 50 };
 
     function effectText(item) {
       const effect = EFFECTS[item.effect_type] || EFFECTS.none;
@@ -1341,7 +1360,7 @@
       bardo: { icon: 'lyre', names: { m: 'Bardo', f: 'Barda', n: 'Barde' }, bonus: 'Un 50 % más por las citas con obra y autoría y por las palabras ya usadas.' },
       barbaro: { icon: 'barbarian', names: { m: 'Bárbaro', f: 'Bárbara', n: 'Bárbare' }, bonus: 'Un 50 % más por cada ronda de repaso completada, acierte o no.' },
       paladin: { icon: 'templar-shield', names: { m: 'Paladín', f: 'Paladina', n: 'Paladine' }, bonus: 'Un 10 % más por cada día seguido de actividad, hasta un 50 %.' },
-      picaro: { icon: 'rogue', names: { m: 'Pícaro', f: 'Pícara', n: 'Pícare' }, bonus: 'Gana 10 de experiencia, en lugar de 4, por cada palabra ajena que guarda en su glosario.' }
+      picaro: { icon: 'rogue', names: { m: 'Pícaro', f: 'Pícara', n: 'Pícare' }, bonus: 'Gana 10 de experiencia, en lugar de 4, por cada palabra ajena que guarda en su grimorio.' }
     };
 
     // Título según el nivel alcanzado
@@ -1365,12 +1384,16 @@
       { icon: 'hourglass', name: 'Entrenamiento de combate', desc: 'Completa veinte rondas de repaso', test: s => s.rounds >= 20 },
       { icon: 'fire', name: 'Guardia de siete noches', desc: 'Siete días seguidos de actividad', test: s => s.bestStreak >= 7 },
       { icon: 'palette', name: 'Artífice de mundos', desc: 'Crea una atmósfera', test: s => s.tonesCreated >= 1 },
-      { icon: 'swap-bag', name: 'Juego de manos', desc: 'Guarda en tu glosario cinco palabras de otras personas', test: s => s.saved >= 5 },
+      { icon: 'swap-bag', name: 'Juego de manos', desc: 'Guarda en tu grimorio cinco palabras de otras personas', test: s => s.saved >= 5 },
       { icon: 'heart-plus', name: 'Carisma aumentado', desc: 'Recibe tu primer me gusta', test: s => s.likesReceived >= 1 },
       { icon: 'jeweled-chalice', name: 'Inspiración bárdica', desc: 'Recibe diez me gusta en tus palabras', test: s => s.likesReceived >= 10 },
       { icon: 'thumb-up', name: 'Detectar magia', desc: 'Da diez me gusta a palabras de otras personas', test: s => s.likesGiven >= 10 },
       { icon: 'crossed-swords', name: 'Primera sangre', desc: 'Derrotad al primer jefe de la mazmorra', test: s => s.bossesDefeated >= 1 },
-      { icon: 'trophy-cup', name: 'Matadragones', desc: 'Derrotad a todos los jefes de la mazmorra', test: s => s.bossesDefeated >= BOSSES.length }
+      { icon: 'trophy-cup', name: 'Matadragones', desc: 'Derrotad a todos los jefes de la mazmorra', test: s => s.bossesDefeated >= BOSSES.length },
+      { icon: 'bloody-sword', name: 'Golpe de gracia', desc: 'Da el golpe que remata a un jefe', test: s => s.finishers >= 1 },
+      { icon: 'open-treasure-chest', name: 'Saqueo de mazmorra', desc: 'Abre cinco cofres', test: s => s.chestsOpened >= 5 },
+      { icon: 'sword-clash', name: 'Duelo al alba', desc: 'Gana tu primer duelo', test: s => s.duelsWon >= 1 },
+      { icon: 'podium', name: 'Favor del gremio', desc: 'Gana una clasificación semanal', test: s => s.weeksWon >= 1 }
     ];
 
     // Experiencia total necesaria para llegar a un nivel: 100, 300, 600, 1000, 1500...
@@ -1381,6 +1404,13 @@
       const d = new Date(value);
       if (isNaN(d)) return '';
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    // Lunes de la semana a la que pertenece una fecha
+    function weekKey(value) {
+      const d = new Date(value);
+      if (isNaN(d)) return '';
+      d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+      return dayKey(d);
     }
     function dayDiff(a, b) { return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000); }
 
@@ -1448,7 +1478,7 @@
         if (dayKey(w.created_at).slice(0, 7) === monthNow) thisMonth++;
       });
 
-      // Palabras de otras personas guardadas en su glosario
+      // Palabras de otras personas guardadas en su grimorio
       mySaves.forEach(s => {
         const w = byId[s.word_id];
         addDay(s.created_at, (cls === 'picaro' ? XP.word : XP.save) + fx('xp_save', Date.parse(s.created_at) || 0), [w.tone, w.tone2]);
@@ -1470,6 +1500,10 @@
         addDay(s.created_at, XP.round * (cls === 'barbaro' ? 1.5 : 1) + hitPoints);
         goldEarned += (GOLD.round + s.hits * GOLD.hit) * (1 + fx('gold_pct', at) / 100);
       });
+
+      // Vida: corazones, decanas sin actividad y periodos en reposo (lo hecho en reposo no daña ni puntúa)
+      const life = lifeState(userId, [...words.map(w => w.created_at), ...mySaves.map(s => s.created_at)], sessions.map(s => s.created_at));
+      const resting = at => life.rest.some(r => at >= r.from && at < r.to);
 
       // Rachas de días seguidos con actividad (y su bonificación para la clase paladín)
       const dayBonus = {};
@@ -1516,7 +1550,7 @@
       const levelBonus = 1 + LEVEL_DAMAGE * (stats.level - 1);
       stats.damageBonus = levelBonus * (1 + fx('damage_pct', null) / 100); // la que tiene ahora mismo, para mostrarla
       stats.poisoned = poisonAt(Date.now());
-      stats.damage = Math.round(levelBonus * events.filter(e => e.at > frame.since)
+      stats.damage = Math.round(levelBonus * events.filter(e => e.at > frame.since && !resting(e.at))
         .reduce((sum, e) => sum + e.points * (e.day ? dayBonus[e.day] : 1)
           * bossFactor(frame.boss, e.tones, 2 + fx('weak_factor', e.at))
           * (1 + fx('damage_pct', e.at) / 100)
@@ -1526,7 +1560,20 @@
       // Oro: lo ganado sale de la actividad; lo gastado y lo vendido, del libro de cuentas
       goldEarned += used * GOLD.used + Object.keys(perDay).length * GOLD.day + defeated.reduce((sum, b) => sum + b.reward, 0);
       stats.gold = Math.max(0, Math.round(goldEarned) + ledger.filter(l => l.user_id === userId).reduce((sum, l) => sum + (Number(l.amount) || 0), 0));
-      stats.chests = pendingChests(userId, stats.level);
+      // Experiencia por semanas, para la clasificación
+      stats.weekly = {};
+      events.forEach(e => {
+        if (!e.at || resting(e.at)) return;
+        const k = weekKey(e.at);
+        stats.weekly[k] = (stats.weekly[k] || 0) + e.points * (e.day ? dayBonus[e.day] : 1);
+      });
+      stats.week = Math.round(stats.weekly[weekKey(Date.now())] || 0);
+      stats.weeksWon = 0; // se rellena en refreshGuild, comparando con el resto del gremio
+      stats.life = life;
+      Object.assign(stats, duelStats(userId));
+      stats.finishers = dungeonRows.filter(r => r.defeated_by === userId).length;
+      stats.chestsOpened = chestOpens.filter(c => c.user_id === userId).length;
+      stats.chests = pendingChests(userId, stats.level, stats.prestige);
 
       stats.achievements = ACHIEVEMENTS.map(a => Boolean(a.test(stats)));
       return stats;
@@ -1543,6 +1590,20 @@
       likes.forEach(l => { (likeMap[l.word_id] = likeMap[l.word_id] || []).push(l.user_id); });
       guild = {};
       Object.keys(profiles).forEach(id => { guild[id] = computeStats(id); });
+
+      // Clasificación semanal: en cada semana ya cerrada, quien más experiencia hizo gana oro
+      const all = Object.values(guild);
+      const thisWeek = weekKey(Date.now());
+      const closed = new Set();
+      all.forEach(s => Object.keys(s.weekly).forEach(k => { if (k >= WEEK.start && k < thisWeek) closed.add(k); }));
+      weekWinners = {};
+      closed.forEach(k => {
+        const best = Math.max(...all.map(s => Math.round(s.weekly[k] || 0)));
+        if (best <= 0) return;
+        weekWinners[k] = all.filter(s => Math.round(s.weekly[k] || 0) === best).map(s => s.userId);
+        weekWinners[k].forEach(id => { guild[id].weeksWon++; guild[id].gold += WEEK.gold; });
+      });
+      all.forEach(s => { s.achievements = ACHIEVEMENTS.map(a => Boolean(a.test(s))); });
 
       // Estado de la mazmorra
       const frame = dungeonFrame();
@@ -1577,7 +1638,7 @@
               </div>`;
     }
 
-    // Tira resumida de la mazmorra, encima del glosario
+    // Tira resumida de la mazmorra, encima del grimorio
     function renderDungeonStrip() {
       const strip = document.getElementById('dungeonStrip');
       if (!dungeon || !currentUser || Object.keys(profiles).length === 0) { strip.innerHTML = ''; return; }
@@ -1725,6 +1786,7 @@
           <div class="mt-3 h-px bg-paper-border dark:bg-night-border">
             <div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div>
           </div>
+          ${heartsRow(s)}
           <p class="hidden sm:block quote text-xs mt-2">${s.xp} XP · faltan ${s.toNext} para el nivel ${s.level + 1}</p>
         </div>`;
       }).join('');
@@ -1764,7 +1826,7 @@
           ['Ya usadas', `${s.used} (${pct(s.used, s.words)})`], ['Rondas de repaso', s.rounds],
           ['Aciertos', pct(s.hits, s.asked)], ['Racha actual', s.currentStreak + (s.currentStreak === 1 ? ' día' : ' días')],
           ['Mejor racha', s.bestStreak + (s.bestStreak === 1 ? ' día' : ' días')],
-          ['Oro', s.gold], ['Guardadas de otros', s.saved], ['Daño a los jefes', '+' + Math.round((s.damageBonus - 1) * 100) + ' %'],
+          ['Oro', s.gold], ['Guardadas de otros', s.saved], ['Prestigio', s.prestige], ['Duelos ganados', `${s.duelsWon} de ${s.duelsPlayed}`], ['Semanas ganadas', s.weeksWon], ['Golpes de gracia', s.finishers], ['Daño a los jefes', '+' + Math.round((s.damageBonus - 1) * 100) + ' %'],
           ['Me gusta recibidos', s.likesReceived], ['Me gusta dados', s.likesGiven]
         ];
         const tones = Object.entries(s.byTone).sort((a, b) => b[1] - a[1]).slice(0, 6);
@@ -1777,6 +1839,7 @@
             <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted mt-1.5">${esc(p.display_name)}${me ? ' (tú)' : ''} · ${esc(s.className || 'Sin clase')} · nivel ${s.level}</p>
             <div class="mt-3 h-px bg-paper-border dark:bg-night-border"><div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div></div>
             <p class="quote text-xs mt-2">${s.xp} XP · faltan ${s.toNext} para el nivel ${s.level + 1}</p>
+            ${heartsRow(s)}
             ${gearRow(p.id)}
           </div>
           <dl class="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-4 text-sm">
@@ -1803,10 +1866,10 @@
               <span><strong class="font-medium">${esc(a.name)}</strong><span class="block text-xs text-paper-muted dark:text-night-muted">${esc(a.desc)}</span></span>
             </li>`).join('')}
           </ul>
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save} por cada palabra ajena que guardas en tu glosario, ${XP.used} por palabra ya usada, ${XP.round} por ronda de repaso más ${XP.hit} por acierto (puntúan las ${XP.roundsPerDay} primeras rondas de cada día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${Math.round(LEVEL_DAMAGE * 100)} % de daño a los jefes.</p>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save} por cada palabra ajena que guardas en tu grimorio, ${XP.used} por palabra ya usada, ${XP.round} por ronda de repaso más ${XP.hit} por acierto (puntúan las ${XP.roundsPerDay} primeras rondas de cada día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${Math.round(LEVEL_DAMAGE * 100)} % de daño a los jefes.</p>
         </div>`;
 
-      panel.innerHTML = dungeonPanel() + chooser + `<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">${members}</div>` + legend;
+      panel.innerHTML = dungeonPanel() + weeklyBlock() + duelsBlock() + chooser + `<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">${members}</div>` + legend;
     }
 
     async function updateMyProfile(changes, okMessage) {
@@ -1835,16 +1898,16 @@
       if (!currentUser) { showToast('Inicia sesión para guardar palabras'); return false; }
       const row = toRow(item);
       if (!row.word || !row.definition) { showToast('Introduce al menos la palabra y su definición'); return false; }
-      if (iHave(row.word)) { showToast(`«${row.word}» ya está en tu glosario`); return false; }
+      if (iHave(row.word)) { showToast(`«${row.word}» ya está en tu grimorio`); return false; }
       const existing = glossary.find(w => norm(w.word) === norm(row.word));
       if (existing) {
-        showToast(`«${row.word}» ya está en el glosario de ${authorName(existing.author_id)}. Guárdala en el tuyo en lugar de duplicarla.`);
+        showToast(`«${row.word}» ya está en el grimorio de ${authorName(existing.author_id)}. Guárdala en el tuyo en lugar de duplicarla.`);
         return false;
       }
 
       const { data, error } = await sb.from('words').insert(row).select().single();
       if (error) {
-        showToast(error.code === '23505' ? `«${row.word}» ya está en tu glosario` : 'No se pudo guardar: ' + error.message);
+        showToast(error.code === '23505' ? `«${row.word}» ya está en tu grimorio` : 'No se pudo guardar: ' + error.message);
         return false;
       }
       const before = guild[currentUser.id] || computeStats(currentUser.id);
@@ -1868,7 +1931,7 @@
         .sort((a, b) => a.display_name.localeCompare(b.display_name, 'es'));
       select.innerHTML =
         '<option value="all">Todos los autores</option>' +
-        '<option value="mine">Solo mi glosario</option>' +
+        '<option value="mine">Solo mi grimorio</option>' +
         others.map(p => `<option value="${esc(p.id)}">De ${esc(p.display_name)}</option>`).join('');
       select.value = [...select.options].some(o => o.value === previous) ? previous : 'all';
     }
@@ -1910,7 +1973,7 @@
       const grid = document.getElementById('glossaryGrid');
       if (filtered.length === 0) {
         const empty = glossary.length === 0
-          ? 'El glosario está vacío. Apunta tu primera palabra.'
+          ? 'El grimorio está vacío. Apunta tu primera palabra.'
           : 'No se encontraron palabras con ese filtro.';
         grid.innerHTML = `<div class="col-span-full text-center py-12 text-paper-muted dark:text-night-muted text-sm">${empty}</div>`;
         return;
@@ -1948,11 +2011,11 @@
               ? `<span class="flex items-center gap-3">
                    <button onclick="toggleFlag('${esc(item.id)}', 'is_favorite')" title="${marks.fav ? 'Quitar de favoritas' : 'Marcar como favorita'}" class="plain text-base leading-none ${marks.fav ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${marks.fav ? '★' : '☆'}</button>
                    <button onclick="toggleFlag('${esc(item.id)}', 'is_used')" title="${marks.used ? 'Ya la has usado en un texto. Pulsa para desmarcar' : 'Marcar como ya usada en un texto'}" class="text-[10px] ${marks.used ? 'text-emerald-500' : 'text-paper-muted dark:text-night-muted'}"><i class="gi gi-check-mark"></i> ${marks.used ? 'Usada' : 'Sin usar'}</button>
-                   <button onclick="toggleSave('${esc(item.id)}')" title="Quitar de tu glosario" class="text-sm text-paper-muted dark:text-night-muted hover:text-red-500"><i class="gi gi-cancel"></i></button>
+                   <button onclick="toggleSave('${esc(item.id)}')" title="Quitar de tu grimorio" class="text-sm text-paper-muted dark:text-night-muted hover:text-red-500"><i class="gi gi-cancel"></i></button>
                  </span>`
               : (myWords().some(w => norm(w.word) === norm(item.word))
                   ? `<span class="text-[11px] text-paper-muted dark:text-night-muted">★ También en el tuyo</span>`
-                  : `<button onclick="toggleSave('${esc(item.id)}')" class="text-[11px] px-2.5 py-0.5 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-light dark:hover:bg-night-bg transition">+ A mi glosario</button>`));
+                  : `<button onclick="toggleSave('${esc(item.id)}')" class="text-[11px] px-2.5 py-0.5 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-light dark:hover:bg-night-bg transition">+ A mi grimorio</button>`));
         return `
         <article class="frame lift bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5 flex flex-col justify-between gap-3">
           ${ribbons(item)}
@@ -1977,7 +2040,7 @@
             </div>
             <div class="flex items-center gap-1.5 text-[11px] text-paper-muted dark:text-night-muted">
               ${miniAvatar(item.author_id)}
-              <span>Apuntada por ${mine ? 'ti' : esc(name)} · ${esc([guild[item.author_id]?.className, guild[item.author_id]?.title.name || 'Aprendiz'].filter(Boolean).join(' · '))}${saved ? ' · en tu glosario' : ''}</span>
+              <span>Apuntada por ${mine ? 'ti' : esc(name)} · ${esc([guild[item.author_id]?.className, guild[item.author_id]?.title.name || 'Aprendiz'].filter(Boolean).join(' · '))}${saved ? ' · en tu grimorio' : ''}</span>
             </div>
           </div>
         </article>`;
@@ -1988,8 +2051,8 @@
       const item = glossary.find(w => w.id === id);
       if (!item) return;
       const keepers = saves.filter(s => s.word_id === id).length;
-      const warning = keepers ? ` También desaparecerá del glosario de ${keepers === 1 ? 'la persona que la guardó' : 'las ' + keepers + ' personas que la guardaron'}.` : '';
-      if (!confirm(`¿Eliminar «${item.word}» de tu glosario?${warning}`)) return;
+      const warning = keepers ? ` También desaparecerá del grimorio de ${keepers === 1 ? 'la persona que la guardó' : 'las ' + keepers + ' personas que la guardaron'}.` : '';
+      if (!confirm(`¿Eliminar «${item.word}» de tu grimorio?${warning}`)) return;
       const { error } = await sb.from('words').delete().eq('id', id);
       if (error) { showToast('No se pudo eliminar: ' + error.message); return; }
       glossary = glossary.filter(w => w.id !== id);
@@ -1997,19 +2060,19 @@
       showToast(`«${item.word}» eliminada`);
     }
 
-    // Guardar o quitar de mi glosario una palabra de otra persona, sin duplicarla
+    // Guardar o quitar de mi grimorio una palabra de otra persona, sin duplicarla
     async function toggleSave(wordId) {
       const item = glossary.find(w => w.id === wordId);
       if (!item || !currentUser || item.author_id === currentUser.id) return false;
       if (!savesReady) { showToast('Falta ejecutar el último schema.sql en Supabase'); return false; }
       const mine = mySave(wordId);
       if (mine) {
-        if (!confirm(`¿Quitar «${item.word}» de tu glosario? La palabra seguirá en el de ${authorName(item.author_id)}.`)) return false;
+        if (!confirm(`¿Quitar «${item.word}» de tu grimorio? La palabra seguirá en el de ${authorName(item.author_id)}.`)) return false;
         const { error } = await sb.from('word_saves').delete().eq('word_id', wordId).eq('user_id', currentUser.id);
         if (error) { showToast('No se pudo quitar: ' + error.message); return false; }
         saves = saves.filter(s => s !== mine);
         renderGlossary();
-        showToast(`«${item.word}» ya no está en tu glosario`);
+        showToast(`«${item.word}» ya no está en tu grimorio`);
         return true;
       }
       const before = guild[currentUser.id] || computeStats(currentUser.id);
@@ -2018,7 +2081,7 @@
       saves.push(data);
       renderGlossary();
       const after = guild[currentUser.id] || before;
-      showToast(`«${item.word}» guardada en tu glosario · +${after.xp - before.xp} XP`);
+      showToast(`«${item.word}» guardada en tu grimorio · +${after.xp - before.xp} XP`);
       return true;
     }
 
@@ -2037,7 +2100,7 @@
     function showAddModal() {
       const editing = Boolean(editingId);
       document.getElementById('addModalTitle').textContent = editing ? 'Editar palabra' : 'Apuntar palabra';
-      document.getElementById('btnSaveWord').textContent = editing ? 'Guardar cambios' : 'Guardar en mi glosario';
+      document.getElementById('btnSaveWord').textContent = editing ? 'Guardar cambios' : 'Guardar en mi grimorio';
       renderSenses([]);
       checkDuplicate();
       document.getElementById('addModal').classList.remove('hidden');
@@ -2089,12 +2152,12 @@
       const lines = [];
       const mine = matches.find(w => currentUser && w.author_id === currentUser.id);
       if (mine) {
-        lines.push(`Ya tienes «${esc(mine.word)}» en tu glosario. <button type="button" onclick="openEditModal('${esc(mine.id)}')" class="${linkClass}">Editarla</button>`);
+        lines.push(`Ya tienes «${esc(mine.word)}» en tu grimorio. <button type="button" onclick="openEditModal('${esc(mine.id)}')" class="${linkClass}">Editarla</button>`);
       }
       matches.filter(w => w !== mine).forEach(w => {
         lines.push(mySave(w.id)
-          ? `${esc(authorName(w.author_id))} ya la tiene apuntada y la tienes guardada en tu glosario.`
-          : `${esc(authorName(w.author_id))} ya la tiene apuntada. En lugar de duplicarla, <button type="button" onclick="saveFromNotice('${esc(w.id)}')" class="${linkClass}">guárdala en tu glosario</button>.`);
+          ? `${esc(authorName(w.author_id))} ya la tiene apuntada y la tienes guardada en tu grimorio.`
+          : `${esc(authorName(w.author_id))} ya la tiene apuntada. En lugar de duplicarla, <button type="button" onclick="saveFromNotice('${esc(w.id)}')" class="${linkClass}">guárdala en tu grimorio</button>.`);
       });
       box.innerHTML = lines.map(l => `<p>${l}</p>`).join('');
       box.classList.remove('hidden');
@@ -2292,11 +2355,11 @@
         if (lookupSource === 'dict') {
           showToast(e.message);
         } else {
-          // Si la IA falla, se intenta con lo que ya hay en el glosario compartido o en el diccionario local.
+          // Si la IA falla, se intenta con lo que ya hay en el grimorio compartido o en el diccionario local.
           const localMatch = [...glossary, ...SEED_DISCOVER_WORDS].find(w => norm(w.word) === norm(word));
           if (localMatch) {
             fillModalFields(localMatch);
-            showToast('IA no disponible: autocompletado desde el glosario');
+            showToast('IA no disponible: autocompletado desde el grimorio');
           } else {
             showToast('Error Gemini: ' + e.message);
           }
@@ -2328,11 +2391,11 @@
       const original = glossary.find(w => w.id === id);
       const clash = glossary.find(w => w.id !== id && norm(w.word) === norm(row.word));
       if (clash && clash.author_id !== currentUser.id && original && norm(original.word) !== norm(row.word)) {
-        showToast(`«${row.word}» ya está en el glosario de ${authorName(clash.author_id)}`);
+        showToast(`«${row.word}» ya está en el grimorio de ${authorName(clash.author_id)}`);
         return false;
       }
       if (myWords().some(w => w.id !== id && norm(w.word) === norm(row.word))) {
-        showToast(`Ya tienes otra ficha de «${row.word}» en tu glosario`);
+        showToast(`Ya tienes otra ficha de «${row.word}» en tu grimorio`);
         return false;
       }
       const { data, error } = await sb.from('words').update(row).eq('id', id).select().single();
@@ -2375,7 +2438,7 @@
       const btn = document.getElementById('btnReverseSearch');
       const q = query.toLowerCase();
 
-      // Busca en el glosario de todas las autoras y en el diccionario local.
+      // Busca en el grimorio de todas las autoras y en el diccionario local.
       const localMatches = [...glossary, ...SEED_DISCOVER_WORDS].filter(w =>
         norm(w.plain).includes(q) || norm(w.definition).includes(q)
       );
@@ -2396,7 +2459,7 @@
         aiError = e.message;
       }
 
-      // Sin repetidos: gana la primera aparición (primero el glosario, luego la IA).
+      // Sin repetidos: gana la primera aparición (primero el grimorio, luego la IA).
       const seen = new Set();
       const combined = [...localMatches, ...aiSuggestions].filter(item => {
         const k = norm(item.word);
@@ -2417,7 +2480,7 @@
       window._lastReverseResults = combined;
       container.innerHTML = combined.map((item, idx) => {
         const origin = item.author_id
-          ? `<p class="text-[11px] text-paper-muted dark:text-night-muted">${currentUser && item.author_id === currentUser.id ? 'En tu glosario' : 'En el glosario de ' + esc(authorName(item.author_id))}</p>`
+          ? `<p class="text-[11px] text-paper-muted dark:text-night-muted">${currentUser && item.author_id === currentUser.id ? 'En tu grimorio' : 'En el grimorio de ' + esc(authorName(item.author_id))}</p>`
           : '';
         const button = iHave(item.word)
           ? `<span class="text-[11px] text-paper-muted dark:text-night-muted whitespace-nowrap">★ Guardada</span>`
@@ -2443,7 +2506,7 @@
     async function saveReverseResult(idx) {
       const item = window._lastReverseResults?.[idx];
       if (!item) return;
-      // Si la palabra ya está en el glosario de otra persona se guarda la suya; si la propone la IA, se apunta como nueva.
+      // Si la palabra ya está en el grimorio de otra persona se guarda la suya; si la propone la IA, se apunta como nueva.
       const saved = item.author_id && item.id && currentUser && item.author_id !== currentUser.id
         ? await saveToMine(item.id)
         : await addWord(item);
@@ -2506,6 +2569,251 @@
       return parts.length ? `<p class="label-caps text-[9px] text-paper-muted dark:text-night-muted text-right mt-1.5">— ${parts.join(', ')}</p>` : '';
     }
 
+    // ---------- VIDA, CLASIFICACIÓN SEMANAL, DUELOS Y PRESTIGIO ----------
+    // Recorre la actividad de una persona en orden y devuelve sus corazones y sus periodos en reposo.
+    // Cada decana sin actividad quita un corazón (o gasta una poción). Una ronda de repaso devuelve uno.
+    // A cero queda en reposo hasta completar una ronda o recibir una poción de otra persona.
+    function lifeState(userId, activity, rounds) {
+      const D = LIFE.days * 86400000;
+      const start = Math.max(Date.parse(LIFE.start) || 0, Date.parse((profiles[userId] || {}).created_at) || 0);
+      const events = [
+        ...activity.map(a => ({ at: Date.parse(a) || 0, type: 'act' })),
+        ...rounds.map(a => ({ at: Date.parse(a) || 0, type: 'round' })),
+        ...itemUses.filter(u => u.effect_type === 'potion' && (u.target_id ? u.target_id === userId : u.user_id === userId))
+          .map(u => ({ at: Date.parse(u.used_at) || 0, type: u.user_id === userId ? 'potion' : 'gift' }))
+      ].filter(e => e.at >= start).sort((a, b) => a.at - b.at);
+      let hearts = LIFE.hearts, shield = 0, anchor = start, restFrom = null;
+      const rest = [];
+      const decay = until => {
+        while (hearts > 0 && until - anchor >= D) {
+          anchor += D;
+          if (shield > 0) shield--;
+          else if (--hearts === 0) restFrom = anchor;
+        }
+      };
+      events.forEach(e => {
+        decay(e.at);
+        if (hearts === 0) {
+          if (e.type === 'round' || e.type === 'gift') { rest.push({ from: restFrom, to: e.at }); hearts = 1; anchor = e.at; }
+          return;
+        }
+        if (e.type === 'act') anchor = e.at;
+        else if (e.type === 'round') { anchor = e.at; hearts = Math.min(LIFE.hearts, hearts + 1); }
+        else shield++;
+      });
+      decay(Date.now());
+      if (hearts === 0) rest.push({ from: restFrom, to: Infinity });
+      return { hearts, shield, resting: hearts === 0, rest, nextLoss: hearts > 0 ? anchor + D : null };
+    }
+
+    function heartsRow(s) {
+      if (!lifeReady || !s.life) return '';
+      const hearts = Array.from({ length: LIFE.hearts }, (_, i) =>
+        `<i class="gi gi-hearts text-sm" style="${i < s.life.hearts ? 'color:#B0413E' : 'opacity:.22'}"></i>`).join('');
+      return `<p class="flex items-center justify-center gap-1 mt-2" title="${s.life.hearts} de ${LIFE.hearts} corazones">${hearts}${
+        s.life.shield ? `<i class="gi gi-health-potion text-sm text-paper-accent dark:text-night-accent ml-1" title="Poción activa"></i>` : ''}${
+        s.life.resting ? `<span class="label-caps text-[9px] text-paper-muted dark:text-night-muted ml-1.5"><i class="gi gi-night-sleep"></i> En reposo</span>` : ''}</p>`;
+    }
+
+    // Explicación de la vida, en el zurrón
+    function lifeNote(s) {
+      if (!lifeReady || !s.life) return '';
+      const date = t => new Date(t).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+      const text = s.life.resting
+        ? 'Estás en reposo: conservas palabras y nivel, pero no haces daño ni puntúas en la clasificación. Te despierta completar una ronda de repaso o que alguien del gremio te dé una poción.'
+        : `Cada decana (${LIFE.days} días) sin apuntar, guardar ni repasar pierdes un corazón; el próximo, el ${date(s.life.nextLoss)}. Una ronda de repaso devuelve uno.${s.life.shield ? ` Tienes ${s.life.shield === 1 ? 'una poción activa' : s.life.shield + ' pociones activas'}.` : ''}`;
+      return `<div class="flex items-start justify-center gap-3 mt-4 pt-4 border-t border-paper-border/60 dark:border-night-border/60">${heartsRow(s)}</div>
+          <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-2">${text}</p>`;
+    }
+
+    function weeklyBlock() {
+      const people = Object.values(profiles).sort((a, b) => guild[b.id].week - guild[a.id].week || a.display_name.localeCompare(b.display_name, 'es'));
+      const last = weekWinners[weekKey(Date.now() - 7 * 86400000)] || [];
+      const pending = weekKey(Date.now()) < WEEK.start;
+      return `
+        <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
+          <div class="rule"><span class="quote text-xs">Clasificación de la semana</span></div>
+          <ol class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
+            ${people.map((p, i) => `<li class="flex items-center gap-3 py-2">
+              <span class="word-title text-xl w-5 text-center ${i === 0 && guild[p.id].week > 0 ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${i + 1}</span>
+              ${miniAvatar(p.id)}
+              <span class="flex-1 min-w-0 truncate">${esc(p.display_name)}${guild[p.id].life.resting && lifeReady ? ' <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted">en reposo</span>' : ''}</span>
+              <span class="text-sm">${guild[p.id].week} XP</span>
+            </li>`).join('')}
+          </ol>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-3">De lunes a domingo. Quien más experiencia haga en la semana gana ${WEEK.gold} de oro.${
+            last.length ? ' La semana pasada ganó ' + esc(last.map(authorName).join(' y ')) + '.' : ''}${pending ? ' Los premios empiezan a contar la semana que viene.' : ''}</p>
+        </div>`;
+    }
+
+    // Resultado de un duelo: 'declined', 'pending', 'draw' o el id de quien gana (más aciertos; si empatan, menos tiempo)
+    function duelResult(d) {
+      if (d.declined) return 'declined';
+      if (!d.challenger_done_at || !d.opponent_done_at) return 'pending';
+      if (d.challenger_hits !== d.opponent_hits) return d.challenger_hits > d.opponent_hits ? d.challenger_id : d.opponent_id;
+      if (d.challenger_ms !== d.opponent_ms) return d.challenger_ms < d.opponent_ms ? d.challenger_id : d.opponent_id;
+      return 'draw';
+    }
+
+    function duelStats(userId) {
+      let prestige = 0, duelsWon = 0, duelsPlayed = 0;
+      duels.forEach(d => {
+        if (d.challenger_id !== userId && d.opponent_id !== userId) return;
+        const r = duelResult(d);
+        if (r === 'pending' || r === 'declined') return;
+        duelsPlayed++;
+        if (r === 'draw') prestige += DUEL.draw;
+        else if (r === userId) { duelsWon++; prestige += DUEL.win; }
+        else prestige += DUEL.lose;
+      });
+      return { prestige, duelsWon, duelsPlayed };
+    }
+
+    function duelsBlock() {
+      if (!lifeReady || !currentUser) return '';
+      const me = currentUser.id;
+      const small = 'px-2.5 py-1 rounded-md text-[10px] border border-paper-border dark:border-night-border';
+      const smallGold = 'px-2.5 py-1 rounded-md text-[10px] bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg';
+      const mine = duels.filter(d => !d.declined && (d.challenger_id === me || d.opponent_id === me) && duelResult(d) === 'pending');
+      const open = mine.map(d => {
+        const side = d.challenger_id === me ? 'challenger' : 'opponent';
+        const rival = side === 'challenger' ? d.opponent_id : d.challenger_id;
+        if (d[side + '_done_at']) return `<li class="flex items-center gap-3 py-2.5"><i class="gi gi-hourglass text-xl text-paper-muted dark:text-night-muted"></i>
+          <span class="flex-1 min-w-0">Esperando a ${esc(authorName(rival))} <span class="text-xs text-paper-muted dark:text-night-muted">· tú: ${d[side + '_hits']} de ${(d.word_ids || []).length}</span></span></li>`;
+        return `<li class="flex flex-wrap items-center gap-3 py-2.5"><i class="gi gi-tied-scroll text-xl text-paper-accent dark:text-night-accent"></i>
+          <span class="flex-1 min-w-0">${side === 'opponent' ? esc(authorName(rival)) + ' te ha retado' : 'Te falta jugar tu duelo contra ' + esc(authorName(rival))}</span>
+          <button onclick="startDuel('${esc(d.id)}')" class="${smallGold}">Jugar</button>
+          ${side === 'opponent' ? `<button onclick="declineDuel('${esc(d.id)}')" class="${small}">Rechazar</button>` : ''}</li>`;
+      }).join('');
+      const done = duels.filter(d => !['pending', 'declined'].includes(duelResult(d))).slice(-5).reverse().map(d => {
+        const r = duelResult(d);
+        return `<li class="flex items-center gap-2 py-1.5 text-sm"><i class="gi gi-sword-clash text-paper-muted dark:text-night-muted"></i>
+          <span class="flex-1 min-w-0 truncate">${esc(authorName(d.challenger_id))} ${d.challenger_hits} – ${d.opponent_hits} ${esc(authorName(d.opponent_id))}</span>
+          <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted">${r === 'draw' ? 'empate' : 'gana ' + esc(authorName(r))}</span></li>`;
+      }).join('');
+      const people = Object.values(profiles).sort((a, b) => guild[b.id].prestige - guild[a.id].prestige);
+      return `
+        <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
+          <div class="rule"><span class="quote text-xs">Duelos y prestigio</span></div>
+          <div class="grid grid-cols-3 gap-2 mt-4 text-center">
+            ${people.map(p => `<div><i class="gi gi-laurel-crown text-2xl text-paper-accent dark:text-night-accent"></i>
+              <p class="word-title text-2xl">${guild[p.id].prestige}</p>
+              <p class="label-caps text-[9px] text-paper-muted dark:text-night-muted truncate">${esc(p.display_name)}</p></div>`).join('')}
+          </div>
+          ${open ? `<ul class="mt-4 divide-y divide-paper-border/60 dark:divide-night-border/60">${open}</ul>` : ''}
+          ${done ? `<div class="rule mt-4"><span class="quote text-xs">Últimos duelos</span></div><ul class="mt-2">${done}</ul>` : ''}
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-3">Para retar a alguien compra un pergamino de duelo en la tienda y úsalo desde el zurrón. Son ${DUEL.words} palabras, las mismas para las dos personas: gana quien acierte más y, si empatáis, quien tarde menos. Ganar da ${DUEL.win} de prestigio, empatar ${DUEL.draw} y perder ${DUEL.lose}. Cada ${DUEL.chestEvery} de prestigio, un cofre de prestigio que se abre sin ganzúa.</p>
+        </div>`;
+    }
+
+    function lifeGuard() {
+      if (!economyGuard()) return false;
+      if (!lifeReady) { showToast('Falta ejecutar el último schema.sql en Supabase'); return false; }
+      return true;
+    }
+
+    // Poción: targetId vacío = me la bebo; si no, se la doy a esa persona
+    async function usePotion(userItemId, targetId) {
+      const u = myItems().find(x => x.id === userItemId);
+      const me = currentUser ? guild[currentUser.id] : null;
+      if (!lifeGuard() || !u || !me || itemsById[u.item_id].effect_type !== 'potion') return;
+      const it = itemsById[u.item_id];
+      if (targetId && (!profiles[targetId] || targetId === currentUser.id)) return;
+      if (!targetId && me.life.resting) { showToast('En reposo solo te despierta una ronda de repaso o la poción de otra persona'); return; }
+      const question = targetId
+        ? `¿Dar «${it.name}» a ${authorName(targetId)}?${guild[targetId].life.resting ? ' Despertará de su reposo.' : ' Le protegerá una decana sin actividad.'}`
+        : `¿Beber «${it.name}»? Te protegerá una decana sin actividad.`;
+      if (!confirm(question)) return;
+      try {
+        const { error } = await sb.from('user_items').delete().eq('id', u.id);
+        if (error) throw new Error('No se pudo usar: ' + error.message);
+        userItems = userItems.filter(x => x.id !== u.id);
+        const res = await sb.from('consumable_uses').insert({ effect_type: 'potion', effect_value: 0, target_id: targetId || null }).select().single();
+        if (res.error) throw new Error('No se pudo aplicar la poción: ' + res.error.message);
+        itemUses.push(res.data);
+        renderGlossary();
+        showToast(targetId ? `Poción entregada a ${authorName(targetId)}` : 'Poción bebida: una decana protegida');
+      } catch (e) { showToast(e.message); }
+    }
+
+    // Gasta un pergamino para retar a alguien: se eligen las palabras y se juega la parte propia al momento
+    async function challenge(userItemId, opponentId) {
+      const u = myItems().find(x => x.id === userItemId);
+      if (!lifeGuard() || !u || itemsById[u.item_id].effect_type !== 'duel') return;
+      if (!profiles[opponentId] || opponentId === currentUser.id) return;
+      const pool = glossary.filter(w => str(w.definition));
+      if (pool.length < DUEL.words) { showToast(`Hacen falta al menos ${DUEL.words} palabras con definición para un duelo`); return; }
+      const busy = duels.some(d => duelResult(d) === 'pending' &&
+        [d.challenger_id, d.opponent_id].includes(currentUser.id) && [d.challenger_id, d.opponent_id].includes(opponentId));
+      if (busy) { showToast(`Ya tienes un duelo pendiente con ${authorName(opponentId)}`); return; }
+      if (!confirm(`¿Retar a ${authorName(opponentId)}? Gastas el pergamino y juegas tu parte ahora: ${DUEL.words} palabras seguidas, con el tiempo contando.`)) return;
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      try {
+        const { data, error } = await sb.from('duels').insert({ opponent_id: opponentId, word_ids: pool.slice(0, DUEL.words).map(w => w.id) }).select().single();
+        if (error) throw new Error('No se pudo crear el duelo: ' + error.message);
+        duels.push(data);
+        const used = await sb.from('user_items').delete().eq('id', u.id);
+        if (!used.error) userItems = userItems.filter(x => x.id !== u.id);
+        renderGlossary();
+        startDuel(data.id);
+      } catch (e) { showToast(e.message); }
+    }
+
+    function startDuel(duelId) {
+      const d = duels.find(x => x.id === duelId);
+      if (!d || !currentUser || d.declined) return;
+      const side = d.challenger_id === currentUser.id ? 'challenger' : d.opponent_id === currentUser.id ? 'opponent' : null;
+      if (!side || d[side + '_done_at']) return;
+      const byId = {};
+      glossary.forEach(w => { byId[w.id] = w; });
+      const deck = (Array.isArray(d.word_ids) ? d.word_ids : []).map(id => byId[id]).filter(Boolean);
+      if (deck.length === 0) { showToast('Las palabras de este duelo ya no existen'); return; }
+      reviewDuel = { id: d.id, side, started: Date.now(), rival: side === 'challenger' ? d.opponent_id : d.challenger_id };
+      reviewDeck = deck;
+      reviewIndex = 0;
+      reviewHits = 0;
+      reviewResult = null;
+      reviewTyped = '';
+      lastReviewNote = '';
+      switchTab('review');
+      renderReview();
+    }
+
+    // Guarda mi parte del duelo al terminar las palabras
+    async function recordDuel() {
+      const duel = reviewDuel;
+      if (!duel || !currentUser) return;
+      const changes = { [duel.side + '_hits']: reviewHits, [duel.side + '_ms']: Date.now() - duel.started, [duel.side + '_done_at']: new Date().toISOString() };
+      const { data, error } = await sb.from('duels').update(changes).eq('id', duel.id).select().single();
+      if (error) { lastReviewNote = 'No se pudo registrar el duelo: ' + error.message; return; }
+      duels = duels.map(x => x.id === duel.id ? data : x);
+      renderGlossary();
+      const r = duelResult(data);
+      lastReviewNote = r === 'pending' ? `Ahora le toca a ${authorName(duel.rival)}.`
+        : r === 'draw' ? `Empate: +${DUEL.draw} de prestigio para cada parte.`
+        : r === currentUser.id ? `¡Has ganado el duelo! +${DUEL.win} de prestigio.`
+        : `Gana ${authorName(duel.rival)}. Te llevas +${DUEL.lose} de prestigio.`;
+    }
+
+    function leaveDuel() {
+      reviewDuel = null;
+      reviewDeck = [];
+      switchTab('guild');
+    }
+
+    async function declineDuel(duelId) {
+      const d = duels.find(x => x.id === duelId);
+      if (!lifeGuard() || !d || d.opponent_id !== currentUser.id || d.opponent_done_at) return;
+      if (!confirm(`¿Rechazar el duelo de ${authorName(d.challenger_id)}? Nadie gana prestigio.`)) return;
+      const { data, error } = await sb.from('duels').update({ declined: true }).eq('id', d.id).select().single();
+      if (error) { showToast('No se pudo rechazar: ' + error.message); return; }
+      duels = duels.map(x => x.id === d.id ? data : x);
+      renderGlossary();
+    }
+
     // ---------- ZURRÓN: ORO, COFRES, EQUIPO Y TIENDA ----------
     // Periodos en que una persona ha llevado equipado cada objeto
     function gearIntervals(userId) {
@@ -2524,11 +2832,13 @@
     function myItems() { return currentUser ? userItems.filter(u => u.user_id === currentUser.id && itemsById[u.item_id]) : []; }
 
     // Cofres que le corresponden a una persona y aún no ha abierto: uno por jefe derrotado y uno por nivel subido
-    function pendingChests(userId, level) {
+    function pendingChests(userId, level, prestige = 0) {
       const opened = new Set(chestOpens.filter(c => c.user_id === userId).map(c => c.source));
       const list = [];
       defeatedBosses().forEach(b => list.push({ source: 'boss:' + b.position, tier: 'boss', name: 'Cofre de ' + b.name }));
       for (let n = 2; n <= level; n++) list.push({ source: 'level:' + n, tier: 'level', name: 'Cofre del nivel ' + n });
+      for (let n = DUEL.chestEvery; n <= prestige; n += DUEL.chestEvery) list.push({ source: 'prestige:' + n, tier: 'prestige', name: 'Cofre de prestigio ' + n });
+      chestGrants.filter(g => g.user_id === userId && CHESTS[g.tier]).forEach(g => list.push({ source: 'gift:' + g.id, tier: g.tier, name: str(g.note) || 'Cofre del máster' }));
       return list.filter(c => !opened.has(c.source));
     }
 
@@ -2564,6 +2874,7 @@
       const small = 'px-2.5 py-1 rounded-md text-[10px] border border-paper-border dark:border-night-border';
       const smallGold = 'px-2.5 py-1 rounded-md text-[10px] bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg';
       const mine = myItems();
+      const others = Object.values(profiles).filter(p => p.id !== currentUser.id);
       const gearMine = mine.filter(u => itemsById[u.item_id].kind === 'gear');
       const picks = mine.filter(u => itemsById[u.item_id].effect_type === 'lockpick');
       const section = 'frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5';
@@ -2576,6 +2887,7 @@
             <div><i class="gi gi-key text-3xl text-paper-accent dark:text-night-accent"></i><p class="word-title text-3xl mt-1">${picks.length}</p><p class="label-caps text-[9px] text-paper-muted dark:text-night-muted">Ganzúas</p></div>
           </div>
           <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-4">El oro se gana repasando (${GOLD.round} por ronda que puntúa y ${GOLD.hit} por acierto), usando palabras en tus textos (${GOLD.used} cada una), con cada día de actividad (${GOLD.day}) y al caer un jefe.${me.poisoned ? ' Tienes veneno activo: +' + me.poisoned + ' % de daño.' : ''}</p>
+          ${lifeNote(me)}
         </div>`;
 
       const chests = me.chests.length ? `
@@ -2585,7 +2897,7 @@
             ${me.chests.map(c => `<li class="flex items-center gap-3 py-2.5">
               <i class="gi gi-${CHESTS[c.tier].icon} text-2xl text-paper-accent dark:text-night-accent"></i>
               <span class="flex-1 min-w-0"><span class="block truncate">${esc(c.name)}</span><span class="block label-caps text-[9px] text-paper-muted dark:text-night-muted">${CHESTS[c.tier].label}</span></span>
-              <button onclick="openChest('${esc(c.source)}')" class="${smallGold}">Abrir con ganzúa</button>
+              <button onclick="openChest('${esc(c.source)}')" class="${smallGold}">${CHESTS[c.tier].free ? 'Abrir' : 'Abrir con ganzúa'}</button>
             </li>`).join('')}
           </ul>
         </div>` : '';
@@ -2615,7 +2927,10 @@
               `<button onclick="sellItem('${esc(u.id)}')" class="${small}">Vender por ${sale(it)}</button>`); }).join('')}
             ${Object.entries(consumables).map(([id, units]) => { const it = itemsById[id]; return itemCard(it,
               `<span class="label-caps text-[9px] text-paper-muted dark:text-night-muted w-full">Tienes ${units.length}</span>` +
-              (it.effect_type === 'poison' ? `<button onclick="usePoison('${esc(units[0].id)}')" class="${smallGold}">Usar</button>` : '')); }).join('')}
+              (it.effect_type === 'poison' ? `<button onclick="usePoison('${esc(units[0].id)}')" class="${smallGold}">Usar</button>` : '') +
+              (it.effect_type === 'potion' ? (me.life.resting ? '' : `<button onclick="usePotion('${esc(units[0].id)}', '')" class="${smallGold}">Beber</button>`) +
+                others.map(p => `<button onclick="usePotion('${esc(units[0].id)}', '${esc(p.id)}')" class="${small}">Dar a ${esc(p.display_name)}</button>`).join('') : '') +
+              (it.effect_type === 'duel' ? others.map(p => `<button onclick="challenge('${esc(units[0].id)}', '${esc(p.id)}')" class="${smallGold}">Retar a ${esc(p.display_name)}</button>`).join('') : '')); }).join('')}
           </div>` : '<p class="quote text-sm text-center mt-4">No llevas nada más encima.</p>'}
         </div>`;
 
@@ -2753,15 +3068,18 @@
       if (!economyGuard() || !me) return;
       const chest = me.chests.find(c => c.source === source);
       if (!chest) return;
-      const pick = myItems().find(u => itemsById[u.item_id].effect_type === 'lockpick');
-      if (!pick) { showToast('Necesitas una ganzúa. Se compran en la tienda.'); return; }
+      const free = Boolean(CHESTS[chest.tier].free); // los cofres de prestigio no necesitan ganzúa
+      const pick = free ? null : myItems().find(u => itemsById[u.item_id].effect_type === 'lockpick');
+      if (!free && !pick) { showToast('Necesitas una ganzúa. Se compran en la tienda.'); return; }
       const item = rollLoot(chest.tier);
       try {
         const opened = await sb.from('chest_opens').insert({ source, item_id: item ? item.id : null, gold: item ? 0 : GOLD.noLoot }).select().single();
         if (opened.error) throw new Error('No se pudo abrir el cofre: ' + opened.error.message);
         chestOpens.push(opened.data);
-        const used = await sb.from('user_items').delete().eq('id', pick.id);
-        if (!used.error) userItems = userItems.filter(x => x.id !== pick.id);
+        if (pick) {
+          const used = await sb.from('user_items').delete().eq('id', pick.id);
+          if (!used.error) userItems = userItems.filter(x => x.id !== pick.id);
+        }
         if (item) {
           const got = await sb.from('user_items').insert({ item_id: item.id, source: 'cofre ' + source }).select().single();
           if (got.error) throw new Error('El cofre se abrió, pero no se pudo guardar el objeto: ' + got.error.message);
@@ -2916,7 +3234,44 @@
             </li>`).join('')}
           </ul>
         </div>
-        ${dmItemsBlock()}`;
+        ${dmItemsBlock()}
+        ${dmGiftBlock()}`;
+    }
+
+    function dmGiftBlock() {
+      if (!lifeReady) return '';
+      const field = 'w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm';
+      const label = 'text-xs font-medium text-paper-muted dark:text-night-muted';
+      const waiting = chestGrants.filter(g => !chestOpens.some(c => c.user_id === g.user_id && c.source === 'gift:' + g.id)).length;
+      return `
+        <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
+          <h2 class="title-outline text-3xl">Regalar cofre</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">Aparece en el zurrón de quien elijas. Los de jefe y los menores se abren con ganzúa; el de prestigio, sin ella.${waiting ? ` Hay ${waiting} regalado${waiting === 1 ? '' : 's'} sin abrir.` : ''}</p>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+            <div><label for="dmGiftTo" class="${label}">Para</label>
+              <select id="dmGiftTo" class="${field}"><option value="all">Todo el gremio</option>${Object.values(profiles).map(p => `<option value="${esc(p.id)}">${esc(p.display_name)}</option>`).join('')}</select></div>
+            <div><label for="dmGiftTier" class="${label}">Tipo de cofre</label>
+              <select id="dmGiftTier" class="${field}">${Object.entries(CHESTS).map(([k, c]) => `<option value="${k}"${k === 'level' ? ' selected' : ''}>${esc(c.label)}</option>`).join('')}</select></div>
+            <div><label for="dmGiftNote" class="${label}">Nombre (opcional)</label>
+              <input type="text" id="dmGiftNote" maxlength="60" placeholder="Cofre del máster" class="${field}" /></div>
+          </div>
+          <div class="flex justify-end mt-4"><button onclick="giftChest()" class="px-4 py-2 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg">Regalar</button></div>
+        </div>`;
+    }
+
+    async function giftChest() {
+      if (!isDM() || !lifeGuard()) return;
+      const to = document.getElementById('dmGiftTo').value;
+      const tier = document.getElementById('dmGiftTier').value;
+      const note = document.getElementById('dmGiftNote').value.trim();
+      if (!CHESTS[tier] || (to !== 'all' && !profiles[to])) return;
+      const rows = (to === 'all' ? Object.keys(profiles) : [to]).map(user_id => ({ user_id, tier, note }));
+      const { data, error } = await sb.from('chest_grants').insert(rows).select();
+      if (error) { showToast('No se pudo regalar: ' + error.message); return; }
+      chestGrants.push(...data);
+      renderGlossary();
+      renderDM();
+      showToast(to === 'all' ? 'Cofre regalado a todo el gremio' : `Cofre regalado a ${authorName(to)}`);
     }
 
     function dmItemsBlock() {
@@ -3294,7 +3649,7 @@
           <div class="rule"><span class="quote text-xs">Palabra del día</span></div>
           <h3 class="word-title text-3xl mt-3">${fancyWord(word.word)}</h3>
           <p class="text-sm mt-2 leading-relaxed">${esc(word.definition)}</p>
-          <p class="label-caps text-[9px] text-paper-muted dark:text-night-muted mt-2">${isMine(word.author_id) ? 'De tu glosario' : 'Del glosario de ' + esc(authorName(word.author_id))}</p>
+          <p class="label-caps text-[9px] text-paper-muted dark:text-night-muted mt-2">${isMine(word.author_id) ? 'De tu grimorio' : 'Del grimorio de ' + esc(authorName(word.author_id))}</p>
         </div>
         <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
           <div class="rule"><span class="quote text-xs">Últimas incorporaciones</span></div>
@@ -3317,6 +3672,7 @@
     let reviewTyped = '';
 
     function startReview() {
+      reviewDuel = null;
       const scope = document.getElementById('reviewScope').value;
       let pool = glossary.filter(w => str(w.definition));
       if (scope !== 'all') pool = pool.filter(w => myMarks(w).inMine);
@@ -3358,7 +3714,7 @@
       reviewResult = null;
       reviewTyped = '';
       renderReview();
-      if (reviewIndex === reviewDeck.length) recordReview().then(renderReview);
+      if (reviewIndex === reviewDeck.length) (reviewDuel ? recordDuel() : recordReview()).then(renderReview);
     }
 
     // Guarda la ronda terminada para la experiencia y las estadísticas.
@@ -3386,11 +3742,13 @@
       }
       if (reviewIndex >= reviewDeck.length) {
         box.innerHTML = `
-          <div class="rule"><span class="quote text-xs">Ronda terminada</span></div>
+          <div class="rule"><span class="quote text-xs">${reviewDuel ? 'Duelo terminado' : 'Ronda terminada'}</span></div>
           <p class="word-title text-5xl mt-8 text-paper-accent dark:text-night-accent">${reviewHits} de ${reviewDeck.length}</p>
           <p class="label-caps text-[10px] text-paper-muted dark:text-night-muted mt-2">palabras acertadas</p>
           ${lastReviewNote ? `<p class="quote text-sm mt-4">${esc(lastReviewNote)}</p>` : ''}
-          <div class="mt-8"><button onclick="startReview()" class="${primary}">Otra ronda</button></div>`;
+          <div class="mt-8">${reviewDuel
+            ? `<button onclick="leaveDuel()" class="${primary}">Volver al gremio</button>`
+            : `<button onclick="startReview()" class="${primary}">Otra ronda</button>`}</div>`;
         return;
       }
       const w = reviewDeck[reviewIndex];
@@ -3416,7 +3774,7 @@
             <button onclick="checkReview()" class="${primary}">Comprobar</button>
           </div>`;
       box.innerHTML = `
-          <p class="label-caps text-[10px] text-paper-muted dark:text-night-muted">Palabra ${reviewIndex + 1} de ${reviewDeck.length} · ${reviewHits} ${reviewHits === 1 ? 'acierto' : 'aciertos'}</p>
+          <p class="label-caps text-[10px] text-paper-muted dark:text-night-muted">${reviewDuel ? 'Duelo contra ' + esc(authorName(reviewDuel.rival)) + ' · ' : ''}Palabra ${reviewIndex + 1} de ${reviewDeck.length} · ${reviewHits} ${reviewHits === 1 ? 'acierto' : 'aciertos'}</p>
           <div class="mt-4">${toneBadges(w)}</div>
           <p class="text-lg leading-relaxed mt-4">${esc(w.definition)}</p>
           ${w.plain ? `<p class="text-sm mt-2"><span class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted">Idea llana</span> <strong class="text-paper-accent dark:text-night-accent font-medium">${esc(w.plain)}</strong></p>` : ''}
@@ -3509,7 +3867,7 @@
       if (error) { showToast('No se pudo importar: ' + error.message); return; }
       glossary = [...data, ...glossary];
       renderGlossary();
-      showToast(`${data.length} palabras importadas a tu glosario`);
+      showToast(`${data.length} palabras importadas a tu grimorio`);
     }
 
     function importGlossaryJSON(event) {
