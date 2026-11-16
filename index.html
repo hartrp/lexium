@@ -2059,29 +2059,31 @@
     // Icono del medallón: el de la clase si la tiene, o el del título
     function emblem(stats) { return stats.cls ? CLASSES[stats.cls].icon : stats.title.icon; }
 
+    // En el grimorio solo va la ficha propia; las de todo el gremio están en la pestaña Gremio
     function renderRanks() {
       const panel = document.getElementById('ranksPanel');
-      const people = Object.values(profiles).sort((a, b) =>
-        (guild[b.id]?.xp || 0) - (guild[a.id]?.xp || 0) || a.display_name.localeCompare(b.display_name, 'es'));
-      panel.innerHTML = people.map(p => {
-        const s = guild[p.id];
-        const me = currentUser && p.id === currentUser.id;
-        return `
-        <div class="frame rank-card bg-paper-card dark:bg-night-card border ${me ? 'border-paper-accent/60 dark:border-night-accent/50' : 'border-paper-border dark:border-night-border'} min-w-0 px-2 py-3 sm:px-4 sm:py-5 text-center">
-          ${portrait(p, s)}
-          <p class="word-title text-lg sm:text-2xl text-paper-accent dark:text-night-accent">${esc(s.title.name)}</p>
-          <p class="label-caps text-[9.5px] mt-1.5 truncate">${esc(s.className || 'Sin clase')} de nivel ${s.level}</p>
-          <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted mt-1 flex items-center justify-center gap-1.5">
-            <span class="w-1.5 h-1.5 shrink-0 rounded-full" style="background:${authorColor(p.id)}"></span>
-            <span class="truncate">${esc(p.display_name)}${me ? ' (tú)' : ''}</span>
-          </p>
-          <div class="mt-3 h-px bg-paper-border dark:bg-night-border">
-            <div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div>
+      const p = currentUser ? profiles[currentUser.id] : null;
+      const s = p ? guild[p.id] : null;
+      panel.className = '';
+      if (!p || !s) { panel.innerHTML = ''; return; }
+      const who = rankLine(s, true);
+      panel.innerHTML = `
+        <div class="frame rank-card bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border px-4 py-4 sm:px-6 sm:py-5 flex flex-wrap items-center gap-x-5 gap-y-3">
+          <div class="shrink-0">${portrait(p, s)}</div>
+          <div class="flex-1 min-w-[12rem]">
+            <p class="word-title text-2xl sm:text-3xl text-paper-accent dark:text-night-accent truncate">${esc(p.display_name)}</p>
+            <p class="text-sm text-paper-muted dark:text-night-muted">${esc(who.charAt(0).toUpperCase() + who.slice(1))}</p>
+            <div class="mt-3 h-px bg-paper-border dark:bg-night-border">
+              <div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div>
+            </div>
+            <p class="quote text-xs mt-2">${s.xp} de experiencia, faltan ${s.toNext} para el nivel ${s.level + 1}</p>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-paper-muted dark:text-night-muted">
+              ${heartsRow(s, '')}
+              <span>${s.gold} de oro</span>
+              <span>Hoy, ${s.trainToday} de ${s.trainMax} entrenamientos</span>
+            </div>
           </div>
-          ${heartsRow(s)}
-          <p class="hidden sm:block quote text-xs mt-2">${s.xp} de experiencia, faltan ${s.toNext} para el nivel ${s.level + 1}</p>
         </div>`;
-      }).join('');
     }
 
     function renderGuild() {
@@ -2907,11 +2909,11 @@
       return { hearts, shield, resting: hearts === 0, rest, nextLoss: hearts > 0 ? anchor + D : null };
     }
 
-    function heartsRow(s) {
+    function heartsRow(s, place = 'justify-center mt-2') {
       if (!lifeReady || !s.life) return '';
       const hearts = Array.from({ length: LIFE.hearts }, (_, i) =>
         `<i class="gi gi-hearts text-sm" style="${i < s.life.hearts ? 'color:#B0413E' : 'opacity:.22'}"></i>`).join('');
-      return `<p class="flex items-center justify-center gap-1 mt-2" title="${s.life.hearts} de ${LIFE.hearts} corazones">${hearts}${
+      return `<p class="flex items-center ${place} gap-1" title="${s.life.hearts} de ${LIFE.hearts} corazones">${hearts}${
         s.life.shield ? `<i class="gi gi-health-potion text-sm text-paper-accent dark:text-night-accent ml-1" title="Poción activa"></i>` : ''}${
         s.life.resting ? `<span class="label-caps text-[9px] text-paper-muted dark:text-night-muted ml-1.5"><i class="gi gi-night-sleep"></i> En reposo</span>` : ''}</p>`;
     }
