@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Lexium" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Lexium — Grimorio literario compartido</title>
   <meta name="theme-color" content="#06080F" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -194,6 +201,9 @@
     /* Botones de icono de la cabecera, sin caja */
     header > div button:not([class*="bg-paper-ink"]) { border-color: transparent !important; }
     #btnDM { display: none; }
+    /* Instalada como app, la cabecera deja sitio a la barra de estado del teléfono */
+    header { padding-top: env(safe-area-inset-top); }
+    details > summary { list-style-position: outside; }
 
     /* En móvil la navegación baja al pie, al alcance del pulgar */
     @media (max-width: 639px) {
@@ -912,6 +922,11 @@
     let trades = [];          // ofertas de intercambio entre personas del gremio
     let perksReady = false;   // true cuando la base de datos ya tiene habilidades e intercambios
     let tradeItem = null;     // id del objeto de mi zurrón que estoy ofreciendo
+    let configReady = false;  // true cuando la base de datos ya tiene la tabla de reglas
+    let configRows = {};      // clave -> valor guardado en game_config ('rules', 'featured')
+    let featured = { mode: 'off' }; // objeto de la semana
+    let allowedEmails = [];   // emails invitados (solo los ve el máster)
+    const dmOpen = new Set(); // desplegables abiertos en el panel de máster
     let contentReady = false; // true cuando la base de datos ya tiene las tablas de jefes y objetos
     let contentFromDb = false; // true cuando los jefes que se muestran vienen de la base de datos
     let saves = [];          // palabras ajenas guardadas en el grimorio de cada persona: { word_id, user_id, is_favorite, is_used }
@@ -1165,7 +1180,7 @@
     // ---------- CARGA DE DATOS ----------
     async function reloadFromCloud(notify = false) {
       if (!currentUser) return;
-      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes, cgRes, duRes, pkRes, trRes] = await Promise.all([
+      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes, cgRes, duRes, pkRes, trRes, cfRes, aeRes] = await Promise.all([
         sb.from('profiles').select('*'),
         sb.from('words').select('*').order('created_at', { ascending: false }),
         sb.from('tones').select('*').order('created_at', { ascending: true }),
@@ -1183,7 +1198,9 @@
         sb.from('chest_grants').select('*'),
         sb.from('duels').select('*').order('created_at', { ascending: true }),
         sb.from('class_perks').select('*'),
-        sb.from('trades').select('*').order('created_at', { ascending: true })
+        sb.from('trades').select('*').order('created_at', { ascending: true }),
+        sb.from('game_config').select('*'),
+        sb.from('allowed_emails').select('*')
       ]);
       if (pRes.error || wRes.error) {
         showToast('No se pudo cargar el grimorio: ' + (pRes.error || wRes.error).message);
@@ -1216,6 +1233,12 @@
       chestGrants = lifeReady ? cgRes.data : [];
       duels = lifeReady ? duRes.data : [];
       perksReady = lifeReady && !pkRes.error && !trRes.error;
+      configReady = !cfRes.error;
+      configRows = {};
+      (configReady ? cfRes.data : []).forEach(r => { configRows[r.key] = r.value; });
+      applyRules(configRows.rules);
+      featured = configRows.featured && typeof configRows.featured === 'object' ? configRows.featured : { mode: 'off' };
+      allowedEmails = aeRes.error ? [] : aeRes.data.map(r => r.email).sort();
       perkRows = perksReady ? pkRes.data : [];
       trades = perksReady ? trRes.data : [];
       contentReady = !bRes.error && !iRes.error;
@@ -1262,8 +1285,10 @@
     // ---------- EXPERIENCIA, CLASES, NIVELES Y LOGROS ----------
     // Todo se calcula a partir de lo que ya hay guardado (palabras, marcas y entrenamientos),
     // así que no hay puntos que se puedan descuadrar. Para ajustar el juego basta con tocar estas tablas.
-    const XP = { word: 10, source: 5, used: 5, round: 5, hit: 1, roundsPerDay: 3, like: 2, save: 4 };
-    const LEVEL_DAMAGE = 0.05; // cada nivel por encima del primero suma un 5 % de daño a los jefes
+    // levelBase marca la curva de niveles; levelDamage es el % de daño extra a los jefes por cada nivel por encima del primero
+    const XP = { word: 10, source: 5, used: 5, round: 5, hit: 1, roundsPerDay: 3, like: 2, save: 4, levelBase: 50, levelDamage: 5 };
+    // Multiplicador del daño ante la debilidad y ante la resistencia de un jefe
+    const COMBAT = { weak: 2, strong: 0.5 };
 
     // La mazmorra: jefes encadenados, sin plazo. Toda la experiencia que gana el grupo es daño al jefe actual.
     // Al caer, cada persona recibe la recompensa y aparece el siguiente.
@@ -1319,6 +1344,51 @@
     const DUEL = { words: 10, win: 3, draw: 2, lose: 1, chestEvery: 10 };
     // Clasificación semanal (de lunes a domingo): premio en oro desde la semana indicada
     const WEEK = { start: '2026-11-16', gold: 50 };
+
+    // ----- Reglas que el máster puede cambiar desde su panel (lo demás sigue en el código) -----
+    const RULE_ROOTS = { XP, GOLD, TRAIN, LIFE, DUEL, WEEK, COMBAT, CHESTS, RARITY };
+    const rf = (path, label, opts = {}) => ({ path, label, min: 0, step: 1, int: true, ...opts });
+    const RULES = [
+      { title: 'Experiencia', fields: [
+        rf('XP.word', 'Por palabra apuntada'), rf('XP.source', 'Extra si la cita lleva obra y autoría'), rf('XP.save', 'Por palabra ajena guardada'),
+        rf('XP.used', 'Por palabra usada en un texto'), rf('XP.like', 'Por me gusta recibido'), rf('XP.round', 'Por entrenamiento'), rf('XP.hit', 'Por acierto al entrenar'),
+        rf('XP.levelBase', 'Curva de niveles: el nivel 2 pide el doble de este valor', { min: 1 }), rf('XP.levelDamage', 'Daño extra a los jefes por nivel (%)') ] },
+      { title: 'Entrenamientos', fields: [
+        rf('XP.roundsPerDay', 'Máximo al día', { min: 1, max: 20 }), rf('TRAIN.free', 'Cuántos son gratis cada día', { max: 20 }), rf('TRAIN.words', 'Palabras por entrenamiento', { min: 1, max: 30 }) ] },
+      { title: 'Oro', fields: [
+        rf('GOLD.hitMine', 'Por acierto, solo mi grimorio'), rf('GOLD.hitAll', 'Por acierto, todos los grimorios'), rf('GOLD.perfect', 'Extra por acertarlas todas'),
+        rf('GOLD.used', 'Por palabra usada en un texto'), rf('GOLD.day', 'Por día con actividad'), rf('GOLD.noLoot', 'Cofre que no trae objeto'), rf('WEEK.gold', 'Premio de la clasificación semanal') ] },
+      { title: 'Mazmorra', fields: [
+        rf('COMBAT.weak', 'Multiplicador ante la debilidad del jefe', { min: 1, step: 0.1, int: false }), rf('COMBAT.strong', 'Multiplicador ante su resistencia', { max: 1, step: 0.1, int: false }) ] },
+      { title: 'Vida', fields: [
+        rf('LIFE.hearts', 'Corazones', { min: 1, max: 6 }), rf('LIFE.days', 'Días sin actividad para perder uno', { min: 1 }) ] },
+      { title: 'Duelos y prestigio', fields: [
+        rf('DUEL.words', 'Palabras por duelo', { min: 1, max: 30 }), rf('DUEL.win', 'Prestigio por ganar'), rf('DUEL.draw', 'Prestigio por empatar'), rf('DUEL.lose', 'Prestigio por perder'),
+        rf('DUEL.chestEvery', 'Prestigio para cada cofre de prestigio', { min: 1 }) ] },
+      { title: 'Cofres', note: 'Las probabilidades son pesos: 60, 30, 9 y 1 equivalen a 60 %, 30 %, 9 % y 1 %.', fields:
+        ['level', 'boss', 'prestige'].flatMap(t => [
+          ...['común', 'raro', 'épico', 'legendario'].map(r => rf(`CHESTS.${t}.weights.${r}`, `${CHESTS[t].label}: peso de ${r}`)),
+          rf(`CHESTS.${t}.sale`, `${CHESTS[t].label}: oro al venderlo sin abrir`) ]) },
+      { title: 'Venta de botín', fields: ['común', 'raro', 'épico', 'legendario'].map(r => rf(`RARITY.${r}.sale`, `Oro por vender un objeto ${r}`)) }
+    ];
+    const RULE_LIST = RULES.flatMap(g => g.fields);
+    function ruleGet(path) { return path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), RULE_ROOTS); }
+    function ruleSet(path, value) { const keys = path.split('.'); const last = keys.pop(); keys.reduce((o, k) => o[k], RULE_ROOTS)[last] = value; }
+    function ruleValid(f, v) { return typeof v === 'number' && isFinite(v) && v >= f.min && (f.max == null || v <= f.max) && (!f.int || Number.isInteger(v)); }
+    const RULE_DEFAULTS = {};
+    RULE_LIST.forEach(f => { RULE_DEFAULTS[f.path] = ruleGet(f.path); });
+    let ruleOverrides = {}; // lo que hay guardado distinto de los valores de partida
+
+    // Pone en vigor unas reglas: primero los valores de partida y encima los cambios válidos
+    function applyRules(values) {
+      ruleOverrides = {};
+      RULE_LIST.forEach(f => {
+        const v = values && typeof values === 'object' ? values[f.path] : undefined;
+        const ok = ruleValid(f, v);
+        ruleSet(f.path, ok ? v : RULE_DEFAULTS[f.path]);
+        if (ok && v !== RULE_DEFAULTS[f.path]) ruleOverrides[f.path] = v;
+      });
+    }
 
     // Habilidades de clase: en cada uno de estos niveles se elige una de dos. Usan el mismo motor de efectos.
     const PERK_LEVELS = [3, 5, 7, 10];
@@ -1452,10 +1522,10 @@
     }
 
     // Cuánto daño hace una palabra según sus atmósferas: doble si el jefe es débil ante alguna, mitad si las resiste.
-    function bossFactor(boss, tones, weakFactor = 2) {
+    function bossFactor(boss, tones, weakFactor = COMBAT.weak) {
       if (!boss || !tones) return 1;
       if (boss.weak && tones.includes(boss.weak)) return weakFactor;
-      if (boss.strong && tones.includes(boss.strong)) return 0.5;
+      if (boss.strong && tones.includes(boss.strong)) return COMBAT.strong;
       return 1;
     }
 
@@ -1515,7 +1585,7 @@
     ];
 
     // Experiencia total necesaria para llegar a un nivel: 100, 300, 600, 1000, 1500...
-    function levelFloor(level) { return 50 * level * (level - 1); }
+    function levelFloor(level) { return XP.levelBase * level * (level - 1); }
     function levelFor(xp) { let level = 1; while (xp >= levelFloor(level + 1)) level++; return level; }
 
     function dayKey(value) {
@@ -1670,12 +1740,12 @@
       // Daño al jefe actual: lo hecho desde que cayó el anterior, con sus debilidades y resistencias,
       // más la bonificación por nivel y por las reliquias de daño.
       const frame = dungeonFrame();
-      const levelBonus = 1 + LEVEL_DAMAGE * (stats.level - 1);
+      const levelBonus = 1 + (XP.levelDamage / 100) * (stats.level - 1);
       stats.damageBonus = levelBonus * (1 + fx('damage_pct', null) / 100); // la que tiene ahora mismo, para mostrarla
       stats.poisoned = poisonAt(Date.now());
       stats.damage = Math.round(levelBonus * events.filter(e => e.at > frame.since && !resting(e.at))
         .reduce((sum, e) => sum + e.points * (e.day ? dayBonus[e.day] : 1)
-          * bossFactor(frame.boss, e.tones, 2 + fx('weak_factor', e.at))
+          * bossFactor(frame.boss, e.tones, COMBAT.weak + fx('weak_factor', e.at))
           * (1 + fx('damage_pct', e.at) / 100)
           * (1 + (e.tones ? fxTone('damage_tone_pct', e.at, e.tones) : 0) / 100)
           * (1 + poisonAt(e.at) / 100), 0));
@@ -2001,7 +2071,7 @@
               <span><strong class="font-medium">${esc(a.name)}</strong><span class="block text-xs text-paper-muted dark:text-night-muted">${esc(a.desc)}</span></span>
             </li>`).join('')}
           </ul>
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save} por cada palabra ajena que guardas en tu grimorio, ${XP.used} por palabra ya usada, ${XP.round} por entrenamiento más ${XP.hit} por acierto (hasta ${XP.roundsPerDay} al día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${Math.round(LEVEL_DAMAGE * 100)} % de daño a los jefes.</p>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save} por cada palabra ajena que guardas en tu grimorio, ${XP.used} por palabra ya usada, ${XP.round} por entrenamiento más ${XP.hit} por acierto (hasta ${XP.roundsPerDay} al día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${XP.levelDamage} % de daño a los jefes.</p>
         </div>`;
 
       panel.innerHTML = dungeonPanel() + weeklyBlock() + duelsBlock() + chooser + `<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">${members}</div>` + legend;
@@ -2715,7 +2785,9 @@
         ...activity.map(a => ({ at: Date.parse(a) || 0, type: 'act' })),
         ...rounds.map(a => ({ at: Date.parse(a) || 0, type: 'round' })),
         ...itemUses.filter(u => u.effect_type === 'potion' && (u.target_id ? u.target_id === userId : u.user_id === userId))
-          .map(u => ({ at: Date.parse(u.used_at) || 0, type: u.user_id === userId ? 'potion' : 'gift' }))
+          .map(u => ({ at: Date.parse(u.used_at) || 0, type: u.user_id === userId ? 'potion' : 'gift' })),
+        ...itemUses.filter(u => u.effect_type === 'heal' && u.target_id === userId && (profiles[u.user_id] || {}).is_dm)
+          .map(u => ({ at: Date.parse(u.used_at) || 0, type: 'heal' }))
       ].filter(e => e.at >= start).sort((a, b) => a.at - b.at);
       let hearts = LIFE.hearts, shield = 0, anchor = start, restFrom = null;
       const rest = [];
@@ -2728,6 +2800,7 @@
       };
       events.forEach(e => {
         decay(e.at);
+        if (e.type === 'heal') { if (hearts === 0) rest.push({ from: restFrom, to: e.at }); hearts = LIFE.hearts; anchor = e.at; return; }
         if (hearts === 0) {
           if (e.type === 'round' || e.type === 'gift') { rest.push({ from: restFrom, to: e.at }); hearts = 1; anchor = e.at; }
           return;
@@ -3082,7 +3155,17 @@
           </div>` : '<p class="quote text-sm text-center mt-4">La tienda está vacía.</p>'}
         </div>`;
 
-      panel.innerHTML = purse + chests + tradesBlock() + inventory + shop;
+      const f = featuredItem();
+      const boughtIt = f && ledger.some(l => l.user_id === currentUser.id && l.reason === 'Objeto de la semana ' + f.week);
+      const weekly = f ? `
+        <div class="${section}">
+          <div class="rule"><span class="quote text-xs">Objeto de la semana</span></div>
+          <div class="max-w-[14rem] mx-auto mt-4">${itemCard(f.item, boughtIt
+            ? '<span class="text-xs text-paper-muted dark:text-night-muted">Ya lo has comprado</span>'
+            : `<button onclick="buyFeatured()" class="${me.gold >= priceFor(f, me) ? smallGold : small}"${me.gold >= priceFor(f, me) ? '' : ' disabled'}>${priceFor(f, me)} de oro</button>`)}</div>
+          <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-3">Solo hasta el domingo, y uno por persona.</p>
+        </div>` : '';
+      panel.innerHTML = purse + chests + tradesBlock() + inventory + weekly + shop;
     }
 
     // Precio de la tienda para una persona (con su descuento) y lo que le dan al vender
@@ -3093,6 +3176,43 @@
     }
     // Los cofres de prestigio no piden ganzúa; los menores tampoco con la habilidad adecuada
     function chestFree(chest, stats) { return Boolean(CHESTS[chest.tier].free || (chest.tier === 'level' && stats && stats.perk && stats.perk.noPick)); }
+
+    // Objeto de la semana: lo elige el máster, o sale solo cada lunes entre los de una rareza
+    function featuredItem() {
+      if (!featured || !['auto', 'manual'].includes(featured.mode)) return null;
+      const week = weekKey(Date.now());
+      let item = null;
+      if (featured.mode === 'manual') {
+        if (featured.week !== week) return null;
+        item = itemsById[featured.item_id];
+      } else {
+        const pool = Object.values(itemsById).filter(it => it.kind === 'gear' && it.rarity === (RARITY[featured.rarity] ? featured.rarity : 'raro'))
+          .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+        let h = 0;
+        for (const ch of week) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+        item = pool.length ? pool[h % pool.length] : null;
+      }
+      if (!item || item.kind === 'relic') return null;
+      return { item, week, price: Math.max(1, Math.round(Number(featured.price) || 0)) };
+    }
+
+    async function buyFeatured() {
+      const f = featuredItem();
+      const me = currentUser ? guild[currentUser.id] : null;
+      if (!economyGuard() || !f || !me) return;
+      const reason = 'Objeto de la semana ' + f.week;
+      if (ledger.some(l => l.user_id === currentUser.id && l.reason === reason)) { showToast('Ya has comprado el objeto de esta semana'); return; }
+      const price = priceFor(f, me);
+      if (me.gold < price) { showToast('No te llega el oro'); return; }
+      try {
+        const { data, error } = await sb.from('user_items').insert({ item_id: f.item.id, source: 'semana ' + f.week }).select().single();
+        if (error) throw new Error('No se pudo comprar: ' + error.message);
+        userItems.push(data);
+        await spendGold(-price, reason);
+        renderGlossary();
+        showToast(`Has comprado «${f.item.name}» por ${price} de oro`);
+      } catch (e) { showToast(e.message); }
+    }
 
     async function sellChest(source) {
       const me = currentUser ? guild[currentUser.id] : null;
@@ -3549,12 +3669,359 @@
                 <span class="block text-xs text-paper-muted dark:text-night-muted truncate">${b.relic ? 'Reliquia: ' + esc(b.relic.name) + ' — ' + esc(effectText(b.relic)) : 'Sin reliquia'}</span>
               </span>
               <button onclick="openBossEditor(${b.position})" class="${small}">Editar</button>
-              ${done.has(b.position) ? '' : `<button onclick="deleteBoss(${b.position})" title="Eliminar" class="text-sm text-paper-muted dark:text-night-muted hover:text-red-500"><i class="gi gi-trash-can"></i></button>`}
+              ${done.has(b.position) ? undoButton(b.position) : `<button onclick="deleteBoss(${b.position})" title="Eliminar" class="text-sm text-paper-muted dark:text-night-muted hover:text-red-500"><i class="gi gi-trash-can"></i></button>`}
             </li>`).join('')}
           </ul>
         </div>
         ${dmItemsBlock()}
-        ${dmGiftBlock()}`;
+        ${dmShopBlock()}
+        ${dmGiftBlock()}
+        ${dmPlayersBlock()}
+        ${dmRulesBlock()}
+        ${dmGuildBlock()}`;
+    }
+
+    function dmToggle(key, open) { if (open) dmOpen.add(key); else dmOpen.delete(key); }
+    const DM_BOX = 'frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5';
+    const DM_FIELD = 'w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm';
+    const DM_SMALL = 'px-3 py-1.5 rounded-xl text-[10px] border border-paper-border dark:border-night-border';
+    const DM_GOLD = 'px-4 py-2 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg';
+
+    function configGuard() {
+      if (!isDM()) return false;
+      if (!configReady) { showToast('Falta ejecutar el último schema.sql en Supabase'); return false; }
+      return true;
+    }
+
+    // Guarda un valor de configuración (crea la fila la primera vez)
+    async function saveConfig(key, value) {
+      const res = key in configRows
+        ? await sb.from('game_config').update({ value }).eq('key', key).select().single()
+        : await sb.from('game_config').insert({ key, value }).select().single();
+      if (res.error) throw new Error('No se pudo guardar: ' + res.error.message);
+      configRows[key] = value;
+    }
+
+    // Solo se puede deshacer la última derrota, para no dejar huecos en la mazmorra
+    function undoButton(position) {
+      const last = Math.max(0, ...dungeonRows.map(r => r.boss));
+      return position === last ? `<button onclick="undoBoss(${position})" class="${DM_SMALL}">Deshacer derrota</button>` : '';
+    }
+
+    async function undoBoss(position) {
+      const boss = bossAt(position);
+      if (!configGuard() || !boss) return;
+      if (!confirm(`¿Deshacer la derrota de «${boss.name}»? Vuelve a estar en pie; el gremio pierde su recompensa y su reliquia hasta que caiga otra vez. Los cofres que ya se abrieron no se devuelven.`)) return;
+      const { error } = await sb.from('dungeon_progress').delete().eq('boss', position);
+      if (error) { showToast('No se pudo deshacer: ' + error.message); return; }
+      dungeonRows = dungeonRows.filter(r => r.boss !== position);
+      renderGlossary();
+      renderDM();
+      showToast(`«${boss.name}» vuelve a estar en pie`);
+    }
+
+    // ----- Tienda -----
+    function dmShopBlock() {
+      if (!configReady) return '';
+      const list = Object.values(itemsById).filter(it => it.kind !== 'relic').sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, 'es'));
+      const gear = list.filter(it => it.kind === 'gear');
+      const f = featuredItem();
+      const mode = ['auto', 'manual'].includes(featured.mode) ? featured.mode : 'off';
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Tienda</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">Marca qué se vende y a qué precio. Con precio 0 un objeto no aparece.</p>
+          <ul class="mt-4 divide-y divide-paper-border/60 dark:divide-night-border/60">
+            ${list.map(it => `<li class="flex items-center gap-3 py-2">
+              <span class="flex-1 min-w-0 truncate">${esc(it.name)} <span class="text-xs text-paper-muted dark:text-night-muted">${it.kind === 'gear' ? esc(it.rarity) : 'consumible'}</span></span>
+              <span class="flex items-center gap-1.5 text-xs text-paper-muted dark:text-night-muted"><input type="checkbox" id="shop-sale-${esc(it.id)}"${it.for_sale ? ' checked' : ''} /> Se vende</span>
+              <input type="number" id="shop-price-${esc(it.id)}" min="0" step="1" value="${it.price}" class="w-20 px-2 py-1 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm text-right" />
+            </li>`).join('')}
+          </ul>
+          <div class="flex justify-end mt-3"><button onclick="saveShop()" class="${DM_GOLD}">Guardar tienda</button></div>
+
+          <div class="rule mt-6"><span class="quote text-xs">Objeto de la semana</span></div>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-3">${f ? 'Esta semana: «' + esc(f.item.name) + '» por ' + f.price + ' de oro.' : 'Ahora mismo no hay ninguno.'} Cada persona puede comprarlo una vez. En automático cambia solo cada lunes; a mano vale para la semana en curso.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
+            <div><label for="dmFeatMode" class="text-xs">Cómo se elige</label>
+              <select id="dmFeatMode" class="${DM_FIELD}">${[['off', 'No hay'], ['auto', 'Automático, al azar'], ['manual', 'Lo elijo yo']].map(([v, l]) => `<option value="${v}"${v === mode ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+            <div><label for="dmFeatRarity" class="text-xs">Rareza (automático)</label>
+              <select id="dmFeatRarity" class="${DM_FIELD}">${Object.keys(RARITY).map(r => `<option value="${r}"${r === (featured.rarity || 'raro') ? ' selected' : ''}>${r}</option>`).join('')}</select></div>
+            <div><label for="dmFeatItem" class="text-xs">Objeto (a mano)</label>
+              <select id="dmFeatItem" class="${DM_FIELD}">${gear.map(it => `<option value="${esc(it.id)}"${it.id === featured.item_id ? ' selected' : ''}>${esc(it.name)} (${esc(it.rarity)})</option>`).join('')}</select></div>
+            <div><label for="dmFeatPrice" class="text-xs">Precio</label>
+              <input type="number" id="dmFeatPrice" min="1" step="5" value="${Number(featured.price) || 120}" class="${DM_FIELD}" /></div>
+          </div>
+          <div class="flex justify-end mt-3"><button onclick="saveFeatured()" class="${DM_GOLD}">Guardar objeto de la semana</button></div>
+        </div>`;
+    }
+
+    async function saveShop() {
+      if (!configGuard()) return;
+      const changes = [];
+      for (const it of Object.values(itemsById).filter(x => x.kind !== 'relic')) {
+        const sale = document.getElementById('shop-sale-' + it.id), price = document.getElementById('shop-price-' + it.id);
+        if (!sale || !price) continue;
+        const p = parseInt(price.value, 10);
+        if (!Number.isInteger(p) || p < 0) { showToast(`Revisa el precio de «${it.name}»`); return; }
+        if (p !== it.price || Boolean(sale.checked) !== it.for_sale) changes.push({ id: it.id, price: p, for_sale: Boolean(sale.checked) });
+      }
+      if (changes.length === 0) { showToast('No hay cambios en la tienda'); return; }
+      for (const c of changes) {
+        const { error } = await sb.from('game_items').update({ price: c.price, for_sale: c.for_sale }).eq('id', c.id);
+        if (error) { showToast('No se pudo guardar: ' + error.message); return; }
+        itemsById[c.id].price = c.price;
+        itemsById[c.id].for_sale = c.for_sale;
+      }
+      renderGlossary();
+      renderDM();
+      showToast('Tienda guardada');
+    }
+
+    async function saveFeatured() {
+      if (!configGuard()) return;
+      const mode = document.getElementById('dmFeatMode').value;
+      const price = parseInt(document.getElementById('dmFeatPrice').value, 10);
+      if (mode !== 'off' && (!Number.isInteger(price) || price < 1)) { showToast('Indica el precio'); return; }
+      const value = { mode: ['auto', 'manual'].includes(mode) ? mode : 'off', rarity: document.getElementById('dmFeatRarity').value,
+        item_id: document.getElementById('dmFeatItem').value || null, price: price || 0, week: weekKey(Date.now()) };
+      if (value.mode === 'manual' && !itemsById[value.item_id]) { showToast('Elige un objeto'); return; }
+      try {
+        await saveConfig('featured', value);
+        featured = value;
+        renderGlossary();
+        renderDM();
+        showToast('Objeto de la semana guardado');
+      } catch (e) { showToast(e.message); }
+    }
+
+    // ----- Jugadoras -----
+    function dmPlayersBlock() {
+      if (!configReady) return '';
+      const giveable = Object.values(itemsById).filter(it => it.kind !== 'relic').sort((a, b) => a.name.localeCompare(b.name, 'es'));
+      const people = Object.values(profiles).sort((a, b) => a.display_name.localeCompare(b.display_name, 'es'));
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Jugadoras</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">Lo que cambies aquí se aplica al momento en la cuenta de esa persona.</p>
+          <div class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
+            ${people.map(p => {
+              const s = guild[p.id];
+              const items = userItems.filter(u => u.user_id === p.id && itemsById[u.item_id]);
+              return `<details class="py-3"${dmOpen.has('p' + p.id) ? ' open' : ''} ontoggle="dmToggle('p${esc(p.id)}', this.open)">
+              <summary class="cursor-pointer"><span class="word-title text-xl">${esc(p.display_name)}</span> <span class="text-xs text-paper-muted dark:text-night-muted">${esc(rankLine(s, true))}, ${s.gold} de oro, ${s.life.hearts} de ${LIFE.hearts} corazones${s.life.resting ? ', en reposo' : ''}</span></summary>
+              <div class="mt-3 space-y-4">
+                <div>
+                  <p class="text-xs text-paper-muted dark:text-night-muted">Zurrón</p>
+                  ${items.length ? `<ul class="mt-1">${items.map(u => `<li class="flex items-center gap-2 py-1 text-sm"><span class="flex-1 min-w-0 truncate">${esc(itemsById[u.item_id].name)}${u.equipped ? ' <span class="text-xs text-paper-muted dark:text-night-muted">equipado</span>' : ''}</span>
+                    <button onclick="adminRemoveItem('${esc(u.id)}')" class="${DM_SMALL}">Quitar</button></li>`).join('')}</ul>` : '<p class="text-sm mt-1">Vacío.</p>'}
+                  <div class="flex gap-2 mt-2">
+                    <select id="adm-item-${esc(p.id)}" class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm">${giveable.map(it => `<option value="${esc(it.id)}">${esc(it.name)}</option>`).join('')}</select>
+                    <button onclick="adminGiveItem('${esc(p.id)}')" class="${DM_SMALL}">Dar objeto</button>
+                  </div>
+                </div>
+                <div class="flex gap-2 items-end">
+                  <div class="flex-1"><label for="adm-gold-${esc(p.id)}" class="text-xs">Oro: cantidad que das (o quitas, en negativo)</label>
+                    <input type="number" id="adm-gold-${esc(p.id)}" step="5" placeholder="50" class="${DM_FIELD}" /></div>
+                  <button onclick="adminGold('${esc(p.id)}')" class="${DM_SMALL}">Aplicar</button>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <button onclick="adminHeal('${esc(p.id)}')" class="${DM_SMALL}">Restaurar corazones</button>
+                  <button onclick="adminToggleAI('${esc(p.id)}')" class="${DM_SMALL}">${p.ai_enabled ? 'Quitar acceso a la IA' : 'Dar acceso a la IA'}</button>
+                </div>
+              </div>
+            </details>`; }).join('')}
+          </div>
+        </div>`;
+    }
+
+    async function adminGiveItem(userId) {
+      const it = itemsById[document.getElementById('adm-item-' + userId).value];
+      if (!configGuard() || !it || !profiles[userId]) return;
+      const { data, error } = await sb.from('user_items').insert({ user_id: userId, item_id: it.id, source: 'máster' }).select().single();
+      if (error) { showToast('No se pudo dar el objeto: ' + error.message); return; }
+      userItems.push(data);
+      renderGlossary();
+      renderDM();
+      showToast(`«${it.name}» para ${authorName(userId)}`);
+    }
+
+    async function adminRemoveItem(userItemId) {
+      const u = userItems.find(x => x.id === userItemId);
+      if (!configGuard() || !u) return;
+      if (!confirm(`¿Quitar «${itemsById[u.item_id].name}» del zurrón de ${authorName(u.user_id)}?`)) return;
+      const { error } = await sb.from('user_items').delete().eq('id', u.id);
+      if (error) { showToast('No se pudo quitar: ' + error.message); return; }
+      userItems = userItems.filter(x => x.id !== u.id);
+      renderGlossary();
+      renderDM();
+    }
+
+    async function adminGold(userId) {
+      const amount = parseInt(document.getElementById('adm-gold-' + userId).value, 10);
+      if (!configGuard() || !profiles[userId]) return;
+      if (!Number.isInteger(amount) || amount === 0) { showToast('Indica una cantidad, positiva o negativa'); return; }
+      const { data, error } = await sb.from('gold_ledger').insert({ user_id: userId, amount, reason: 'Ajuste del máster' }).select().single();
+      if (error) { showToast('No se pudo aplicar: ' + error.message); return; }
+      ledger.push(data);
+      renderGlossary();
+      renderDM();
+      showToast(`${amount > 0 ? '+' : ''}${amount} de oro para ${authorName(userId)}`);
+    }
+
+    async function adminHeal(userId) {
+      if (!configGuard() || !profiles[userId]) return;
+      const { data, error } = await sb.from('consumable_uses').insert({ effect_type: 'heal', effect_value: 0, target_id: userId }).select().single();
+      if (error) { showToast('No se pudo restaurar: ' + error.message); return; }
+      itemUses.push(data);
+      renderGlossary();
+      renderDM();
+      showToast(`Corazones de ${authorName(userId)} restaurados`);
+    }
+
+    async function adminToggleAI(userId) {
+      const p = profiles[userId];
+      if (!configGuard() || !p) return;
+      const { error } = await sb.rpc('admin_set_ai', { p_user: userId, p_on: !p.ai_enabled });
+      if (error) { showToast('No se pudo cambiar: ' + error.message); return; }
+      p.ai_enabled = !p.ai_enabled;
+      applyAIAccess();
+      renderDM();
+      showToast(`${authorName(userId)} ${p.ai_enabled ? 'ya puede' : 'ya no puede'} usar la IA`);
+    }
+
+    // ----- Reglas -----
+    function dmRulesBlock() {
+      if (!configReady) return `<div class="${DM_BOX}"><h2 class="title-outline text-3xl">Reglas</h2><p class="quote text-sm mt-2">Para cambiar las reglas, las jugadoras y la tienda hay que ejecutar el último schema.sql en Supabase.</p></div>`;
+      let n = 0;
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Reglas</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">La experiencia y el oro se calculan siempre a partir de lo hecho, así que un cambio afecta también a lo pasado: alguien puede subir o bajar de nivel. Antes de guardar verás cómo queda cada persona.</p>
+          <div class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
+            ${RULES.map((g, gi) => `<details class="py-3"${dmOpen.has('r' + gi) ? ' open' : ''} ontoggle="dmToggle('r${gi}', this.open)">
+              <summary class="cursor-pointer"><span class="word-title text-xl">${esc(g.title)}</span></summary>
+              ${g.note ? `<p class="text-xs text-paper-muted dark:text-night-muted mt-2">${esc(g.note)}</p>` : ''}
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
+                ${g.fields.map(f => { const i = n++; const changed = ruleGet(f.path) !== RULE_DEFAULTS[f.path]; return `<div>
+                  <label for="rule-${i}" class="text-xs">${esc(f.label)}</label>
+                  <input type="number" id="rule-${i}" min="${f.min}"${f.max != null ? ` max="${f.max}"` : ''} step="${f.step}" value="${ruleGet(f.path)}" class="${DM_FIELD}" />
+                  ${changed ? `<span class="text-xs text-paper-accent dark:text-night-accent">De partida: ${RULE_DEFAULTS[f.path]}</span>` : ''}
+                </div>`; }).join('')}
+              </div>
+            </details>`).join('')}
+          </div>
+          <div class="flex flex-wrap justify-end gap-2 mt-4">
+            <button onclick="saveRules(true)" class="${DM_SMALL}">Volver a los valores de partida</button>
+            <button onclick="saveRules()" class="${DM_GOLD}">Ver cómo queda y guardar</button>
+          </div>
+        </div>`;
+    }
+
+    async function saveRules(reset = false) {
+      if (!configGuard()) return;
+      const values = {};
+      if (!reset) {
+        for (let i = 0; i < RULE_LIST.length; i++) {
+          const f = RULE_LIST[i];
+          const input = document.getElementById('rule-' + i);
+          const v = input ? parseFloat(input.value) : ruleGet(f.path);
+          if (!ruleValid(f, v)) { showToast(`Revisa «${f.label}»`); return; }
+          if (v !== RULE_DEFAULTS[f.path]) values[f.path] = v;
+        }
+        for (const t of ['level', 'boss', 'prestige']) {
+          const sum = ['común', 'raro', 'épico', 'legendario'].reduce((a, r) => a + (values[`CHESTS.${t}.weights.${r}`] ?? RULE_DEFAULTS[`CHESTS.${t}.weights.${r}`]), 0);
+          if (sum <= 0) { showToast(`Los pesos del ${CHESTS[t].label.toLowerCase()} no pueden ser todos cero`); return; }
+        }
+        const days = values['XP.roundsPerDay'] ?? RULE_DEFAULTS['XP.roundsPerDay'], free = values['TRAIN.free'] ?? RULE_DEFAULTS['TRAIN.free'];
+        if (free > days) { showToast('No puede haber más entrenamientos gratis que el máximo al día'); return; }
+      }
+      // Vista previa: se calcula con las reglas nuevas y se vuelve a las actuales hasta confirmar
+      const snapshot = () => Object.keys(profiles).map(id => { const s = computeStats(id); return { id, level: s.level, xp: s.xp, gold: s.gold, damage: s.damage }; });
+      const current = { ...ruleOverrides };
+      const before = snapshot();
+      applyRules(values);
+      const after = snapshot();
+      const frame = dungeonFrame();
+      const falls = Boolean(frame.boss) && after.reduce((a, s) => a + s.damage, 0) >= frame.boss.hp && before.reduce((a, s) => a + s.damage, 0) < frame.boss.hp;
+      applyRules(current);
+      const lines = before.map((b, i) => {
+        const a = after[i];
+        const parts = [];
+        if (a.level !== b.level) parts.push(`nivel ${b.level} → ${a.level}`);
+        if (a.xp !== b.xp) parts.push(`experiencia ${b.xp} → ${a.xp}`);
+        if (a.gold !== b.gold) parts.push(`oro ${b.gold} → ${a.gold}`);
+        return authorName(b.id) + ': ' + (parts.length ? parts.join(', ') : 'sin cambios');
+      });
+      if (!confirm((reset ? 'Al volver a los valores de partida:' : 'Con estas reglas:') + '\n\n' + lines.join('\n') + (falls ? '\n\nAdemás, el jefe actual caería.' : '') + '\n\n¿Guardar?')) return;
+      try {
+        await saveConfig('rules', values);
+        applyRules(values);
+        renderGlossary();
+        renderDM();
+        showToast('Reglas guardadas');
+      } catch (e) { showToast(e.message); }
+    }
+
+    // ----- Gremio: invitaciones, duelos y cofres regalados -----
+    function dmGuildBlock() {
+      if (!configReady) return '';
+      const pending = chestGrants.filter(g => !chestOpens.some(c => c.user_id === g.user_id && c.source === 'gift:' + g.id));
+      const recent = duels.slice(-8).reverse();
+      const state = d => ({ pending: 'pendiente', declined: 'rechazado', draw: 'empate' }[duelResult(d)] || 'gana ' + authorName(duelResult(d)));
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Gremio</h2>
+          <div class="rule mt-4"><span class="quote text-xs">Emails invitados</span></div>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-3">Solo estos emails pueden crear cuenta. Quitar uno no borra una cuenta que ya exista.</p>
+          <ul class="mt-2">${allowedEmails.map(e => `<li class="flex items-center gap-2 py-1 text-sm"><span class="flex-1 min-w-0 truncate">${esc(e)}</span><button onclick="adminRemoveEmail('${esc(e)}')" class="${DM_SMALL}">Quitar</button></li>`).join('') || '<li class="text-sm">No hay ninguno.</li>'}</ul>
+          <div class="flex gap-2 mt-2">
+            <input type="email" id="admEmail" placeholder="nombre@ejemplo.com" class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm" />
+            <button onclick="adminAddEmail()" class="${DM_SMALL}">Invitar</button>
+          </div>
+          ${pending.length ? `<div class="rule mt-6"><span class="quote text-xs">Cofres regalados sin abrir</span></div>
+          <ul class="mt-2">${pending.map(g => `<li class="flex items-center gap-2 py-1 text-sm"><span class="flex-1 min-w-0 truncate">${esc(str(g.note) || 'Cofre del máster')}, para ${esc(authorName(g.user_id))}</span><button onclick="adminRemoveGrant('${esc(g.id)}')" class="${DM_SMALL}">Retirar</button></li>`).join('')}</ul>` : ''}
+          ${recent.length ? `<div class="rule mt-6"><span class="quote text-xs">Últimos duelos</span></div>
+          <ul class="mt-2">${recent.map(d => `<li class="flex items-center gap-2 py-1 text-sm"><span class="flex-1 min-w-0 truncate">${esc(authorName(d.challenger_id))} contra ${esc(authorName(d.opponent_id))}: ${esc(state(d))}</span><button onclick="adminDeleteDuel('${esc(d.id)}')" class="${DM_SMALL}">Borrar</button></li>`).join('')}</ul>` : ''}
+        </div>`;
+    }
+
+    async function adminAddEmail() {
+      const email = document.getElementById('admEmail').value.trim().toLowerCase();
+      if (!configGuard()) return;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Escribe un email válido'); return; }
+      if (allowedEmails.includes(email)) { showToast('Ese email ya está invitado'); return; }
+      const { error } = await sb.from('allowed_emails').insert({ email });
+      if (error) { showToast('No se pudo invitar: ' + error.message); return; }
+      allowedEmails = [...allowedEmails, email].sort();
+      renderDM();
+      showToast('Invitación añadida');
+    }
+
+    async function adminRemoveEmail(email) {
+      if (!configGuard() || !confirm(`¿Quitar ${email} de la lista de invitados?`)) return;
+      const { error } = await sb.from('allowed_emails').delete().eq('email', email);
+      if (error) { showToast('No se pudo quitar: ' + error.message); return; }
+      allowedEmails = allowedEmails.filter(e => e !== email);
+      renderDM();
+    }
+
+    async function adminRemoveGrant(grantId) {
+      if (!configGuard() || !confirm('¿Retirar este cofre regalado?')) return;
+      const { error } = await sb.from('chest_grants').delete().eq('id', grantId);
+      if (error) { showToast('No se pudo retirar: ' + error.message); return; }
+      chestGrants = chestGrants.filter(g => g.id !== grantId);
+      renderGlossary();
+      renderDM();
+    }
+
+    async function adminDeleteDuel(duelId) {
+      if (!configGuard() || !confirm('¿Borrar este duelo? Se pierde el prestigio que dio.')) return;
+      const { error } = await sb.from('duels').delete().eq('id', duelId);
+      if (error) { showToast('No se pudo borrar: ' + error.message); return; }
+      duels = duels.filter(d => d.id !== duelId);
+      renderGlossary();
+      renderDM();
     }
 
     function dmGiftBlock() {
@@ -3991,7 +4458,7 @@
     let reviewTyped = '';
     let reviewActive = false; // false = se muestra la portada del entrenamiento
     let reviewMode = 'mine';  // 'mine' o 'all': decide el oro del entrenamiento en curso
-    let trainScope = 'mine';  // lo elegido en la portada
+    let trainScope = 'all';   // lo elegido en la portada
 
     // Vuelve a la portada del entrenamiento
     function startReview() {
@@ -4001,7 +4468,7 @@
       renderReview();
     }
 
-    function setTrainScope(value) { trainScope = ['mine', 'all', 'fav', 'unused'].includes(value) ? value : 'mine'; }
+    function setTrainScope(value) { trainScope = ['mine', 'all', 'fav', 'unused'].includes(value) ? value : 'all'; }
 
     function myTickets() { return myItems().filter(u => itemsById[u.item_id].effect_type === 'train_ticket'); }
 
@@ -4058,8 +4525,8 @@
         : tickets ? `El siguiente gasta un pergamino de entrenamiento. Te ${tickets === 1 ? 'queda uno' : 'quedan ' + tickets}.`
         : 'El siguiente cuesta un pergamino de entrenamiento y no te queda ninguno.';
       const options = [
-        ['mine', `Solo mi grimorio: ${GOLD.hitMine} de oro por acierto`],
         ['all', `Todos los grimorios: ${GOLD.hitAll} de oro por acierto y ${GOLD.perfect} más si aciertas todas`],
+        ['mine', `Solo mi grimorio: ${GOLD.hitMine} de oro por acierto`],
         ['fav', `Solo mis favoritas: ${GOLD.hitMine} de oro por acierto`],
         ['unused', `Las que aún no he usado: ${GOLD.hitMine} de oro por acierto`]
       ];
@@ -4285,6 +4752,11 @@
       } catch (e) {
         showToast('No se encontró glosario.json junto a la app');
       }
+    }
+
+    // Instalable en el móvil: registra el archivo que permite abrirla como app
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
     }
   </script>
 </body>
