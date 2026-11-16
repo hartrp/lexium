@@ -172,7 +172,7 @@
 
     /* Impresión o PDF: solo las fichas del grimorio, en tinta sobre blanco */
     @media print {
-      header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-bag, #view-guild, #view-dm, #dmBossModal, #dmItemModal, #lootModal, #tradeModal, .no-print, .ribbon-wrap { display: none !important; }
+      header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-bag, #view-guild, #view-dm, #dmBossModal, #dmItemModal, #lootModal, #tradeModal, #helpModal, .no-print, .ribbon-wrap { display: none !important; }
       html { font-size: 12px; }
       body::before { display: none !important; }
       body, #view-glossary article { background: #fff !important; background-image: none !important; color: #000 !important; }
@@ -342,6 +342,7 @@
           <option value="recent">Más recientes</option>
           <option value="liked">Más queridas</option>
           <option value="oldest">Más antiguas</option>
+          <option value="hard">Las que más fallo</option>
           <option value="az">A → Z</option>
           <option value="za">Z → A</option>
         </select>
@@ -617,6 +618,16 @@
         <button onclick="closeTrade()" class="px-4 py-2 rounded-xl text-xs border border-paper-border dark:border-night-border">Cancelar</button>
         <button onclick="sendTrade()" class="px-5 py-2 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg">Enviar oferta</button>
       </div>
+    </div>
+  </div>
+
+  <div id="helpModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4" onclick="if(event.target===this)closeHelp()">
+    <div class="bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border rounded-3xl max-w-2xl w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <h3 class="title-outline text-3xl">Cómo se juega</h3>
+        <button onclick="closeHelp()" class="text-paper-muted hover:text-paper-ink text-xl">✕</button>
+      </div>
+      <div id="helpBody"></div>
     </div>
   </div>
 
@@ -929,6 +940,10 @@
     const dmOpen = new Set(); // desplegables abiertos en el panel de máster
     let dmTab = 'mazmorra';   // pestaña abierta del panel de máster
     let dmAchDraft = null;    // logros en edición, antes de guardar
+    let wordStats = {};       // mis aciertos y fallos por palabra: id -> { hits, fails }
+    let statsReady = false;   // true cuando la base de datos ya guarda aciertos por palabra
+    let dmLogRows = [];       // registro de cambios del máster (solo lo ve el máster)
+    let reviewLog = [];       // resultado de cada palabra del entrenamiento en curso
     let contentReady = false; // true cuando la base de datos ya tiene las tablas de jefes y objetos
     let contentFromDb = false; // true cuando los jefes que se muestran vienen de la base de datos
     let saves = [];          // palabras ajenas guardadas en el grimorio de cada persona: { word_id, user_id, is_favorite, is_used }
@@ -1182,7 +1197,7 @@
     // ---------- CARGA DE DATOS ----------
     async function reloadFromCloud(notify = false) {
       if (!currentUser) return;
-      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes, cgRes, duRes, pkRes, trRes, cfRes, aeRes] = await Promise.all([
+      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes, cgRes, duRes, pkRes, trRes, cfRes, aeRes, wsRes, logRes] = await Promise.all([
         sb.from('profiles').select('*'),
         sb.from('words').select('*').order('created_at', { ascending: false }),
         sb.from('tones').select('*').order('created_at', { ascending: true }),
@@ -1202,7 +1217,9 @@
         sb.from('class_perks').select('*'),
         sb.from('trades').select('*').order('created_at', { ascending: true }),
         sb.from('game_config').select('*'),
-        sb.from('allowed_emails').select('*')
+        sb.from('allowed_emails').select('*'),
+        sb.from('word_stats').select('*').eq('user_id', currentUser.id),
+        sb.from('dm_log').select('*').order('created_at', { ascending: false }).limit(60)
       ]);
       if (pRes.error || wRes.error) {
         showToast('No se pudo cargar el grimorio: ' + (pRes.error || wRes.error).message);
@@ -1245,6 +1262,10 @@
       dmAchDraft = null;
       featured = configRows.featured && typeof configRows.featured === 'object' ? configRows.featured : { mode: 'off' };
       allowedEmails = aeRes.error ? [] : aeRes.data.map(r => r.email).sort();
+      statsReady = !wsRes.error;
+      wordStats = {};
+      (statsReady ? wsRes.data : []).forEach(r => { wordStats[r.word_id] = { hits: r.hits, fails: r.fails }; });
+      dmLogRows = logRes.error ? [] : logRes.data;
       perkRows = perksReady ? pkRes.data : [];
       trades = perksReady ? trRes.data : [];
       contentReady = !bRes.error && !iRes.error;
@@ -2142,7 +2163,7 @@
           <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save} por cada palabra ajena que guardas en tu grimorio, ${XP.used} por palabra ya usada, ${XP.round} por entrenamiento más ${XP.hit} por acierto (hasta ${XP.roundsPerDay} al día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${XP.levelDamage} % de daño a los jefes.</p>
         </div>`;
 
-      panel.innerHTML = dungeonPanel() + weeklyBlock() + duelsBlock() + chooser + `<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">${members}</div>` + legend;
+      panel.innerHTML = helpLink() + dungeonPanel() + weeklyBlock() + duelsBlock() + chronicleBlock() + chooser + `<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">${members}</div>` + legend;
     }
 
     async function updateMyProfile(changes, okMessage) {
@@ -2257,6 +2278,10 @@
       const byDate = (a, b) => String(a.created_at).localeCompare(String(b.created_at));
       const sorted = [...filtered];
       if (sort === 'liked') sorted.sort((a, b) => likesFor(b.id).length - likesFor(a.id).length || byDate(b, a));
+      else if (sort === 'hard') {
+        const rate = w => { const s = wordStats[w.id]; return s && s.hits + s.fails ? s.fails / (s.hits + s.fails) : -1; };
+        sorted.sort((a, b) => rate(b) - rate(a) || byDate(b, a));
+      }
       else if (sort === 'az') sorted.sort(byWord);
       else if (sort === 'za') sorted.sort((a, b) => byWord(b, a));
       else if (sort === 'oldest') sorted.sort(byDate);
@@ -2922,6 +2947,98 @@
         </div>`;
     }
 
+    // Crónica: lo último que ha pasado en el gremio, sacado de lo que ya hay guardado
+    function chronicle(limit = 25) {
+      const events = [];
+      const add = (when, icon, text) => { const at = typeof when === 'number' ? when : Date.parse(when); if (at) events.push({ at, icon, text }); };
+      const byId = {};
+      glossary.forEach(w => { byId[w.id] = w; add(w.created_at, 'quill-ink', `${authorName(w.author_id)} apuntó «${w.word}».`); });
+      saves.forEach(s => { const w = byId[s.word_id]; if (w && w.author_id !== s.user_id) add(s.created_at, 'book-cover', `${authorName(s.user_id)} guardó «${w.word}», de ${authorName(w.author_id)}.`); });
+      dungeonRows.forEach(r => { const b = bossAt(r.boss); if (b) add(r.defeated_at, 'crossed-swords', `Cayó ${b.name}.${r.defeated_by ? ' El golpe de gracia fue de ' + authorName(r.defeated_by) + '.' : ''}`); });
+      duels.forEach(d => {
+        const r = duelResult(d);
+        if (r === 'pending' || r === 'declined') return;
+        const at = Math.max(Date.parse(d.challenger_done_at) || 0, Date.parse(d.opponent_done_at) || 0);
+        const a = authorName(d.challenger_id), b = authorName(d.opponent_id);
+        add(at, 'sword-clash', r === 'draw' ? `${a} y ${b} empataron su duelo a ${d.challenger_hits}.`
+          : r === d.challenger_id ? `${a} ganó su duelo contra ${b}, ${d.challenger_hits} a ${d.opponent_hits}.` : `${b} ganó su duelo contra ${a}, ${d.opponent_hits} a ${d.challenger_hits}.`);
+      });
+      chestOpens.forEach(c => { const it = itemsById[c.item_id]; if (it && !c.sold) add(c.created_at, 'open-treasure-chest', `${authorName(c.user_id)} abrió un cofre y encontró «${it.name}».`); });
+      reviewSessions.forEach(s => { if (s.total >= TRAIN.words && s.hits === s.total) add(s.created_at, 'round-star', `${authorName(s.user_id)} acertó las ${s.total} palabras de un entrenamiento.`); });
+      itemUses.forEach(u => { if (u.effect_type === 'potion' && u.target_id && u.target_id !== u.user_id) add(u.used_at, 'health-potion', `${authorName(u.user_id)} dio una poción a ${authorName(u.target_id)}.`); });
+      trades.forEach(t => { if (t.status === 'accepted') add(t.created_at, 'swap-bag', `${authorName(t.from_id)} y ${authorName(t.to_id)} cerraron un intercambio.`); });
+      Object.entries(weekWinners).forEach(([k, ids]) => add(new Date(k + 'T00:00:00').getTime() + 7 * 86400000, 'podium', `${ids.map(authorName).join(' y ')} ganó la clasificación de la semana.`));
+      return events.sort((a, b) => b.at - a.at).slice(0, limit);
+    }
+
+    function chronicleBlock() {
+      const events = chronicle();
+      if (events.length === 0) return '';
+      return `
+        <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
+          <div class="rule"><span class="quote text-xs">Crónica del gremio</span></div>
+          <ul class="mt-3 space-y-2">
+            ${events.map(e => `<li class="flex items-baseline gap-2.5 text-sm">
+              <i class="gi gi-${e.icon} text-paper-accent dark:text-night-accent shrink-0"></i>
+              <span class="flex-1 min-w-0">${esc(e.text)}</span>
+              <span class="text-xs text-paper-muted dark:text-night-muted whitespace-nowrap">${esc(daysAgo(e.at))}</span>
+            </li>`).join('')}
+          </ul>
+        </div>`;
+    }
+
+    // ---------- CÓMO SE JUEGA ----------
+    function helpLink() {
+      return `<div class="flex justify-end"><button onclick="openHelp()" class="px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border"><i class="gi gi-scroll-unfurled"></i> Cómo se juega</button></div>`;
+    }
+
+    // Las reglas en vigor, escritas con los valores que haya ahora mismo en el panel de máster
+    function helpContent() {
+      const pct = t => { const w = CHESTS[t].weights, sum = Object.values(w).reduce((a, b) => a + b, 0) || 1; return Object.entries(w).filter(([, v]) => v > 0).map(([r, v]) => `${r} ${Math.round(v / sum * 100)} %`).join(', '); };
+      const section = (title, lines) => `<h4 class="word-title text-2xl mt-6">${title}</h4>${lines.map(l => `<p class="text-sm leading-relaxed mt-2">${l}</p>`).join('')}`;
+      return [
+        section('El grimorio', [
+          'Cada palabra que apuntas queda a tu nombre y la ve todo el gremio. Solo hay una ficha por palabra: si alguien ya la tiene, la guardas en tu grimorio en lugar de repetirla.',
+          'Guardar una palabra ajena la añade a tu grimorio para entrenarla y marcarla. La estrella de favorita solo la destaca para ti.' ]),
+        section('Experiencia y niveles', [
+          `Ganas ${XP.word} por palabra apuntada, ${XP.source} más si la cita lleva obra y autoría, ${XP.save} por palabra ajena guardada, ${XP.used} por palabra que marcas como usada en un texto y ${XP.like} por cada me gusta que recibes.`,
+          `El nivel 2 pide ${levelFloor(2)} de experiencia, el 3 pide ${levelFloor(3)}, el 4 pide ${levelFloor(4)}, y así. Los títulos llegan con el nivel: ${TITLES.map(t => `${esc(t.name)} en el ${t.level}`).join(', ')}.` ]),
+        section('Entrenamiento', [
+          `Lees la definición y escribes la palabra. Son ${TRAIN.words} palabras por entrenamiento y puedes hacer ${XP.roundsPerDay} al día. ${TRAIN.free === 1 ? 'El primero es gratis' : 'Los ' + TRAIN.free + ' primeros son gratis'}; los demás gastan un pergamino de entrenamiento.`,
+          `Cada uno da ${XP.round} de experiencia más ${XP.hit} por acierto. En oro: ${GOLD.hitMine} por acierto si entrenas solo tu grimorio; ${GOLD.hitAll} por acierto con todos los grimorios, y ${GOLD.perfect} más si las aciertas todas.`,
+          'Salen más a menudo las palabras que aún no has entrenado y las que más fallas.' ]),
+        section('Oro, tienda y zurrón', [
+          `Además de entrenando, ganas ${GOLD.used} de oro por palabra usada, ${GOLD.day} por cada día con actividad y la recompensa de cada jefe que cae.`,
+          'En la tienda hay consumibles y, algunas semanas, un objeto destacado que solo se puede comprar una vez. El equipo va en tres huecos (pluma, amuleto y capa) y su efecto cuenta mientras lo llevas puesto.',
+          'Lo que no quieras lo puedes vender, u ofrecérselo a alguien del gremio a cambio de oro, de otro objeto o de nada.' ]),
+        section('Cofres', [
+          `Ganas un cofre por cada nivel que subes y otro por cada jefe derrotado. Se abren con una ganzúa. Cofre menor: ${pct('level')}. Cofre de jefe: ${pct('boss')}. Cofre de prestigio: ${pct('prestige')}.`,
+          `Un cofre sin abrir también se puede vender: ${CHESTS.level.sale}, ${CHESTS.boss.sale} o ${CHESTS.prestige.sale} de oro según sea menor, de jefe o de prestigio.` ]),
+        section('La mazmorra', [
+          `Todo el gremio golpea al mismo jefe. La experiencia que ganas desde que cayó el anterior es el daño que le haces, con un ${XP.levelDamage} % más por cada nivel por encima del primero.`,
+          `Las palabras de la atmósfera a la que es débil le hacen ×${COMBAT.weak} de daño; las de la que resiste, ×${COMBAT.strong}. Al caer, todo el gremio recibe su recompensa y su reliquia.` ]),
+        section('Clases y habilidades', [
+          Object.keys(CLASSES).map(k => `<strong class="font-medium">${esc(CLASSES[k].names.n)}</strong>: ${esc(classBonus(k).replace(/\.$/, ''))}`).join('. ') + '.',
+          `En los niveles ${PERK_LEVELS.join(', ')} eliges una de dos habilidades de tu clase. Clase y habilidades se pueden cambiar cuando quieras.` ]),
+        section('Vida', [
+          `Tienes ${LIFE.hearts} corazones. Cada ${LIFE.days} días sin apuntar, guardar ni entrenar pierdes uno; un entrenamiento devuelve uno y una poción te cubre una de esas rachas.`,
+          'Sin corazones quedas en reposo: conservas todo, pero lo que hagas no daña al jefe ni cuenta en la clasificación hasta que completes un entrenamiento o alguien te dé una poción.' ]),
+        section('Duelos, prestigio y clasificación', [
+          `Con un pergamino de duelo retas a alguien: ${DUEL.words} palabras, las mismas para las dos personas. Gana quien acierta más y, si hay empate, quien tarda menos. Ganar da ${DUEL.win} de prestigio, empatar ${DUEL.draw} y perder ${DUEL.lose}; cada ${DUEL.chestEvery} de prestigio hay un cofre de prestigio, que se abre sin ganzúa.`,
+          `Cada semana, de lunes a domingo, quien más experiencia hace gana ${WEEK.gold} de oro.` ])
+      ].join('');
+    }
+
+    function openHelp() {
+      document.getElementById('helpBody').innerHTML = helpContent();
+      document.getElementById('helpModal').classList.remove('hidden');
+      document.getElementById('helpModal').classList.add('flex');
+    }
+    function closeHelp() {
+      document.getElementById('helpModal').classList.add('hidden');
+      document.getElementById('helpModal').classList.remove('flex');
+    }
+
     // Resultado de un duelo: 'declined', 'pending', 'draw' o el id de quien gana (más aciertos; si empatan, menos tiempo)
     function duelResult(d) {
       if (d.declined) return 'declined';
@@ -3048,6 +3165,7 @@
       const deck = (Array.isArray(d.word_ids) ? d.word_ids : []).map(id => byId[id]).filter(Boolean);
       if (deck.length === 0) { showToast('Las palabras de este duelo ya no existen'); return; }
       reviewActive = true;
+      reviewLog = [];
       reviewDuel = { id: d.id, side, started: Date.now(), rival: side === 'challenger' ? d.opponent_id : d.challenger_id };
       reviewDeck = deck;
       reviewIndex = 0;
@@ -3067,6 +3185,7 @@
       const { data, error } = await sb.from('duels').update(changes).eq('id', duel.id).select().single();
       if (error) { lastReviewNote = 'No se pudo registrar el duelo: ' + error.message; return; }
       duels = duels.map(x => x.id === duel.id ? data : x);
+      await saveWordResults();
       renderGlossary();
       const r = duelResult(data);
       lastReviewNote = r === 'pending' ? `Ahora le toca a ${authorName(duel.rival)}.`
@@ -3747,7 +3866,8 @@
         jugadoras: ['Jugadoras', () => dmPlayersBlock() + dmGuildBlock()],
         reglas: ['Reglas', () => dmRulesBlock()],
         clases: ['Clases', () => dmClassesBlock() + dmTitlesBlock()],
-        logros: ['Logros', () => dmAchievementsBlock()]
+        logros: ['Logros', () => dmAchievementsBlock()],
+        registro: ['Registro', () => dmLogBlock()]
       };
       if (!sections[dmTab]) dmTab = 'mazmorra';
       panel.innerHTML = `
@@ -3951,7 +4071,87 @@
         ? await sb.from('game_config').update({ value }).eq('key', key).select().single()
         : await sb.from('game_config').insert({ key, value }).select().single();
       if (res.error) throw new Error('No se pudo guardar: ' + res.error.message);
+      const before = key in configRows ? configRows[key] : null;
       configRows[key] = value;
+      dmLog('Cambió ' + (CONFIG_LABELS[key] || key), key, before);
+    }
+    const CONFIG_LABELS = { rules: 'las reglas', classes: 'las clases y habilidades', titles: 'los títulos', achievements: 'los logros', featured: 'el objeto de la semana' };
+
+    // Apunta una acción del máster. Si fue un cambio de configuración guarda lo que había, para poder deshacerlo.
+    async function dmLog(action, key = null, before = null) {
+      if (!isDM() || !statsReady) return;
+      const { data, error } = await sb.from('dm_log').insert({ action: String(action).slice(0, 300), key, before }).select().single();
+      if (!error && data) { dmLogRows.unshift(data); if (dmTab === 'registro') renderDM(); }
+    }
+
+    // Pone en vigor todo lo guardado en la configuración
+    function applyConfig() {
+      applyRules(configRows.rules);
+      applyClasses(configRows.classes);
+      applyTitles(configRows.titles);
+      applyAchievements(configRows.achievements);
+      featured = configRows.featured && typeof configRows.featured === 'object' ? configRows.featured : { mode: 'off' };
+      dmAchDraft = null;
+    }
+
+    function dmLogBlock() {
+      if (!configReady) return '';
+      const when = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) + ', ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }); };
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Copia de seguridad</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">Descarga en un archivo todo lo que hay en la base de datos: palabras, cuentas, objetos, oro, duelos y configuración. Guárdalo en un sitio privado, porque incluye los emails invitados.</p>
+          <div class="flex justify-end mt-3"><button onclick="downloadBackup()" id="btnBackup" class="${DM_GOLD}">Descargar copia</button></div>
+        </div>
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Registro de cambios</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">Lo que has hecho desde este panel, lo más reciente arriba. Los cambios de reglas, clases, títulos, logros y objeto de la semana se pueden deshacer.</p>
+          ${dmLogRows.length ? `<ul class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
+            ${dmLogRows.map(r => `<li class="flex items-center gap-3 py-2 text-sm">
+              <span class="flex-1 min-w-0">${esc(r.action)}<span class="block text-xs text-paper-muted dark:text-night-muted">${esc(when(r.created_at))}</span></span>
+              ${r.key && CONFIG_LABELS[r.key] ? `<button onclick="undoConfig('${esc(r.id)}')" class="${DM_SMALL}">Deshacer</button>` : ''}
+            </li>`).join('')}
+          </ul>` : '<p class="quote text-sm mt-3">Todavía no hay nada apuntado.</p>'}
+        </div>`;
+    }
+
+    // Vuelve a dejar una parte de la configuración como estaba antes de ese cambio
+    async function undoConfig(logId) {
+      const row = dmLogRows.find(r => r.id === logId);
+      if (!configGuard() || !row || !CONFIG_LABELS[row.key]) return;
+      const previous = row.before == null ? {} : row.before;
+      const current = configRows[row.key];
+      const lines = impactLines(() => { configRows[row.key] = previous; applyConfig(); }, () => { configRows[row.key] = current; applyConfig(); });
+      if (!confirm(`Se van a dejar ${CONFIG_LABELS[row.key]} como estaban antes de ese cambio:\n\n` + lines.join('\n') + '\n\n¿Deshacer?')) return;
+      try {
+        await saveConfig(row.key, previous);
+        applyConfig();
+        renderGlossary();
+        renderDM();
+        showToast('Cambio deshecho');
+      } catch (e) { showToast(e.message); }
+    }
+
+    async function downloadBackup() {
+      if (!configGuard()) return;
+      const tables = ['profiles', 'words', 'tones', 'word_saves', 'word_likes', 'word_stats', 'review_sessions', 'dungeon_progress', 'bosses', 'game_items', 'user_items',
+        'equip_history', 'gold_ledger', 'chest_opens', 'chest_grants', 'consumable_uses', 'duels', 'trades', 'class_perks', 'game_config', 'allowed_emails', 'dm_log'];
+      const btn = document.getElementById('btnBackup');
+      if (btn) { btn.disabled = true; btn.textContent = 'Preparando...'; }
+      const backup = { app: 'Lexium', created_at: new Date().toISOString(), tables: {}, errors: {} };
+      for (const t of tables) {
+        const { data, error } = await sb.from(t).select('*');
+        if (error) backup.errors[t] = error.message; else backup.tables[t] = data;
+      }
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'lexium-copia-' + dayKey(new Date()) + '.json';
+      a.click();
+      if (btn) { btn.disabled = false; btn.textContent = 'Descargar copia'; }
+      const failed = Object.keys(backup.errors);
+      showToast(failed.length ? 'Copia descargada, pero faltan: ' + failed.join(', ') : 'Copia descargada');
+      dmLog('Descargó una copia de seguridad');
     }
 
     // Solo se puede deshacer la última derrota, para no dejar huecos en la mazmorra
@@ -3969,6 +4169,7 @@
       dungeonRows = dungeonRows.filter(r => r.boss !== position);
       renderGlossary();
       renderDM();
+      dmLog(`Deshizo la derrota de «${boss.name}»`);
       showToast(`«${boss.name}» vuelve a estar en pie`);
     }
 
@@ -4027,6 +4228,7 @@
       }
       renderGlossary();
       renderDM();
+      dmLog('Cambió la tienda: ' + changes.map(c => `${itemsById[c.id].name} a ${c.price}${c.for_sale ? '' : ', sin vender'}`).join('; '));
       showToast('Tienda guardada');
     }
 
@@ -4095,6 +4297,7 @@
       userItems.push(data);
       renderGlossary();
       renderDM();
+      dmLog(`Dio «${it.name}» a ${authorName(userId)}`);
       showToast(`«${it.name}» para ${authorName(userId)}`);
     }
 
@@ -4104,6 +4307,7 @@
       if (!confirm(`¿Quitar «${itemsById[u.item_id].name}» del zurrón de ${authorName(u.user_id)}?`)) return;
       const { error } = await sb.from('user_items').delete().eq('id', u.id);
       if (error) { showToast('No se pudo quitar: ' + error.message); return; }
+      dmLog(`Quitó «${itemsById[u.item_id].name}» a ${authorName(u.user_id)}`);
       userItems = userItems.filter(x => x.id !== u.id);
       renderGlossary();
       renderDM();
@@ -4118,6 +4322,7 @@
       ledger.push(data);
       renderGlossary();
       renderDM();
+      dmLog(`${amount > 0 ? 'Dio' : 'Quitó'} ${Math.abs(amount)} de oro a ${authorName(userId)}`);
       showToast(`${amount > 0 ? '+' : ''}${amount} de oro para ${authorName(userId)}`);
     }
 
@@ -4128,6 +4333,7 @@
       itemUses.push(data);
       renderGlossary();
       renderDM();
+      dmLog(`Restauró los corazones de ${authorName(userId)}`);
       showToast(`Corazones de ${authorName(userId)} restaurados`);
     }
 
@@ -4139,6 +4345,7 @@
       p.ai_enabled = !p.ai_enabled;
       applyAIAccess();
       renderDM();
+      dmLog(`${p.ai_enabled ? 'Dio' : 'Quitó'} el acceso a la IA a ${authorName(userId)}`);
       showToast(`${authorName(userId)} ${p.ai_enabled ? 'ya puede' : 'ya no puede'} usar la IA`);
     }
 
@@ -4247,6 +4454,7 @@
       if (error) { showToast('No se pudo invitar: ' + error.message); return; }
       allowedEmails = [...allowedEmails, email].sort();
       renderDM();
+      dmLog('Invitó un email nuevo');
       showToast('Invitación añadida');
     }
 
@@ -4255,6 +4463,7 @@
       const { error } = await sb.from('allowed_emails').delete().eq('email', email);
       if (error) { showToast('No se pudo quitar: ' + error.message); return; }
       allowedEmails = allowedEmails.filter(e => e !== email);
+      dmLog('Quitó un email de la lista de invitados');
       renderDM();
     }
 
@@ -4263,6 +4472,7 @@
       const { error } = await sb.from('chest_grants').delete().eq('id', grantId);
       if (error) { showToast('No se pudo retirar: ' + error.message); return; }
       chestGrants = chestGrants.filter(g => g.id !== grantId);
+      dmLog('Retiró un cofre regalado');
       renderGlossary();
       renderDM();
     }
@@ -4272,6 +4482,7 @@
       const { error } = await sb.from('duels').delete().eq('id', duelId);
       if (error) { showToast('No se pudo borrar: ' + error.message); return; }
       duels = duels.filter(d => d.id !== duelId);
+      dmLog('Borró un duelo');
       renderGlossary();
       renderDM();
     }
@@ -4309,6 +4520,7 @@
       chestGrants.push(...data);
       renderGlossary();
       renderDM();
+      dmLog(to === 'all' ? `Regaló un ${CHESTS[tier].label.toLowerCase()} a todo el gremio` : `Regaló un ${CHESTS[tier].label.toLowerCase()} a ${authorName(to)}`);
       showToast(to === 'all' ? 'Cofre regalado a todo el gremio' : `Cofre regalado a ${authorName(to)}`);
     }
 
@@ -4420,6 +4632,7 @@
         closeItemEditor();
         renderGlossary();
         renderDM();
+        dmLog(`Guardó «${name}»`);
         showToast(`«${name}» guardado`);
       } catch (e) {
         showToast(e.message);
@@ -4440,6 +4653,7 @@
       await loadGameContent();
       renderGlossary();
       renderDM();
+      dmLog(`Eliminó el objeto «${it.name}»`);
       showToast(`«${it.name}» eliminado`);
     }
 
@@ -4551,6 +4765,7 @@
         closeBossEditor();
         renderGlossary();
         renderDM();
+        dmLog(`Guardó «${name}»`);
         showToast(`«${name}» guardado`);
       } catch (e) {
         showToast(e.message);
@@ -4571,6 +4786,7 @@
       await loadGameContent();
       renderGlossary();
       renderDM();
+      dmLog(`Eliminó el monstruo «${b.name}»`);
       showToast(`«${b.name}» eliminado`);
     }
 
@@ -4722,6 +4938,29 @@
 
     function setTrainScope(value) { trainScope = ['mine', 'all', 'fav', 'unused'].includes(value) ? value : 'all'; }
 
+    // Peso de una palabra al elegir las del entrenamiento: las nuevas y las que más fallo salen más
+    function trainWeight(word) {
+      const s = wordStats[word.id];
+      if (!s || s.hits + s.fails === 0) return 2;
+      return 1 + 4 * s.fails / (s.hits + s.fails);
+    }
+    // Sorteo sin repetir en el que cada palabra tiene más papeletas cuanto mayor es su peso
+    function pickForTraining(pool, count) {
+      return pool.map(w => [Math.pow(Math.random(), 1 / trainWeight(w)), w]).sort((a, b) => b[0] - a[0]).slice(0, count).map(p => p[1]);
+    }
+    // Apunta los aciertos y fallos de las palabras que acabo de jugar
+    async function saveWordResults() {
+      const log = reviewLog;
+      reviewLog = [];
+      if (!statsReady || log.length === 0) return;
+      const { error } = await sb.rpc('record_word_results', { p: log });
+      if (error) return;
+      log.forEach(r => {
+        const s = wordStats[r.id] || (wordStats[r.id] = { hits: 0, fails: 0 });
+        if (r.ok) s.hits++; else s.fails++;
+      });
+    }
+
     function myTickets() { return myItems().filter(u => itemsById[u.item_id].effect_type === 'train_ticket'); }
 
     function trainingPool(scope) {
@@ -4746,13 +4985,10 @@
         if (error) { showToast('No se pudo gastar el pergamino: ' + error.message); return; }
         userItems = userItems.filter(x => x.id !== ticket.id);
       }
-      for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
-      }
       reviewDuel = null;
       reviewMode = trainScope === 'all' ? 'all' : 'mine';
-      reviewDeck = pool.slice(0, TRAIN.words);
+      reviewDeck = pickForTraining(pool, TRAIN.words);
+      reviewLog = [];
       reviewIndex = 0;
       reviewHits = 0;
       reviewRevealed = false;
@@ -4799,7 +5035,8 @@
               ? `<button onclick="switchTab('bag')" class="${primary}">Ir a la tienda</button>`
               : `<button onclick="beginTraining()" class="${primary}">Empezar entrenamiento</button>`}
           </div>`}
-          <p class="text-sm text-paper-muted dark:text-night-muted mt-8 max-w-md mx-auto leading-relaxed">Cada entrenamiento son ${TRAIN.words} palabras al azar: lees la definición y escribes la palabra. Puedes hacer ${me.trainMax} al día como máximo. El primero es gratis; cada uno de los demás gasta un pergamino de entrenamiento, que se compra en la tienda. Todos dan ${XP.round} de experiencia más ${XP.hit} por acierto, y devuelven un corazón.</p>`;
+          <div class="mt-5"><button onclick="openHelp()" class="${secondary}">Cómo se juega</button></div>
+          <p class="text-sm text-paper-muted dark:text-night-muted mt-8 max-w-md mx-auto leading-relaxed">Cada entrenamiento son ${TRAIN.words} palabras al azar: lees la definición y escribes la palabra. Puedes hacer ${me.trainMax} al día como máximo. El primero es gratis; cada uno de los demás gasta un pergamino de entrenamiento, que se compra en la tienda. Todos dan ${XP.round} de experiencia más ${XP.hit} por acierto, y devuelven un corazón. Salen más a menudo las palabras que aún no has entrenado y las que más fallas.</p>`;
     }
 
     const stripAccents = s => str(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -4815,6 +5052,7 @@
       else if (reviewTyped && stripAccents(reviewTyped) === stripAccents(word)) reviewResult = 'accent';
       else reviewResult = 'fail';
       if (reviewResult !== 'fail') reviewHits++;
+      reviewLog.push({ id: reviewDeck[reviewIndex].id, ok: reviewResult !== 'fail' ? 1 : 0 });
       renderReview();
     }
 
@@ -4836,6 +5074,7 @@
       if (error && /scope/.test(error.message || '')) ({ data, error } = await sb.from('review_sessions').insert({ total: reviewDeck.length, hits: reviewHits }).select().single());
       if (error) { lastReviewNote = 'No se pudo registrar el entrenamiento: ' + error.message; return; }
       reviewSessions.push(data);
+      await saveWordResults();
       renderGlossary();
       const after = guild[currentUser.id] || before;
       const gained = after.xp - before.xp, gold = after.gold - before.gold;
