@@ -927,6 +927,8 @@
     let featured = { mode: 'off' }; // objeto de la semana
     let allowedEmails = [];   // emails invitados (solo los ve el máster)
     const dmOpen = new Set(); // desplegables abiertos en el panel de máster
+    let dmTab = 'mazmorra';   // pestaña abierta del panel de máster
+    let dmAchDraft = null;    // logros en edición, antes de guardar
     let contentReady = false; // true cuando la base de datos ya tiene las tablas de jefes y objetos
     let contentFromDb = false; // true cuando los jefes que se muestran vienen de la base de datos
     let saves = [];          // palabras ajenas guardadas en el grimorio de cada persona: { word_id, user_id, is_favorite, is_used }
@@ -1237,6 +1239,10 @@
       configRows = {};
       (configReady ? cfRes.data : []).forEach(r => { configRows[r.key] = r.value; });
       applyRules(configRows.rules);
+      applyClasses(configRows.classes);
+      applyTitles(configRows.titles);
+      applyAchievements(configRows.achievements);
+      dmAchDraft = null;
       featured = configRows.featured && typeof configRows.featured === 'object' ? configRows.featured : { mode: 'off' };
       allowedEmails = aeRes.error ? [] : aeRes.data.map(r => r.email).sort();
       perkRows = perksReady ? pkRes.data : [];
@@ -1289,6 +1295,8 @@
     const XP = { word: 10, source: 5, used: 5, round: 5, hit: 1, roundsPerDay: 3, like: 2, save: 4, levelBase: 50, levelDamage: 5 };
     // Multiplicador del daño ante la debilidad y ante la resistencia de un jefe
     const COMBAT = { weak: 2, strong: 0.5 };
+    // Bonificación de cada clase, en % extra (la del pícaro es experiencia fija por palabra ajena guardada)
+    const CLS = { mago: { word: 50 }, hechicero: { hit: 50, perfect: 100 }, bardo: { source: 50, used: 50 }, barbaro: { round: 50 }, paladin: { step: 10, max: 50 }, picaro: { save: 10 } };
 
     // La mazmorra: jefes encadenados, sin plazo. Toda la experiencia que gana el grupo es daño al jefe actual.
     // Al caer, cada persona recibe la recompensa y aparece el siguiente.
@@ -1346,7 +1354,7 @@
     const WEEK = { start: '2026-11-16', gold: 50 };
 
     // ----- Reglas que el máster puede cambiar desde su panel (lo demás sigue en el código) -----
-    const RULE_ROOTS = { XP, GOLD, TRAIN, LIFE, DUEL, WEEK, COMBAT, CHESTS, RARITY };
+    const RULE_ROOTS = { XP, GOLD, TRAIN, LIFE, DUEL, WEEK, COMBAT, CHESTS, RARITY, CLS };
     const rf = (path, label, opts = {}) => ({ path, label, min: 0, step: 1, int: true, ...opts });
     const RULES = [
       { title: 'Experiencia', fields: [
@@ -1358,6 +1366,10 @@
       { title: 'Oro', fields: [
         rf('GOLD.hitMine', 'Por acierto, solo mi grimorio'), rf('GOLD.hitAll', 'Por acierto, todos los grimorios'), rf('GOLD.perfect', 'Extra por acertarlas todas'),
         rf('GOLD.used', 'Por palabra usada en un texto'), rf('GOLD.day', 'Por día con actividad'), rf('GOLD.noLoot', 'Cofre que no trae objeto'), rf('WEEK.gold', 'Premio de la clasificación semanal') ] },
+      { title: 'Clases', note: 'La bonificación de base de cada clase. Los nombres y las habilidades se cambian en la pestaña Clases.', fields: [
+        rf('CLS.mago.word', 'Mago: % extra por palabra apuntada'), rf('CLS.hechicero.hit', 'Hechicero: % extra por acierto'), rf('CLS.hechicero.perfect', 'Hechicero: % extra si acierta todas'),
+        rf('CLS.bardo.source', 'Bardo: % extra por cita con obra y autoría'), rf('CLS.bardo.used', 'Bardo: % extra por palabra usada'), rf('CLS.barbaro.round', 'Bárbaro: % extra por entrenamiento'),
+        rf('CLS.paladin.step', 'Paladín: % extra por día seguido'), rf('CLS.paladin.max', 'Paladín: tope de ese % extra'), rf('CLS.picaro.save', 'Pícaro: experiencia por palabra ajena guardada') ] },
       { title: 'Mazmorra', fields: [
         rf('COMBAT.weak', 'Multiplicador ante la debilidad del jefe', { min: 1, step: 0.1, int: false }), rf('COMBAT.strong', 'Multiplicador ante su resistencia', { max: 1, step: 0.1, int: false }) ] },
       { title: 'Vida', fields: [
@@ -1560,29 +1572,83 @@
       { name: 'Oráculo', level: 10, icon: 'all-seeing-eye' }
     ];
 
-    const ACHIEVEMENTS = [
-      { icon: 'feather', name: 'Inicio de la aventura', desc: 'Apunta tu primera palabra', test: s => s.words >= 1 },
-      { icon: 'book-pile', name: 'Zurrón lleno', desc: 'Reúne diez palabras', test: s => s.words >= 10 },
-      { icon: 'bookshelf', name: 'Grimorio en ciernes', desc: 'Reúne cincuenta palabras', test: s => s.words >= 50 },
-      { icon: 'laurels', name: 'Tomo legendario', desc: 'Reúne cien palabras', test: s => s.words >= 100 },
-      { icon: 'polar-star', name: 'Multiclase', desc: 'Ten palabras de cinco atmósferas distintas', test: s => Object.keys(s.byTone).length >= 5 },
-      { icon: 'scroll-unfurled', name: 'Saber arcano', desc: 'Diez citas con obra y autoría', test: s => s.sourced >= 10 },
-      { icon: 'quill-ink', name: 'Conjuro lanzado', desc: 'Usa diez palabras en tus textos', test: s => s.used >= 10 },
-      { icon: 'round-star', name: 'Veinte natural', desc: 'Acierta todas las palabras de un entrenamiento', test: s => s.perfect >= 1 },
-      { icon: 'hourglass', name: 'Entrenamiento de combate', desc: 'Completa veinte entrenamientos', test: s => s.rounds >= 20 },
-      { icon: 'fire', name: 'Guardia de siete noches', desc: 'Siete días seguidos de actividad', test: s => s.bestStreak >= 7 },
-      { icon: 'palette', name: 'Artífice de mundos', desc: 'Crea una atmósfera', test: s => s.tonesCreated >= 1 },
-      { icon: 'swap-bag', name: 'Juego de manos', desc: 'Guarda en tu grimorio cinco palabras de otras personas', test: s => s.saved >= 5 },
-      { icon: 'heart-plus', name: 'Carisma aumentado', desc: 'Recibe tu primer me gusta', test: s => s.likesReceived >= 1 },
-      { icon: 'jeweled-chalice', name: 'Inspiración bárdica', desc: 'Recibe diez me gusta en tus palabras', test: s => s.likesReceived >= 10 },
-      { icon: 'thumb-up', name: 'Detectar magia', desc: 'Da diez me gusta a palabras de otras personas', test: s => s.likesGiven >= 10 },
-      { icon: 'crossed-swords', name: 'Primera sangre', desc: 'Derrotad al primer jefe de la mazmorra', test: s => s.bossesDefeated >= 1 },
-      { icon: 'trophy-cup', name: 'Matadragones', desc: 'Derrotad a todos los jefes de la mazmorra', test: s => s.bossesDefeated >= BOSSES.length },
-      { icon: 'bloody-sword', name: 'Golpe de gracia', desc: 'Da el golpe que remata a un jefe', test: s => s.finishers >= 1 },
-      { icon: 'open-treasure-chest', name: 'Saqueo de mazmorra', desc: 'Abre cinco cofres', test: s => s.chestsOpened >= 5 },
-      { icon: 'sword-clash', name: 'Duelo al alba', desc: 'Gana tu primer duelo', test: s => s.duelsWon >= 1 },
-      { icon: 'podium', name: 'Favor del gremio', desc: 'Gana una clasificación semanal', test: s => s.weeksWon >= 1 }
+    // Lo que puede medir un logro: se cumple cuando ese dato llega al mínimo indicado
+    const ACH_STATS = {
+      words: 'Palabras apuntadas', tonesUsed: 'Atmósferas distintas con palabras', sourced: 'Citas con obra y autoría', used: 'Palabras usadas en textos',
+      saved: 'Palabras ajenas guardadas', rounds: 'Entrenamientos completados', perfect: 'Entrenamientos perfectos', bestStreak: 'Mejor racha de días seguidos',
+      likesReceived: 'Me gusta recibidos', likesGiven: 'Me gusta dados', tonesCreated: 'Atmósferas creadas', level: 'Nivel alcanzado',
+      bossesDefeated: 'Jefes derrotados por el gremio', dungeonCleared: 'Mazmorra completa (1 = sí)', finishers: 'Golpes de gracia', chestsOpened: 'Cofres abiertos',
+      duelsWon: 'Duelos ganados', duelsPlayed: 'Duelos jugados', prestige: 'Prestigio', weeksWon: 'Semanas ganadas'
+    };
+    const ach = (icon, name, desc, stat, min) => ({ icon, name, desc, stat, min });
+    const ACH_DEFAULTS = [
+      ach('feather', 'Inicio de la aventura', 'Apunta tu primera palabra', 'words', 1),
+      ach('book-pile', 'Zurrón lleno', 'Reúne diez palabras', 'words', 10),
+      ach('bookshelf', 'Grimorio en ciernes', 'Reúne cincuenta palabras', 'words', 50),
+      ach('laurels', 'Tomo legendario', 'Reúne cien palabras', 'words', 100),
+      ach('polar-star', 'Multiclase', 'Ten palabras de cinco atmósferas distintas', 'tonesUsed', 5),
+      ach('scroll-unfurled', 'Saber arcano', 'Diez citas con obra y autoría', 'sourced', 10),
+      ach('quill-ink', 'Conjuro lanzado', 'Usa diez palabras en tus textos', 'used', 10),
+      ach('round-star', 'Veinte natural', 'Acierta todas las palabras de un entrenamiento', 'perfect', 1),
+      ach('hourglass', 'Entrenamiento de combate', 'Completa veinte entrenamientos', 'rounds', 20),
+      ach('fire', 'Guardia de siete noches', 'Siete días seguidos de actividad', 'bestStreak', 7),
+      ach('palette', 'Artífice de mundos', 'Crea una atmósfera', 'tonesCreated', 1),
+      ach('swap-bag', 'Juego de manos', 'Guarda en tu grimorio cinco palabras de otras personas', 'saved', 5),
+      ach('heart-plus', 'Carisma aumentado', 'Recibe tu primer me gusta', 'likesReceived', 1),
+      ach('jeweled-chalice', 'Inspiración bárdica', 'Recibe diez me gusta en tus palabras', 'likesReceived', 10),
+      ach('thumb-up', 'Detectar magia', 'Da diez me gusta a palabras de otras personas', 'likesGiven', 10),
+      ach('crossed-swords', 'Primera sangre', 'Derrotad al primer jefe de la mazmorra', 'bossesDefeated', 1),
+      ach('trophy-cup', 'Matadragones', 'Derrotad a todos los jefes de la mazmorra', 'dungeonCleared', 1),
+      ach('bloody-sword', 'Golpe de gracia', 'Da el golpe que remata a un jefe', 'finishers', 1),
+      ach('open-treasure-chest', 'Saqueo de mazmorra', 'Abre cinco cofres', 'chestsOpened', 5),
+      ach('sword-clash', 'Duelo al alba', 'Gana tu primer duelo', 'duelsWon', 1),
+      ach('podium', 'Favor del gremio', 'Gana una clasificación semanal', 'weeksWon', 1)
     ];
+    let ACHIEVEMENTS = ACH_DEFAULTS.map(a => ({ ...a }));
+    function achieved(a, stats) { return (Number(stats[a.stat]) || 0) >= a.min; }
+    function cleanAchievement(a) {
+      if (!a || typeof a !== 'object' || !ACH_STATS[a.stat] || !str(a.name)) return null;
+      const min = Number(a.min);
+      if (!isFinite(min) || min < 1) return null;
+      return { icon: /^[a-z0-9-]+$/.test(str(a.icon)) ? str(a.icon) : 'round-star', name: str(a.name).slice(0, 60), desc: str(a.desc).slice(0, 140), stat: a.stat, min: Math.round(min) };
+    }
+    function applyAchievements(list) {
+      const clean = Array.isArray(list) ? list.map(cleanAchievement).filter(Boolean) : [];
+      ACHIEVEMENTS = clean.length ? clean : ACH_DEFAULTS.map(a => ({ ...a }));
+    }
+
+    // Texto de la bonificación de cada clase, con los valores que estén en vigor
+    function classBonus(key) {
+      const c = CLS[key];
+      return ({
+        mago: () => `Un ${c.word} % más de experiencia por cada palabra que apunta.`,
+        hechicero: () => `Un ${c.hit} % más por cada acierto al entrenar, y otro ${c.perfect} % si las acierta todas.`,
+        bardo: () => `Un ${c.source} % más por las citas con obra y autoría y un ${c.used} % más por las palabras ya usadas.`,
+        barbaro: () => `Un ${c.round} % más por cada entrenamiento completado, acierte o no.`,
+        paladin: () => `Un ${c.step} % más por cada día seguido de actividad, hasta un ${c.max} %.`,
+        picaro: () => `Gana ${c.save} de experiencia, en lugar de ${XP.save}, por cada palabra ajena que guarda en su grimorio.`
+      }[key] || (() => ''))();
+    }
+
+    // Nombres e iconos de clase, habilidades y títulos: valores de partida y cambios del máster
+    const CLASS_DEFAULTS = JSON.parse(JSON.stringify({ classes: Object.fromEntries(Object.entries(CLASSES).map(([k, c]) => [k, { icon: c.icon, names: c.names }])), perks: PERKS, titles: TITLES.map(t => ({ name: t.name, level: t.level })) }));
+    const PERK_EFFECTS = () => Object.keys(EFFECTS).filter(k => !EFFECTS[k].tone && !['none', 'lockpick', 'poison', 'potion', 'duel', 'train_ticket'].includes(k));
+    function applyClasses(value) {
+      Object.keys(CLASSES).forEach(k => {
+        const d = CLASS_DEFAULTS.classes[k], v = value && typeof value === 'object' && value[k] && typeof value[k] === 'object' ? value[k] : {};
+        CLASSES[k].icon = /^[a-z0-9-]+$/.test(str(v.icon)) ? str(v.icon) : d.icon;
+        ['m', 'f', 'n'].forEach(f => { CLASSES[k].names[f] = v.names && str(v.names[f]) ? str(v.names[f]).slice(0, 30) : d.names[f]; });
+        PERK_LEVELS.forEach(lv => [0, 1].forEach(i => {
+          const dp = CLASS_DEFAULTS.perks[k][lv][i], p = v.perks && v.perks[lv] && v.perks[lv][i];
+          const ok = p && str(p.name) && PERK_EFFECTS().includes(p.type) && typeof p.value === 'number' && isFinite(p.value) && p.value >= 0;
+          PERKS[k][lv][i] = ok ? { name: str(p.name).slice(0, 40), type: p.type, value: p.value } : { ...dp };
+        }));
+      });
+    }
+    function applyTitles(list) {
+      const ok = Array.isArray(list) && list.length === TITLES.length && list.every((t, i) => t && str(t.name) && Number.isInteger(t.level) && t.level >= 1 && (i === 0 ? t.level === 1 : t.level > list[i - 1].level));
+      TITLES.forEach((t, i) => { const src = ok ? list[i] : CLASS_DEFAULTS.titles[i]; t.name = str(src.name).slice(0, 30); t.level = src.level; });
+    }
 
     // Experiencia total necesaria para llegar a un nivel: 100, 300, 600, 1000, 1500...
     function levelFloor(level) { return XP.levelBase * level * (level - 1); }
@@ -1652,14 +1718,14 @@
       let sourced = 0, used = 0, thisMonth = 0;
       const byTone = {};
       const monthNow = dayKey(new Date()).slice(0, 7);
-      const usedPoints = (XP.used + fx('xp_used', null)) * (cls === 'bardo' ? 1.5 : 1);
+      const usedPoints = (XP.used + fx('xp_used', null)) * (cls === 'bardo' ? 1 + CLS.bardo.used / 100 : 1);
 
       words.forEach(w => {
         const at = Date.parse(w.created_at) || 0;
-        let points = (XP.word + fx('xp_word', at) + fxTone('xp_tone', at, [w.tone, w.tone2])) * (cls === 'mago' ? 1.5 : 1);
+        let points = (XP.word + fx('xp_word', at) + fxTone('xp_tone', at, [w.tone, w.tone2])) * (cls === 'mago' ? 1 + CLS.mago.word / 100 : 1);
         if (str(w.source_title) && str(w.source_author)) {
           sourced++;
-          points += (XP.source + fx('xp_source', at)) * (cls === 'bardo' ? 1.5 : 1);
+          points += (XP.source + fx('xp_source', at)) * (cls === 'bardo' ? 1 + CLS.bardo.source / 100 : 1);
         }
         addDay(w.created_at, points, [w.tone, w.tone2]);
         if (w.is_used) { used++; undated += usedPoints; }
@@ -1671,7 +1737,7 @@
       // Palabras de otras personas guardadas en su grimorio
       mySaves.forEach(s => {
         const w = byId[s.word_id];
-        addDay(s.created_at, (cls === 'picaro' ? XP.word : XP.save) + fx('xp_save', Date.parse(s.created_at) || 0), [w.tone, w.tone2]);
+        addDay(s.created_at, (cls === 'picaro' ? CLS.picaro.save : XP.save) + fx('xp_save', Date.parse(s.created_at) || 0), [w.tone, w.tone2]);
         if (s.is_used) { used++; undated += usedPoints; }
       });
 
@@ -1685,9 +1751,9 @@
         const k = dayKey(s.created_at);
         roundsByDay[k] = (roundsByDay[k] || 0) + 1;
         if (roundsByDay[k] > XP.roundsPerDay + fx('extra_round', at)) return; // solo puntúan las primeras rondas de cada día
-        let hitPoints = s.hits * (XP.hit + fx('xp_hit', at)) * (cls === 'hechicero' ? 1.5 : 1);
-        if (cls === 'hechicero' && isPerfect) hitPoints *= 2;
-        addDay(s.created_at, (XP.round + fx('xp_round', at)) * (cls === 'barbaro' ? 1.5 : 1) + hitPoints);
+        let hitPoints = s.hits * (XP.hit + fx('xp_hit', at)) * (cls === 'hechicero' ? 1 + CLS.hechicero.hit / 100 : 1);
+        if (cls === 'hechicero' && isPerfect) hitPoints *= 1 + CLS.hechicero.perfect / 100;
+        addDay(s.created_at, (XP.round + fx('xp_round', at)) * (cls === 'barbaro' ? 1 + CLS.barbaro.round / 100 : 1) + hitPoints);
         const sessionGold = !s.scope ? GOLD.round + s.hits * GOLD.hit
           : s.scope === 'all' ? s.hits * GOLD.hitAll + (s.hits === s.total && s.total >= TRAIN.words ? GOLD.perfect : 0)
           : s.hits * GOLD.hitMine;
@@ -1705,7 +1771,7 @@
         streak = previous && dayDiff(previous, k) === 1 ? streak + 1 : 1;
         bestStreak = Math.max(bestStreak, streak);
         previous = k;
-        dayBonus[k] = cls === 'paladin' ? 1 + Math.min(0.5, 0.1 * (streak - 1)) : 1;
+        dayBonus[k] = cls === 'paladin' ? 1 + Math.min(CLS.paladin.max, CLS.paladin.step * (streak - 1)) / 100 : 1;
         xp += perDay[k] * dayBonus[k];
       });
       const currentStreak = previous && dayDiff(previous, dayKey(new Date())) <= 1 ? streak : 0;
@@ -1769,9 +1835,11 @@
       Object.assign(stats, duelStats(userId));
       stats.finishers = dungeonRows.filter(r => r.defeated_by === userId).length;
       stats.chestsOpened = chestOpens.filter(c => c.user_id === userId && !c.sold).length;
+      stats.tonesUsed = Object.keys(byTone).length;
+      stats.dungeonCleared = BOSSES.length > 0 && defeated.length >= BOSSES.length ? 1 : 0;
       stats.chests = pendingChests(userId, stats.level, stats.prestige);
 
-      stats.achievements = ACHIEVEMENTS.map(a => Boolean(a.test(stats)));
+      stats.achievements = ACHIEVEMENTS.map(a => achieved(a, stats));
       return stats;
     }
 
@@ -1806,7 +1874,7 @@
         weekWinners[k] = all.filter(s => Math.round(s.weekly[k] || 0) === best).map(s => s.userId);
         weekWinners[k].forEach(id => { guild[id].weeksWon++; guild[id].gold += WEEK.gold; });
       });
-      all.forEach(s => { s.achievements = ACHIEVEMENTS.map(a => Boolean(a.test(s))); });
+      all.forEach(s => { s.achievements = ACHIEVEMENTS.map(a => achieved(a, s)); });
 
       // Estado de la mazmorra
       const frame = dungeonFrame();
@@ -2009,7 +2077,7 @@
             ${Object.entries(CLASSES).map(([key, c]) => `
             <button type="button" onclick="chooseClass('${key}')" class="plain text-left p-3 border ${myProfile.class === key ? 'border-paper-accent dark:border-night-accent' : 'border-paper-border dark:border-night-border'}">
               <span class="flex items-center gap-2"><i class="gi gi-${c.icon} text-xl text-paper-accent dark:text-night-accent"></i><span class="word-title text-xl">${esc(c.names[form])}</span></span>
-              <span class="block text-xs text-paper-muted dark:text-night-muted mt-1 leading-snug">${esc(c.bonus)}</span>
+              <span class="block text-xs text-paper-muted dark:text-night-muted mt-1 leading-snug">${esc(classBonus(key))}</span>
             </button>`).join('')}
           </div>
           <div class="flex flex-wrap items-center gap-2 mt-4">
@@ -3652,7 +3720,7 @@
       }
       const done = new Set(dungeonRows.map(r => r.boss));
       const small = 'px-3 py-1.5 rounded-xl text-[10px] border border-paper-border dark:border-night-border';
-      panel.innerHTML = `
+      const monsters = () => `
         <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <h2 class="title-outline text-3xl">Monstruos</h2>
@@ -3672,13 +3740,197 @@
               ${done.has(b.position) ? undoButton(b.position) : `<button onclick="deleteBoss(${b.position})" title="Eliminar" class="text-sm text-paper-muted dark:text-night-muted hover:text-red-500"><i class="gi gi-trash-can"></i></button>`}
             </li>`).join('')}
           </ul>
+        </div>`;
+      const sections = {
+        mazmorra: ['Mazmorra', () => monsters()],
+        objetos: ['Objetos y tienda', () => dmShopBlock() + dmItemsBlock() + dmGiftBlock()],
+        jugadoras: ['Jugadoras', () => dmPlayersBlock() + dmGuildBlock()],
+        reglas: ['Reglas', () => dmRulesBlock()],
+        clases: ['Clases', () => dmClassesBlock() + dmTitlesBlock()],
+        logros: ['Logros', () => dmAchievementsBlock()]
+      };
+      if (!sections[dmTab]) dmTab = 'mazmorra';
+      panel.innerHTML = `
+        <div class="flex flex-wrap gap-2">
+          ${Object.entries(sections).map(([k, [label]]) => `<button onclick="setDmTab('${k}')" class="px-3.5 py-2 rounded-xl text-xs border ${k === dmTab ? 'border-paper-accent dark:border-night-accent text-paper-accent dark:text-night-accent' : 'border-paper-border dark:border-night-border'}">${label}</button>`).join('')}
         </div>
-        ${dmItemsBlock()}
-        ${dmShopBlock()}
-        ${dmGiftBlock()}
-        ${dmPlayersBlock()}
-        ${dmRulesBlock()}
-        ${dmGuildBlock()}`;
+        ${sections[dmTab][1]()}`;
+    }
+
+    function setDmTab(tab) { dmTab = tab; renderDM(); }
+
+    // Cómo cambia cada persona con un ajuste: se prueba, se mide y se deja todo como estaba
+    function impactLines(tryFn, undoFn) {
+      const snapshot = () => Object.keys(profiles).map(id => { const s = computeStats(id); return { id, level: s.level, xp: s.xp, gold: s.gold }; });
+      const before = snapshot();
+      tryFn();
+      const after = snapshot();
+      undoFn();
+      return before.map((b, i) => {
+        const a = after[i], parts = [];
+        if (a.level !== b.level) parts.push(`nivel ${b.level} → ${a.level}`);
+        if (a.xp !== b.xp) parts.push(`experiencia ${b.xp} → ${a.xp}`);
+        if (a.gold !== b.gold) parts.push(`oro ${b.gold} → ${a.gold}`);
+        return authorName(b.id) + ': ' + (parts.length ? parts.join(', ') : 'sin cambios');
+      });
+    }
+
+    // ----- Clases y habilidades -----
+    function dmClassesBlock() {
+      if (!configReady) return '';
+      const effects = PERK_EFFECTS();
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Clases y habilidades</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">Nombres, icono y las dos habilidades de cada nivel. La bonificación de base de cada clase está en Reglas → Clases. Como con las reglas, un cambio de habilidad afecta también a lo ya hecho.</p>
+          <div class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
+            ${Object.entries(CLASSES).map(([k, c]) => `<details class="py-3"${dmOpen.has('c' + k) ? ' open' : ''} ontoggle="dmToggle('c${k}', this.open)">
+              <summary class="cursor-pointer"><i class="gi gi-${c.icon} text-paper-accent dark:text-night-accent"></i> <span class="word-title text-xl">${esc(c.names.n)}</span> <span class="text-xs text-paper-muted dark:text-night-muted">${esc(classBonus(k))}</span></summary>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+                ${[['m', 'Nombre en -o'], ['f', 'Nombre en -a'], ['n', 'Nombre en -e']].map(([f, l]) => `<div><label for="cls-${k}-${f}" class="text-xs">${l}</label><input type="text" id="cls-${k}-${f}" maxlength="30" value="${esc(c.names[f])}" class="${DM_FIELD}" /></div>`).join('')}
+                <div><label for="cls-${k}-icon" class="text-xs">Icono</label><input type="text" id="cls-${k}-icon" value="${esc(c.icon)}" class="${DM_FIELD}" /></div>
+              </div>
+              ${PERK_LEVELS.map(lv => `<p class="text-xs text-paper-muted dark:text-night-muted mt-4">Nivel ${lv}</p>
+              ${[0, 1].map(i => { const p = PERKS[k][lv][i]; return `<div class="grid grid-cols-1 sm:grid-cols-[1fr_1.4fr_5rem] gap-2 mt-1">
+                <input type="text" id="pk-${k}-${lv}-${i}-name" maxlength="40" value="${esc(p.name)}" aria-label="Nombre de la habilidad" class="${DM_FIELD}" />
+                <select id="pk-${k}-${lv}-${i}-type" aria-label="Efecto" class="${DM_FIELD}">${effects.map(e => `<option value="${e}"${e === p.type ? ' selected' : ''}>${esc(EFFECTS[e].label)}</option>`).join('')}</select>
+                <input type="number" id="pk-${k}-${lv}-${i}-value" min="0" step="0.5" value="${p.value}" aria-label="Valor" class="${DM_FIELD}" />
+              </div>`; }).join('')}`).join('')}
+              <div class="flex flex-wrap justify-end gap-2 mt-4">
+                <button onclick="saveClass('${k}', true)" class="${DM_SMALL}">Volver a la de partida</button>
+                <button onclick="saveClass('${k}')" class="${DM_GOLD}">Ver cómo queda y guardar</button>
+              </div>
+            </details>`).join('')}
+          </div>
+        </div>`;
+    }
+
+    async function saveClass(key, reset = false) {
+      if (!configGuard() || !CLASSES[key]) return;
+      const next = { ...(configRows.classes || {}) };
+      if (reset) delete next[key];
+      else {
+        const val = id => { const e = document.getElementById(id); return e ? str(e.value) : ''; };
+        const entry = { icon: val(`cls-${key}-icon`), names: { m: val(`cls-${key}-m`), f: val(`cls-${key}-f`), n: val(`cls-${key}-n`) }, perks: {} };
+        if (!entry.names.m || !entry.names.f || !entry.names.n) { showToast('La clase necesita sus tres nombres'); return; }
+        if (!/^[a-z0-9-]+$/.test(entry.icon)) { showToast('El icono va en minúsculas y con guiones, por ejemplo wizard-staff'); return; }
+        for (const lv of PERK_LEVELS) {
+          entry.perks[lv] = [];
+          for (const i of [0, 1]) {
+            const p = { name: val(`pk-${key}-${lv}-${i}-name`), type: val(`pk-${key}-${lv}-${i}-type`), value: parseFloat(val(`pk-${key}-${lv}-${i}-value`)) };
+            if (!p.name || !PERK_EFFECTS().includes(p.type) || !isFinite(p.value) || p.value < 0) { showToast(`Revisa la habilidad ${i + 1} del nivel ${lv}`); return; }
+            entry.perks[lv].push(p);
+          }
+        }
+        next[key] = entry;
+      }
+      const lines = impactLines(() => applyClasses(next), () => applyClasses(configRows.classes));
+      if (!confirm('Con estos cambios:\n\n' + lines.join('\n') + '\n\n¿Guardar?')) return;
+      try {
+        await saveConfig('classes', next);
+        applyClasses(next);
+        renderGlossary();
+        renderDM();
+        showToast('Clase guardada');
+      } catch (e) { showToast(e.message); }
+    }
+
+    // ----- Títulos -----
+    function dmTitlesBlock() {
+      if (!configReady) return '';
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Títulos</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">El título que acompaña al nombre según el nivel. El primero empieza siempre en el nivel 1 y cada uno pide más nivel que el anterior.</p>
+          <div class="space-y-2 mt-3">
+            ${TITLES.map((t, i) => `<div class="grid grid-cols-[1fr_6rem] gap-2">
+              <input type="text" id="title-${i}-name" maxlength="30" value="${esc(t.name)}" aria-label="Título" class="${DM_FIELD}" />
+              <input type="number" id="title-${i}-level" min="1" step="1" value="${t.level}" aria-label="Desde el nivel"${i === 0 ? ' disabled' : ''} class="${DM_FIELD}" />
+            </div>`).join('')}
+          </div>
+          <div class="flex flex-wrap justify-end gap-2 mt-4">
+            <button onclick="saveTitles(true)" class="${DM_SMALL}">Volver a los de partida</button>
+            <button onclick="saveTitles()" class="${DM_GOLD}">Guardar títulos</button>
+          </div>
+        </div>`;
+    }
+
+    async function saveTitles(reset = false) {
+      if (!configGuard()) return;
+      const list = reset ? CLASS_DEFAULTS.titles.map(t => ({ ...t }))
+        : TITLES.map((t, i) => ({ name: str(document.getElementById(`title-${i}-name`).value), level: i === 0 ? 1 : parseInt(document.getElementById(`title-${i}-level`).value, 10) }));
+      const ok = list.every((t, i) => t.name && Number.isInteger(t.level) && (i === 0 || t.level > list[i - 1].level));
+      if (!ok) { showToast('Cada título necesita nombre y un nivel mayor que el anterior'); return; }
+      try {
+        await saveConfig('titles', list);
+        applyTitles(list);
+        renderGlossary();
+        renderDM();
+        showToast('Títulos guardados');
+      } catch (e) { showToast(e.message); }
+    }
+
+    // ----- Logros -----
+    function dmAchievementsBlock() {
+      if (!configReady) return '';
+      if (!dmAchDraft) dmAchDraft = ACHIEVEMENTS.map(a => ({ ...a }));
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Logros</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">Cada logro se consigue cuando un dato de la persona llega al mínimo. Puedes cambiarlos, quitarlos o añadir nuevos; no dan experiencia ni oro.</p>
+          <div class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
+            ${dmAchDraft.map((a, i) => `<div class="py-3 grid grid-cols-2 sm:grid-cols-[7rem_1fr_1.2fr_4.5rem_auto] gap-2 items-end">
+              <div><label for="ach-${i}-icon" class="text-xs">Icono</label><input type="text" id="ach-${i}-icon" value="${esc(a.icon)}" class="${DM_FIELD}" /></div>
+              <div><label for="ach-${i}-name" class="text-xs">Nombre</label><input type="text" id="ach-${i}-name" maxlength="60" value="${esc(a.name)}" class="${DM_FIELD}" /></div>
+              <div><label for="ach-${i}-stat" class="text-xs">Qué cuenta</label><select id="ach-${i}-stat" class="${DM_FIELD}">${Object.entries(ACH_STATS).map(([k, l]) => `<option value="${k}"${k === a.stat ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
+              <div><label for="ach-${i}-min" class="text-xs">Mínimo</label><input type="number" id="ach-${i}-min" min="1" step="1" value="${a.min}" class="${DM_FIELD}" /></div>
+              <button onclick="achRemove(${i})" class="${DM_SMALL}">Quitar</button>
+              <div class="col-span-2 sm:col-span-5"><label for="ach-${i}-desc" class="text-xs">Descripción</label><input type="text" id="ach-${i}-desc" maxlength="140" value="${esc(a.desc)}" class="${DM_FIELD}" /></div>
+            </div>`).join('')}
+          </div>
+          <div class="flex flex-wrap justify-between gap-2 mt-4">
+            <button onclick="achAdd()" class="${DM_SMALL}">Añadir logro</button>
+            <span class="flex flex-wrap gap-2">
+              <button onclick="saveAchievements(true)" class="${DM_SMALL}">Volver a los de partida</button>
+              <button onclick="saveAchievements()" class="${DM_GOLD}">Guardar logros</button>
+            </span>
+          </div>
+        </div>`;
+    }
+
+    // Recoge lo escrito en el formulario de logros antes de redibujarlo
+    function achRead() {
+      if (!dmAchDraft) return;
+      dmAchDraft = dmAchDraft.map((a, i) => {
+        const get = f => document.getElementById(`ach-${i}-${f}`);
+        if (!get('name')) return a;
+        return { icon: str(get('icon').value), name: str(get('name').value), desc: str(get('desc').value), stat: get('stat').value, min: parseInt(get('min').value, 10) };
+      });
+    }
+    function achAdd() { achRead(); dmAchDraft.push({ icon: 'round-star', name: '', desc: '', stat: 'words', min: 1 }); renderDM(); }
+    function achRemove(index) { achRead(); dmAchDraft.splice(index, 1); renderDM(); }
+
+    async function saveAchievements(reset = false) {
+      if (!configGuard()) return;
+      let list = [];
+      if (!reset) {
+        achRead();
+        for (const a of dmAchDraft) {
+          if (!a.name) { showToast('Hay un logro sin nombre'); return; }
+          if (!/^[a-z0-9-]+$/.test(a.icon)) { showToast(`Revisa el icono de «${a.name}»`); return; }
+          if (!ACH_STATS[a.stat] || !Number.isInteger(a.min) || a.min < 1) { showToast(`Revisa el mínimo de «${a.name}»`); return; }
+        }
+        if (dmAchDraft.length === 0) { showToast('Tiene que quedar al menos un logro'); return; }
+        list = dmAchDraft.map(cleanAchievement);
+      } else if (!confirm('¿Volver a los logros de partida? Se pierden los que hayas añadido o cambiado.')) return;
+      try {
+        await saveConfig('achievements', list);
+        applyAchievements(list);
+        dmAchDraft = null;
+        renderGlossary();
+        renderDM();
+        showToast('Logros guardados');
+      } catch (e) { showToast(e.message); }
     }
 
     function dmToggle(key, open) { if (open) dmOpen.add(key); else dmOpen.delete(key); }
