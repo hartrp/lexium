@@ -1875,8 +1875,44 @@
     }
 
     // Experiencia total necesaria para llegar a un nivel: 100, 300, 600, 1000, 1500...
-    function levelFloor(level) { return XP.levelBase * level * (level - 1); }
-    function levelFor(xp) { let level = 1; while (xp >= levelFloor(level + 1)) level++; return level; }
+    // Niveles: por defecto salen de la curva; el máster puede fijar la experiencia de cada uno, un nivel máximo
+    // y a qué nivel se abre cada una de las cuatro elecciones de habilidad (que por dentro siguen siendo 3, 5, 7 y 10)
+    let LEVELS = { table: [], max: 0, unlock: { 3: 3, 5: 5, 7: 7, 10: 10 } };
+    function curveFloor(level) { return XP.levelBase * level * (level - 1); }
+    // Experiencia total que pide un nivel. table[0] es el nivel 2. Más allá de la tabla, cada nivel sigue creciendo como los dos últimos.
+    function levelFloor(level) {
+      if (level <= 1) return 0;
+      const t = LEVELS.table;
+      if (!t.length) return curveFloor(level);
+      if (level - 2 < t.length) return t[level - 2];
+      const last = t[t.length - 1], prev = t.length > 1 ? t[t.length - 2] : 0;
+      const step = last - prev, growth = Math.max(0, step - (prev - (t.length > 2 ? t[t.length - 3] : 0)));
+      let total = last, s = step;
+      for (let l = t.length + 2; l <= level; l++) { s += growth; total += Math.max(1, s); }
+      return total;
+    }
+    function levelFor(xp) {
+      let level = 1;
+      while ((!LEVELS.max || level < LEVELS.max) && level < 500 && xp >= levelFloor(level + 1)) level++;
+      return level;
+    }
+    function perkUnlock(slot) { return LEVELS.unlock[slot] || slot; }
+    function applyLevels(value) {
+      const v = value && typeof value === 'object' ? value : {};
+      const table = Array.isArray(v.table) ? v.table.map(Number) : [];
+      const okTable = table.length > 0 && table.every((x, i) => Number.isInteger(x) && x > (i ? table[i - 1] : 0));
+      const unlock = [3, 5, 7, 10].map(s => Number(v.unlock && v.unlock[s]));
+      const okUnlock = unlock.every((x, i) => Number.isInteger(x) && x >= 2 && (i === 0 || x > unlock[i - 1]));
+      LEVELS = {
+        table: okTable ? table : [],
+        max: Number.isInteger(v.max) && v.max >= 2 ? v.max : 0,
+        unlock: okUnlock ? { 3: unlock[0], 5: unlock[1], 7: unlock[2], 10: unlock[3] } : { 3: 3, 5: 5, 7: 7, 10: 10 }
+      };
+    }
+    // «335 de experiencia, faltan 265 para el nivel 4», o el aviso de nivel máximo
+    function xpLine(s) {
+      return s.atMax ? `${s.xp} de experiencia. Nivel máximo` : `${s.xp} de experiencia, faltan ${s.toNext} para el nivel ${s.level + 1}`;
+    }
 
     function dayKey(value) {
       const d = new Date(value);
@@ -2030,8 +2066,9 @@
       };
       stats.level = levelFor(stats.xp);
       const floor = levelFloor(stats.level), ceil = levelFloor(stats.level + 1);
-      stats.toNext = ceil - stats.xp;
-      stats.progress = Math.round(((stats.xp - floor) / (ceil - floor)) * 100);
+      stats.atMax = Boolean(LEVELS.max && stats.level >= LEVELS.max);
+      stats.toNext = stats.atMax ? 0 : ceil - stats.xp;
+      stats.progress = stats.atMax ? 100 : Math.round(((stats.xp - floor) / (ceil - floor)) * 100);
       stats.title = [...TITLES].reverse().find(t => stats.level >= t.level) || TITLES[0];
 
       // Daño al jefe actual: lo hecho desde que cayó el anterior, con sus debilidades y resistencias,
@@ -2292,7 +2329,7 @@
             <div class="mt-3 h-px bg-paper-border dark:bg-night-border">
               <div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div>
             </div>
-            <p class="quote text-xs mt-2">${s.xp} de experiencia, faltan ${s.toNext} para el nivel ${s.level + 1}</p>
+            <p class="quote text-xs mt-2">${xpLine(s)}</p>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-paper-muted dark:text-night-muted">
               ${heartsRow(s, '')}
               <span>${s.gold} de oro</span>
@@ -2349,7 +2386,7 @@
             <p class="word-title text-2xl text-paper-accent dark:text-night-accent">${esc(s.title.name)}</p>
             <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted mt-1.5">${esc(p.display_name)}${me ? ' (tú)' : ''}, ${esc((s.className || 'sin clase').toLowerCase())} de nivel ${s.level}</p>
             <div class="mt-3 h-px bg-paper-border dark:bg-night-border"><div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div></div>
-            <p class="quote text-xs mt-2">${s.xp} de experiencia, faltan ${s.toNext} para el nivel ${s.level + 1}</p>
+            <p class="quote text-xs mt-2">${xpLine(s)}</p>
             ${heartsRow(s)}
             ${gearRow(p.id)}
             ${perkLine(p.id, s.cls)}
@@ -3228,7 +3265,7 @@
           'Guardar una palabra ajena la añade a tu grimorio para entrenarla y marcarla. La estrella de favorita solo la destaca para ti.' ]),
         section('Experiencia y niveles', [
           `Ganas ${XP.word} por palabra apuntada, ${XP.source} más si la cita lleva obra y autoría, ${XP.save} por palabra ajena guardada, ${XP.used} por palabra que marcas como usada en un texto y ${XP.like} por cada me gusta que recibes.`,
-          `El nivel 2 pide ${levelFloor(2)} de experiencia, el 3 pide ${levelFloor(3)}, el 4 pide ${levelFloor(4)}, y así. Los títulos llegan con el nivel: ${TITLES.map(t => `${esc(t.name)} en el ${t.level}`).join(', ')}.` ]),
+          `El nivel 2 pide ${levelFloor(2)} de experiencia, el 3 pide ${levelFloor(3)}, el 4 pide ${levelFloor(4)}, y así${LEVELS.max ? ' hasta el ' + LEVELS.max + ', que es el máximo' : ''}. Los títulos llegan con el nivel: ${TITLES.map(t => `${esc(t.name)} en el ${t.level}`).join(', ')}.` ]),
         section('Entrenamiento', [
           `Lees la definición y escribes la palabra. Son ${TRAIN.words} palabras por entrenamiento y puedes hacer ${XP.roundsPerDay} al día. ${TRAIN.free === 1 ? 'El primero es gratis' : 'Los ' + TRAIN.free + ' primeros son gratis'}; los demás gastan un pergamino de entrenamiento.`,
           `Cada uno da ${XP.round} de experiencia más ${XP.hit} por acierto. En oro: ${GOLD.hitMine} por acierto si entrenas solo tu grimorio; ${GOLD.hitAll} por acierto con todos los grimorios, y ${GOLD.perfect} más si las aciertas todas.`,
@@ -3245,7 +3282,7 @@
           `Las palabras de la atmósfera a la que es débil le hacen ×${COMBAT.weak} de daño; las de la que resiste, ×${COMBAT.strong}. Al caer, todo el gremio recibe su recompensa y su reliquia.` ]),
         section('Clases y habilidades', [
           Object.keys(CLASSES).map(k => `<strong class="font-medium">${esc(CLASSES[k].names.n)}</strong>: ${esc(classBonus(k).replace(/\.$/, ''))}`).join('. ') + '.',
-          `En los niveles ${PERK_LEVELS.join(', ')} eliges una de dos habilidades de tu clase. Clase y habilidades se pueden cambiar cuando quieras.` ]),
+          `En los niveles ${PERK_LEVELS.map(perkUnlock).join(', ')} eliges una de dos habilidades de tu clase. Clase y habilidades se pueden cambiar cuando quieras.` ]),
         section('Atributos', [
           `Cada nivel a partir del 2 da ${ATTR.perLevel === 1 ? 'un punto' : ATTR.perLevel + ' puntos'} para repartir, y se pueden recolocar. Cada punto da: ` + ATTRS.map(a => `<strong class="font-medium">${a.name}</strong>, ${esc(attrText(a, 1).replace(/\.$/, '').toLowerCase())}`).join('; ') + '.' ]),
         section('Vida', [
@@ -3813,16 +3850,16 @@
           <div class="rule mt-6"><span class="quote text-xs">Habilidades de clase</span></div>
           <div class="space-y-2 mt-4">
             ${PERK_LEVELS.map(lv => `
-            <div class="grid grid-cols-[3rem_1fr_1fr] gap-2 items-stretch ${level < lv ? 'opacity-50' : ''}">
-              <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted self-center">Nivel ${lv}</span>
+            <div class="grid grid-cols-[3rem_1fr_1fr] gap-2 items-stretch ${level < perkUnlock(lv) ? 'opacity-50' : ''}">
+              <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted self-center">Nivel ${perkUnlock(lv)}</span>
               ${['a', 'b'].map((ch, i) => { const p = PERKS[cls][lv][i]; return `
-              <button type="button" onclick="choosePerk(${lv}, '${ch}')"${level < lv ? ' disabled' : ''} class="plain text-left p-2.5 border ${chosen[lv] === ch ? 'border-paper-accent dark:border-night-accent' : 'border-paper-border dark:border-night-border'}">
+              <button type="button" onclick="choosePerk(${lv}, '${ch}')"${level < perkUnlock(lv) ? ' disabled' : ''} class="plain text-left p-2.5 border ${chosen[lv] === ch ? 'border-paper-accent dark:border-night-accent' : 'border-paper-border dark:border-night-border'}">
                 <span class="word-title text-lg block leading-tight ${chosen[lv] === ch ? 'text-paper-accent dark:text-night-accent' : ''}">${esc(p.name)}</span>
                 <span class="block text-xs text-paper-muted dark:text-night-muted mt-0.5 leading-snug">${esc(effectText({ effect_type: p.type, effect_value: p.value }))}</span>
               </button>`; }).join('')}
             </div>`).join('')}
           </div>
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-3">En los niveles 3, 5, 7 y 10 eliges una de dos habilidades. Puedes cambiarlas cuando quieras, y cada clase guarda las suyas.</p>`;
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-3">En los niveles ${PERK_LEVELS.map(perkUnlock).join(', ')} eliges una de dos habilidades. Puedes cambiarlas cuando quieras, y cada clase guarda las suyas.</p>`;
     }
 
     // Nombres de las habilidades elegidas, para la ficha del gremio
@@ -3834,7 +3871,7 @@
     async function choosePerk(level, choice) {
       const me = currentUser ? guild[currentUser.id] : null;
       if (!perksGuard() || !me || !me.cls || !PERK_LEVELS.includes(level) || !['a', 'b'].includes(choice)) return;
-      if (me.level < level) { showToast(`Esta habilidad se elige al llegar al nivel ${level}`); return; }
+      if (me.level < perkUnlock(level)) { showToast(`Esta habilidad se elige al llegar al nivel ${perkUnlock(level)}`); return; }
       const key = { user_id: currentUser.id, class: me.cls, level };
       const existing = perkRows.find(r => r.user_id === key.user_id && r.class === key.class && r.level === level);
       if (existing && existing.choice === choice) return;
@@ -4165,7 +4202,7 @@
         mazmorra: ['Mazmorra', () => monsters()],
         objetos: ['Objetos y tienda', () => dmShopBlock() + dmItemsBlock() + dmLootBlock() + dmGiftBlock()],
         jugadoras: ['Jugadoras', () => dmNoticeBlock() + dmPlayersBlock() + dmGuildBlock()],
-        reglas: ['Reglas', () => dmEventsBlock() + dmRulesBlock()],
+        reglas: ['Reglas', () => dmLevelsBlock() + dmEventsBlock() + dmRulesBlock()],
         clases: ['Clases', () => dmClassesBlock() + dmTitlesBlock()],
         logros: ['Logros', () => dmAchievementsBlock()],
         registro: ['Registro', () => dmLogBlock()]
@@ -4194,6 +4231,82 @@
         if (a.gold !== b.gold) parts.push(`oro ${b.gold} → ${a.gold}`);
         return authorName(b.id) + ': ' + (parts.length ? parts.join(', ') : 'sin cambios');
       });
+    }
+
+    // ----- Niveles -----
+    const LEVEL_ROWS = () => Math.max(15, LEVELS.table.length + 1, LEVELS.max || 0, ...Object.values(guild).map(s => s.level + 3));
+    function dmLevelsBlock() {
+      if (!configReady) return '';
+      const top = LEVEL_ROWS();
+      const people = lv => Object.values(profiles).filter(p => guild[p.id] && guild[p.id].level === lv).map(p => p.display_name).join(', ');
+      const rows = [];
+      for (let lv = 2; lv <= top; lv++) rows.push(`<div>
+          <label for="lvl-${lv}" class="text-xs">Nivel ${lv}${people(lv) ? ' · ' + esc(people(lv)) : ''}</label>
+          <input type="number" id="lvl-${lv}" min="1" step="10" value="${levelFloor(lv)}" class="${DM_FIELD}" />
+        </div>`);
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Niveles</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">La experiencia total que hace falta para llegar a cada nivel. ${LEVELS.table.length ? 'Ahora mismo manda esta tabla.' : 'Ahora mismo sale de la curva de Reglas → Experiencia; al guardar aquí pasa a mandar la tabla.'} Cada nivel tiene que pedir más que el anterior. Si subes los valores, quien ya tenga experiencia puede bajar de nivel: los cofres que abrió se los queda, pero los puntos de atributo y habilidades que ya no le toquen dejan de contar.</p>
+          <div class="flex flex-wrap items-end gap-2 mt-3">
+            <div><label for="lvlScale" class="text-xs">Multiplicar toda la tabla por</label><input type="number" id="lvlScale" min="0.1" step="0.1" value="2" class="${DM_FIELD}" /></div>
+            <button onclick="scaleLevels()" class="${DM_SMALL}">Aplicar a la tabla</button>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 mt-4">${rows.join('')}</div>
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5">
+            <div><label for="lvlMax" class="text-xs">Nivel máximo (0 = sin tope)</label><input type="number" id="lvlMax" min="0" step="1" value="${LEVELS.max}" class="${DM_FIELD}" /></div>
+            ${PERK_LEVELS.map((s, i) => `<div><label for="lvlPerk-${s}" class="text-xs">${i + 1}.ª habilidad, en el nivel</label><input type="number" id="lvlPerk-${s}" min="2" step="1" value="${perkUnlock(s)}" class="${DM_FIELD}" /></div>`).join('')}
+          </div>
+          <div class="flex flex-wrap justify-end gap-2 mt-4">
+            <button onclick="saveLevels(true)" class="${DM_SMALL}">Volver a la curva de partida</button>
+            <button onclick="saveLevels()" class="${DM_GOLD}">Ver cómo queda y guardar</button>
+          </div>
+        </div>`;
+    }
+
+    // Multiplica lo escrito en la tabla (sin guardar todavía), redondeando a decenas
+    function scaleLevels() {
+      const k = parseFloat(document.getElementById('lvlScale').value);
+      if (!(k > 0)) { showToast('Escribe por cuánto multiplicar'); return; }
+      for (let lv = 2; lv <= LEVEL_ROWS(); lv++) {
+        const input = document.getElementById('lvl-' + lv);
+        if (input) input.value = Math.max(lv - 1, Math.round((parseFloat(input.value) || 0) * k / 10) * 10);
+      }
+      showToast('Tabla multiplicada. Revísala y guarda para que valga.');
+    }
+
+    async function saveLevels(reset = false) {
+      if (!configGuard()) return;
+      let next = {};
+      if (!reset) {
+        const table = [];
+        for (let lv = 2; lv <= LEVEL_ROWS(); lv++) {
+          const input = document.getElementById('lvl-' + lv);
+          if (!input) break;
+          const v = parseInt(input.value, 10);
+          if (!Number.isInteger(v) || v <= (table.length ? table[table.length - 1] : 0)) { showToast(`El nivel ${lv} tiene que pedir más experiencia que el ${lv - 1}`); return; }
+          table.push(v);
+        }
+        const max = parseInt(document.getElementById('lvlMax').value, 10) || 0;
+        if (max === 1 || max < 0) { showToast('El nivel máximo tiene que ser 2 o más, o 0 para no poner tope'); return; }
+        const unlock = {};
+        let before = 1;
+        for (const s of PERK_LEVELS) {
+          const v = parseInt(document.getElementById('lvlPerk-' + s).value, 10);
+          if (!Number.isInteger(v) || v <= before) { showToast('Los niveles de las habilidades tienen que ir de menor a mayor, desde el 2'); return; }
+          unlock[s] = v; before = v;
+        }
+        next = { table, max, unlock };
+      }
+      const lines = impactLines(() => applyLevels(next), () => applyLevels(configRows.levels));
+      if (!confirm((reset ? 'Al volver a la curva de partida:' : 'Con estos niveles:') + '\n\n' + lines.join('\n') + '\n\n¿Guardar?')) return;
+      try {
+        await saveConfig('levels', next);
+        applyLevels(next);
+        renderGlossary();
+        renderDM();
+        showToast('Niveles guardados');
+      } catch (e) { showToast(e.message); }
     }
 
     // ----- Aviso al gremio -----
@@ -4305,7 +4418,7 @@
                 ${[['m', 'Nombre en -o'], ['f', 'Nombre en -a'], ['n', 'Nombre en -e']].map(([f, l]) => `<div><label for="cls-${k}-${f}" class="text-xs">${l}</label><input type="text" id="cls-${k}-${f}" maxlength="30" value="${esc(c.names[f])}" class="${DM_FIELD}" /></div>`).join('')}
                 <div><label for="cls-${k}-icon" class="text-xs">Icono</label><input type="text" id="cls-${k}-icon" value="${esc(c.icon)}" class="${DM_FIELD}" /></div>
               </div>
-              ${PERK_LEVELS.map(lv => `<p class="text-xs text-paper-muted dark:text-night-muted mt-4">Nivel ${lv}</p>
+              ${PERK_LEVELS.map(lv => `<p class="text-xs text-paper-muted dark:text-night-muted mt-4">Nivel ${perkUnlock(lv)}</p>
               ${[0, 1].map(i => { const p = PERKS[k][lv][i]; return `<div class="grid grid-cols-1 sm:grid-cols-[1fr_1.4fr_5rem] gap-2 mt-1">
                 <input type="text" id="pk-${k}-${lv}-${i}-name" maxlength="40" value="${esc(p.name)}" aria-label="Nombre de la habilidad" class="${DM_FIELD}" />
                 <select id="pk-${k}-${lv}-${i}-type" aria-label="Efecto" class="${DM_FIELD}">${effects.map(e => `<option value="${e}"${e === p.type ? ' selected' : ''}>${esc(EFFECTS[e].label)}</option>`).join('')}</select>
@@ -4517,7 +4630,7 @@
       configRows[key] = value;
       dmLog('Cambió ' + (CONFIG_LABELS[key] || key), key, before);
     }
-    const CONFIG_LABELS = { notice: 'el aviso al gremio', events: 'los eventos', rules: 'las reglas', classes: 'las clases y habilidades', titles: 'los títulos', achievements: 'los logros', featured: 'el objeto de la semana' };
+    const CONFIG_LABELS = { levels: 'los niveles', notice: 'el aviso al gremio', events: 'los eventos', rules: 'las reglas', classes: 'las clases y habilidades', titles: 'los títulos', achievements: 'los logros', featured: 'el objeto de la semana' };
 
     // Apunta una acción del máster. Si fue un cambio de configuración guarda lo que había, para poder deshacerlo.
     async function dmLog(action, key = null, before = null) {
@@ -4534,6 +4647,7 @@
       applyAchievements(configRows.achievements);
       featured = configRows.featured && typeof configRows.featured === 'object' ? configRows.featured : { mode: 'off' };
       applyEvents(configRows.events);
+      applyLevels(configRows.levels);
       dmAchDraft = null;
       dmEvDraft = null;
     }
