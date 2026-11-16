@@ -172,7 +172,7 @@
 
     /* Impresión o PDF: solo las fichas del grimorio, en tinta sobre blanco */
     @media print {
-      header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-bag, #view-guild, #view-dm, #dmBossModal, #dmItemModal, #lootModal, #tradeModal, #helpModal, .no-print, .ribbon-wrap { display: none !important; }
+      header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-bag, #view-guild, #view-dm, #dmBossModal, #dmItemModal, #lootModal, #tradeModal, #helpModal, #welcomeModal, .no-print, .ribbon-wrap { display: none !important; }
       html { font-size: 12px; }
       body::before { display: none !important; }
       body, #view-glossary article { background: #fff !important; background-image: none !important; color: #000 !important; }
@@ -201,6 +201,11 @@
     /* Botones de icono de la cabecera, sin caja */
     header > div button:not([class*="bg-paper-ink"]) { border-color: transparent !important; }
     #btnDM { display: none; }
+    /* Punto de aviso en las pestañas: hay algo pendiente */
+    header nav button[id^="tab-"] { position: relative; }
+    .nav-badge { position: absolute; top: 2px; right: -10px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 9999px; background: var(--gold); color: #06080F;
+                 font: 600 9.5px/15px 'EB Garamond', Georgia, serif; letter-spacing: 0; text-align: center; }
+    @media (max-width: 639px) { .nav-badge { top: 4px; right: calc(50% - 22px); } }
     /* Instalada como app, la cabecera deja sitio a la barra de estado del teléfono */
     header { padding-top: env(safe-area-inset-top); }
     details > summary { list-style-position: outside; }
@@ -631,6 +636,21 @@
     </div>
   </div>
 
+  <div id="welcomeModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-paper-light dark:bg-night-bg border border-paper-accent dark:border-night-accent rounded-3xl max-w-md w-full p-7 shadow-xl text-center">
+      <i class="gi gi-spell-book text-5xl text-paper-accent dark:text-night-accent"></i>
+      <h3 class="title-outline text-4xl mt-3">Te damos la bienvenida, <span id="welcomeName"></span></h3>
+      <p class="text-sm leading-relaxed mt-4">Lexium es el grimorio del gremio: aquí apuntamos las palabras raras y hermosas que encontramos leyendo, y entrenamos para no olvidarlas.</p>
+      <p class="text-sm leading-relaxed mt-3">Cada palabra da experiencia y daña al jefe de la mazmorra, que es de todas. Para empezar solo hacen falta dos cosas: elegir tu clase y apuntar tu primera palabra.</p>
+      <div class="flex flex-col gap-2 mt-6">
+        <button onclick="closeWelcome('class')" class="px-5 py-2.5 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg">Elegir mi clase</button>
+        <button onclick="closeWelcome('word')" class="px-5 py-2.5 rounded-xl text-xs border border-paper-border dark:border-night-border">Apuntar mi primera palabra</button>
+        <button onclick="closeWelcome('help')" class="px-5 py-2.5 rounded-xl text-xs border border-paper-border dark:border-night-border">Leer cómo se juega</button>
+        <button onclick="closeWelcome()" class="plain text-sm text-paper-muted dark:text-night-muted mt-1">Ahora no</button>
+      </div>
+    </div>
+  </div>
+
   <div id="addModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between">
@@ -940,6 +960,9 @@
     const dmOpen = new Set(); // desplegables abiertos en el panel de máster
     let dmTab = 'mazmorra';   // pestaña abierta del panel de máster
     let dmAchDraft = null;    // logros en edición, antes de guardar
+    let dmEvDraft = null;     // eventos en edición, antes de guardar
+    let GAME_EVENTS = [];     // eventos temporales en vigor o programados
+    let welcomeChecked = false;
     let wordStats = {};       // mis aciertos y fallos por palabra: id -> { hits, fails }
     let statsReady = false;   // true cuando la base de datos ya guarda aciertos por palabra
     let dmLogRows = [];       // registro de cambios del máster (solo lo ve el máster)
@@ -1255,12 +1278,7 @@
       configReady = !cfRes.error;
       configRows = {};
       (configReady ? cfRes.data : []).forEach(r => { configRows[r.key] = r.value; });
-      applyRules(configRows.rules);
-      applyClasses(configRows.classes);
-      applyTitles(configRows.titles);
-      applyAchievements(configRows.achievements);
-      dmAchDraft = null;
-      featured = configRows.featured && typeof configRows.featured === 'object' ? configRows.featured : { mode: 'off' };
+      applyConfig();
       allowedEmails = aeRes.error ? [] : aeRes.data.map(r => r.email).sort();
       statsReady = !wsRes.error;
       wordStats = {};
@@ -1345,6 +1363,7 @@
       shop_pct: { label: 'Descuento en la tienda (%)', text: v => `${v} % de descuento en la tienda.` },
       sale_pct: { label: 'Más oro al vender botín (%)', text: v => `+${v} % de oro al vender el botín de los cofres.` },
       no_pick: { label: 'Abre los cofres menores sin ganzúa', text: () => 'Abres los cofres menores sin ganzúa.' },
+      xp_pct: { label: 'Experiencia extra en todo (%)', text: v => `+${v} % de experiencia por apuntar, guardar y entrenar.` },
       weak_factor: { label: 'Golpe más fuerte a la debilidad del jefe', text: v => `Los golpes a la debilidad del jefe hacen ×${String(2 + v).replace('.', ',')} en lugar de ×2.` }
     };
 
@@ -1638,6 +1657,84 @@
       ACHIEVEMENTS = clean.length ? clean : ACH_DEFAULTS.map(a => ({ ...a }));
     }
 
+    const EVENT_EFFECTS = () => Object.keys(EFFECTS).filter(k => !['none', 'lockpick', 'poison', 'potion', 'duel', 'train_ticket'].includes(k));
+    const dayStart = d => new Date(d + 'T00:00:00').getTime();
+    function cleanEvent(e) {
+      if (!e || typeof e !== 'object' || !str(e.name) || !EVENT_EFFECTS().includes(e.type)) return null;
+      const value = Number(e.value), from = dayStart(str(e.from)), to = dayStart(str(e.to));
+      if (!isFinite(value) || value < 0 || !from || !to || to < from) return null;
+      if (EFFECTS[e.type].tone && !str(e.tone)) return null;
+      return { name: str(e.name).slice(0, 60), type: e.type, value, tone: EFFECTS[e.type].tone ? str(e.tone) : '', from: str(e.from), to: str(e.to) };
+    }
+    function applyEvents(list) {
+      GAME_EVENTS = (Array.isArray(list) ? list.map(cleanEvent).filter(Boolean) : []).map(e => ({
+        ...e, effect_type: e.type, effect_value: e.value, effect_tone: e.tone, fromMs: dayStart(e.from), toMs: dayStart(e.to) + 86400000 }));
+    }
+    function activeEvents() { const now = Date.now(); return GAME_EVENTS.filter(e => now >= e.fromMs && now < e.toMs); }
+
+    // Aviso del máster y eventos en curso, arriba del grimorio
+    function bannerHtml() {
+      const notice = configRows.notice && str(configRows.notice.text) ? configRows.notice : null;
+      let seen = '';
+      try { seen = localStorage.getItem('lexium-notice') || ''; } catch (e) {}
+      const date = ms => new Date(ms - 1).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+      const box = 'frame bg-paper-card dark:bg-night-card border border-paper-accent/60 dark:border-night-accent/50 px-4 py-3 mb-3';
+      return (notice && String(notice.at) !== seen ? `
+        <div class="${box} flex items-start gap-3">
+          <i class="gi gi-scroll-unfurled text-xl text-paper-accent dark:text-night-accent mt-0.5"></i>
+          <p class="flex-1 min-w-0 text-sm leading-relaxed"><span class="text-paper-muted dark:text-night-muted">Aviso del máster.</span> ${esc(notice.text)}</p>
+          <button onclick="dismissNotice()" class="plain text-paper-muted dark:text-night-muted text-sm" title="Ocultar">✕</button>
+        </div>` : '') + activeEvents().map(e => `
+        <div class="${box} flex items-start gap-3">
+          <i class="gi gi-polar-star text-xl text-paper-accent dark:text-night-accent mt-0.5"></i>
+          <p class="flex-1 min-w-0 text-sm leading-relaxed"><strong class="font-medium">${esc(e.name)}.</strong> ${esc(effectText(e))} Hasta el ${esc(date(e.toMs))}.</p>
+        </div>`).join('');
+    }
+    function dismissNotice() {
+      try { localStorage.setItem('lexium-notice', String((configRows.notice || {}).at || '')); } catch (e) {}
+      renderRanks();
+    }
+
+    // Puntos de aviso en las pestañas: cofres y ofertas en el zurrón, duelos por jugar en el gremio
+    function setBadge(tab, count) {
+      const button = document.getElementById('tab-' + tab);
+      if (!button || !button.querySelector) return;
+      let badge = button.querySelector('.nav-badge');
+      if (!badge) { badge = document.createElement('span'); badge.className = 'nav-badge'; button.appendChild(badge); }
+      badge.textContent = count > 9 ? '9+' : String(count);
+      badge.style.display = count > 0 ? '' : 'none';
+    }
+    function pendingCounts() {
+      const me = currentUser ? guild[currentUser.id] : null;
+      if (!me) return { bag: 0, guild: 0 };
+      const offers = trades.filter(t => t.to_id === currentUser.id && tradeAlive(t)).length;
+      const myDuels = duels.filter(d => !d.declined && ((d.challenger_id === currentUser.id && !d.challenger_done_at) || (d.opponent_id === currentUser.id && !d.opponent_done_at))).length;
+      return { bag: me.chests.length + offers, guild: myDuels };
+    }
+    function updateBadges() {
+      const c = pendingCounts();
+      setBadge('bag', c.bag);
+      setBadge('guild', c.guild);
+    }
+
+    // Bienvenida: la primera vez que entra alguien que aún no tiene clase ni palabras
+    function maybeWelcome() {
+      const me = currentUser ? guild[currentUser.id] : null;
+      if (!me || me.cls || me.words > 0) return;
+      try { if (localStorage.getItem('lexium-welcome-' + currentUser.id)) return; } catch (e) {}
+      document.getElementById('welcomeName').textContent = authorName(currentUser.id);
+      document.getElementById('welcomeModal').classList.remove('hidden');
+      document.getElementById('welcomeModal').classList.add('flex');
+    }
+    function closeWelcome(next) {
+      try { localStorage.setItem('lexium-welcome-' + currentUser.id, '1'); } catch (e) {}
+      document.getElementById('welcomeModal').classList.add('hidden');
+      document.getElementById('welcomeModal').classList.remove('flex');
+      if (next === 'class') switchTab('guild');
+      if (next === 'word') openAddModal();
+      if (next === 'help') openHelp();
+    }
+
     // Texto de la bonificación de cada clase, con los valores que estén en vigor
     function classBonus(key) {
       const c = CLS[key];
@@ -1712,7 +1809,9 @@
       const gear = gearIntervals(userId);
       // Las habilidades de clase cuentan siempre, como la bonificación de la clase
       classPerks(userId, cls).forEach(p => gear.push({ item: p, from: -Infinity, to: Infinity }));
-      const worn = (g, at) => at === null ? g.to === Infinity : (at >= g.from && at < g.to);
+      const worn = (g, at) => at === null ? (g.to === Infinity || (Date.now() >= g.from && Date.now() < g.to)) : (at >= g.from && at < g.to);
+      // Los eventos del máster valen para todo el gremio mientras duran
+      GAME_EVENTS.forEach(ev => gear.push({ item: ev, from: ev.fromMs, to: ev.toMs }));
       // Suma de un tipo de efecto entre las reliquias del gremio y el equipo propio activos en ese momento
       const fx = (type, at) =>
         owned.reduce((sum, o) => sum + (o.relic.effect_type === type && active(o, at) ? o.relic.effect_value : 0), 0) +
@@ -1732,8 +1831,10 @@
       const addDay = (when, points, tones) => {
         const k = dayKey(when);
         if (!k) return;
+        const at = Date.parse(when) || 0;
+        points *= 1 + fx('xp_pct', at) / 100;
         perDay[k] = (perDay[k] || 0) + points;
-        events.push({ at: Date.parse(when) || 0, day: k, points, tones: tones || null });
+        events.push({ at, day: k, points, tones: tones || null });
       };
       let undated = 0;   // experiencia sin fecha (palabras marcadas como usadas)
       let sourced = 0, used = 0, thisMonth = 0;
@@ -1896,6 +1997,8 @@
         weekWinners[k].forEach(id => { guild[id].weeksWon++; guild[id].gold += WEEK.gold; });
       });
       all.forEach(s => { s.achievements = ACHIEVEMENTS.map(a => achieved(a, s)); });
+      updateBadges();
+      if (!welcomeChecked && currentUser && guild[currentUser.id]) { welcomeChecked = true; maybeWelcome(); }
 
       // Estado de la mazmorra
       const frame = dungeonFrame();
@@ -2067,7 +2170,7 @@
       panel.className = '';
       if (!p || !s) { panel.innerHTML = ''; return; }
       const who = rankLine(s, true);
-      panel.innerHTML = `
+      panel.innerHTML = bannerHtml() + `
         <div class="frame rank-card bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border px-4 py-4 sm:px-6 sm:py-5 flex flex-wrap items-center gap-x-5 gap-y-3">
           <div class="shrink-0">${portrait(p, s)}</div>
           <div class="flex-1 min-w-[12rem]">
@@ -2300,6 +2403,9 @@
         const likeBtn = mine
           ? (likers.length ? `<span title="${esc(likersTitle)}" class="text-sm text-paper-accent dark:text-night-accent whitespace-nowrap">♥ ${likers.length}</span>` : '')
           : `<button onclick="toggleLike('${esc(item.id)}')" title="${esc(likersTitle)}" class="plain text-base leading-none whitespace-nowrap ${liked ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${liked ? '♥' : '♡'}${likers.length ? ' ' + likers.length : ''}</button>`;
+        const modTools = !mine && isDM() ? `
+               <button onclick="openEditModal('${esc(item.id)}')" title="Corregir (máster)" class="text-sm text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink"><i class="gi gi-quill"></i></button>
+               <button onclick="deleteGlossaryWord('${esc(item.id)}')" title="Eliminar (máster)" class="text-sm text-paper-muted dark:text-night-muted hover:text-red-500"><i class="gi gi-trash-can"></i></button>` : '';
         const action = mine
           ? `<span class="flex items-center gap-3">
                <button onclick="toggleFlag('${esc(item.id)}', 'is_favorite')" title="${item.is_favorite ? 'Es una de tus favoritas. Pulsa para quitarla' : 'Favorita: la destacas para filtrarla o entrenar solo con ellas'}" class="plain text-base leading-none ${item.is_favorite ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${item.is_favorite ? '★' : '☆'}</button>
@@ -2322,7 +2428,7 @@
           <div>
             <div class="flex flex-wrap items-center justify-between gap-2 ${item.tone2 ? 'pl-[4.9rem]' : 'pl-10'}">
               ${toneBadges(item)}
-              <span class="flex items-center gap-3">${likeBtn}${action}</span>
+              <span class="flex items-center gap-3">${likeBtn}${action}${modTools}</span>
             </div>
             <div class="mt-2 flex items-baseline gap-2">
               <h3 class="word-title text-3xl">${fancyWord(item.word)}</h3>
@@ -2352,11 +2458,14 @@
       if (!item) return;
       const keepers = saves.filter(s => s.word_id === id).length;
       const warning = keepers ? ` También desaparecerá del grimorio de ${keepers === 1 ? 'la persona que la guardó' : 'las ' + keepers + ' personas que la guardaron'}.` : '';
-      if (!confirm(`¿Eliminar «${item.word}» de tu grimorio?${warning}`)) return;
+      const own = currentUser && item.author_id === currentUser.id;
+      if (!own && !isDM()) return;
+      if (!confirm(`¿Eliminar «${item.word}» ${own ? 'de tu grimorio' : 'del grimorio de ' + authorName(item.author_id)}?${warning}`)) return;
       const { error } = await sb.from('words').delete().eq('id', id);
       if (error) { showToast('No se pudo eliminar: ' + error.message); return; }
       glossary = glossary.filter(w => w.id !== id);
       renderGlossary();
+      if (!own) dmLog(`Eliminó «${item.word}», de ${authorName(item.author_id)}`);
       showToast(`«${item.word}» eliminada`);
     }
 
@@ -2416,7 +2525,7 @@
 
     function openEditModal(id) {
       const item = glossary.find(w => w.id === id);
-      if (!item || !currentUser || item.author_id !== currentUser.id) return;
+      if (!item || !currentUser || (item.author_id !== currentUser.id && !isDM())) return;
       editingId = id;
       document.getElementById('inputWord').value = item.word;
       document.getElementById('inputCategory').value = item.category || '';
@@ -3865,8 +3974,8 @@
       const sections = {
         mazmorra: ['Mazmorra', () => monsters()],
         objetos: ['Objetos y tienda', () => dmShopBlock() + dmItemsBlock() + dmGiftBlock()],
-        jugadoras: ['Jugadoras', () => dmPlayersBlock() + dmGuildBlock()],
-        reglas: ['Reglas', () => dmRulesBlock()],
+        jugadoras: ['Jugadoras', () => dmNoticeBlock() + dmPlayersBlock() + dmGuildBlock()],
+        reglas: ['Reglas', () => dmEventsBlock() + dmRulesBlock()],
         clases: ['Clases', () => dmClassesBlock() + dmTitlesBlock()],
         logros: ['Logros', () => dmAchievementsBlock()],
         registro: ['Registro', () => dmLogBlock()]
@@ -3895,6 +4004,100 @@
         if (a.gold !== b.gold) parts.push(`oro ${b.gold} → ${a.gold}`);
         return authorName(b.id) + ': ' + (parts.length ? parts.join(', ') : 'sin cambios');
       });
+    }
+
+    // ----- Aviso al gremio -----
+    function dmNoticeBlock() {
+      if (!configReady) return '';
+      const text = configRows.notice ? str(configRows.notice.text) : '';
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Aviso al gremio</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">Un mensaje que todas ven arriba del grimorio hasta que lo ocultan. Si lo cambias, vuelve a salir.</p>
+          <textarea id="dmNotice" rows="2" maxlength="280" class="${DM_FIELD}" placeholder="Este fin de semana, experiencia doble.">${esc(text)}</textarea>
+          <div class="flex flex-wrap justify-end gap-2 mt-3">
+            ${text ? `<button onclick="saveNotice(true)" class="${DM_SMALL}">Quitar aviso</button>` : ''}
+            <button onclick="saveNotice()" class="${DM_GOLD}">Publicar aviso</button>
+          </div>
+        </div>`;
+    }
+
+    async function saveNotice(clear = false) {
+      if (!configGuard()) return;
+      const text = clear ? '' : str(document.getElementById('dmNotice').value).slice(0, 280);
+      if (!clear && !text) { showToast('Escribe el aviso'); return; }
+      try {
+        await saveConfig('notice', { text, at: Date.now() });
+        renderGlossary();
+        renderDM();
+        showToast(clear ? 'Aviso quitado' : 'Aviso publicado');
+      } catch (e) { showToast(e.message); }
+    }
+
+    // ----- Eventos temporales -----
+    function dmEventsBlock() {
+      if (!configReady) return '';
+      if (!dmEvDraft) dmEvDraft = GAME_EVENTS.map(e => ({ name: e.name, type: e.type, value: e.value, tone: e.tone, from: e.from, to: e.to }));
+      const effects = EVENT_EFFECTS();
+      const today = dayKey(new Date());
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Eventos temporales</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">Un efecto para todo el gremio entre dos fechas, las dos incluidas: experiencia doble un fin de semana, más daño con una atmósfera, descuento en la tienda… Mientras dura, sale anunciado arriba del grimorio. Solo cuenta lo que se haga dentro de esas fechas.</p>
+          <div class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
+            ${dmEvDraft.map((e, i) => `<div class="py-3 grid grid-cols-2 sm:grid-cols-4 gap-2 items-end">
+              <div class="col-span-2"><label for="ev-${i}-name" class="text-xs">Nombre${e.to && e.to < today ? ' (ya terminó)' : ''}</label><input type="text" id="ev-${i}-name" maxlength="60" value="${esc(e.name)}" class="${DM_FIELD}" /></div>
+              <div><label for="ev-${i}-from" class="text-xs">Desde</label><input type="date" id="ev-${i}-from" value="${esc(e.from)}" class="${DM_FIELD}" /></div>
+              <div><label for="ev-${i}-to" class="text-xs">Hasta</label><input type="date" id="ev-${i}-to" value="${esc(e.to)}" class="${DM_FIELD}" /></div>
+              <div class="col-span-2"><label for="ev-${i}-type" class="text-xs">Efecto</label><select id="ev-${i}-type" class="${DM_FIELD}">${effects.map(k => `<option value="${k}"${k === e.type ? ' selected' : ''}>${esc(EFFECTS[k].label)}</option>`).join('')}</select></div>
+              <div><label for="ev-${i}-value" class="text-xs">Valor</label><input type="number" id="ev-${i}-value" min="0" step="1" value="${e.value}" class="${DM_FIELD}" /></div>
+              <div><label for="ev-${i}-tone" class="text-xs">Atmósfera (si el efecto la pide)</label><select id="ev-${i}-tone" class="${DM_FIELD}"><option value="">Ninguna</option>${TONES.map(t => `<option value="${esc(t)}"${t === e.tone ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+              <div class="col-span-2 sm:col-span-4 flex justify-end"><button onclick="evRemove(${i})" class="${DM_SMALL}">Quitar evento</button></div>
+            </div>`).join('') || '<p class="quote text-sm py-3">No hay ningún evento.</p>'}
+          </div>
+          <div class="flex flex-wrap justify-between gap-2 mt-3">
+            <button onclick="evAdd()" class="${DM_SMALL}">Añadir evento</button>
+            <button onclick="saveEvents()" class="${DM_GOLD}">Ver cómo queda y guardar</button>
+          </div>
+        </div>`;
+    }
+
+    function evRead() {
+      if (!dmEvDraft) return;
+      dmEvDraft = dmEvDraft.map((e, i) => {
+        const get = f => document.getElementById(`ev-${i}-${f}`);
+        if (!get('name')) return e;
+        return { name: str(get('name').value), type: get('type').value, value: parseFloat(get('value').value), tone: get('tone').value, from: get('from').value, to: get('to').value };
+      });
+    }
+    function evAdd() {
+      evRead();
+      const today = dayKey(new Date());
+      dmEvDraft.push({ name: '', type: 'xp_pct', value: 100, tone: '', from: today, to: today });
+      renderDM();
+    }
+    function evRemove(index) { evRead(); dmEvDraft.splice(index, 1); renderDM(); }
+
+    async function saveEvents() {
+      if (!configGuard()) return;
+      evRead();
+      for (const e of dmEvDraft) {
+        if (!e.name) { showToast('Hay un evento sin nombre'); return; }
+        if (!e.from || !e.to || e.to < e.from) { showToast(`Revisa las fechas de «${e.name}»`); return; }
+        if (EFFECTS[e.type] && EFFECTS[e.type].tone && !e.tone) { showToast(`«${e.name}» necesita una atmósfera`); return; }
+        if (!cleanEvent(e)) { showToast(`Revisa el valor de «${e.name}»`); return; }
+      }
+      const list = dmEvDraft.map(cleanEvent);
+      const lines = impactLines(() => applyEvents(list), () => applyEvents(configRows.events));
+      if (!confirm('Con estos eventos:\n\n' + lines.join('\n') + '\n\n¿Guardar?')) return;
+      try {
+        await saveConfig('events', list);
+        applyEvents(list);
+        dmEvDraft = null;
+        renderGlossary();
+        renderDM();
+        showToast('Eventos guardados');
+      } catch (e) { showToast(e.message); }
     }
 
     // ----- Clases y habilidades -----
@@ -4077,7 +4280,7 @@
       configRows[key] = value;
       dmLog('Cambió ' + (CONFIG_LABELS[key] || key), key, before);
     }
-    const CONFIG_LABELS = { rules: 'las reglas', classes: 'las clases y habilidades', titles: 'los títulos', achievements: 'los logros', featured: 'el objeto de la semana' };
+    const CONFIG_LABELS = { notice: 'el aviso al gremio', events: 'los eventos', rules: 'las reglas', classes: 'las clases y habilidades', titles: 'los títulos', achievements: 'los logros', featured: 'el objeto de la semana' };
 
     // Apunta una acción del máster. Si fue un cambio de configuración guarda lo que había, para poder deshacerlo.
     async function dmLog(action, key = null, before = null) {
@@ -4093,7 +4296,9 @@
       applyTitles(configRows.titles);
       applyAchievements(configRows.achievements);
       featured = configRows.featured && typeof configRows.featured === 'object' ? configRows.featured : { mode: 'off' };
+      applyEvents(configRows.events);
       dmAchDraft = null;
+      dmEvDraft = null;
     }
 
     function dmLogBlock() {
@@ -4822,7 +5027,7 @@
         const n = usage[t] || 0;
         const mine = Boolean(s.custom && currentUser && s.created_by === currentUser.id);
         const origin = !s.custom ? 'De base' : (mine ? 'Creada por ti' : 'De ' + esc(authorName(s.created_by)));
-        const del = mine && n === 0
+        const del = (mine || (isDM() && s.custom)) && n === 0
           ? `<button onclick="deleteTone(${i})" title="Borrar atmósfera" class="text-sm text-paper-muted dark:text-night-muted hover:text-red-500"><i class="gi gi-trash-can"></i></button>`
           : '<span class="w-4"></span>';
         return `<li class="flex items-center gap-3 py-2">
