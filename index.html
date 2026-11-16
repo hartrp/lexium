@@ -1775,16 +1775,18 @@
     }
     function pendingCounts() {
       const me = currentUser ? guild[currentUser.id] : null;
-      if (!me) return { bag: 0, guild: 0, attrs: 0 };
+      if (!me) return { bag: 0, guild: 0, attrs: 0, train: 0 };
       const offers = trades.filter(t => t.to_id === currentUser.id && tradeAlive(t)).length;
       const myDuels = duels.filter(d => !d.declined && ((d.challenger_id === currentUser.id && !d.challenger_done_at) || (d.opponent_id === currentUser.id && !d.opponent_done_at))).length;
-      return { bag: me.chests.length + offers, guild: myDuels, attrs: attrsReady && me.attrBudget > me.attrSpent ? 1 : 0, chests: me.chests.length, offers, duels: myDuels };
+      return { bag: me.chests.length + offers, guild: myDuels, attrs: attrsReady && me.attrBudget > me.attrSpent ? 1 : 0,
+        train: me.trainToday < Math.min(TRAIN.free, me.trainMax) ? 1 : 0, chests: me.chests.length, offers, duels: myDuels };
     }
     function updateBadges() {
       const c = pendingCounts();
       setBadge('tab-bag', c.bag);
       setBadge('tab-guild', c.guild + c.attrs);
-      setBadge('btnNotifs', c.bag + c.guild + c.attrs);
+      setBadge('tab-review', c.train);
+      setBadge('btnNotifs', c.bag + c.guild + c.attrs + c.train);
     }
 
     // Avisos: lo que tengo pendiente y lo último que ha pasado en el gremio
@@ -1800,7 +1802,7 @@
         c.offers ? row('swap-bag', c.offers === 1 ? 'Te han hecho una oferta de intercambio.' : `Te han hecho ${c.offers} ofertas de intercambio.`, 'bag', 'Ir al zurrón') : '',
         c.duels ? row('sword-clash', c.duels === 1 ? 'Tienes un duelo por jugar.' : `Tienes ${c.duels} duelos por jugar.`, 'guild', 'Ir al gremio') : '',
         c.attrs ? row('biceps', left === 1 ? 'Te queda un punto de atributo por repartir.' : `Te quedan ${left} puntos de atributo por repartir.`, 'guild', 'Ir al gremio') : '',
-        me.trainToday === 0 ? row('target-dummy', 'Hoy todavía no has entrenado: el primero es gratis.', 'review', 'Entrenar') : ''
+        c.train ? row('target-dummy', me.trainToday === 0 ? 'Hoy todavía no has entrenado: el primero es gratis.' : 'Aún te queda un entrenamiento gratis hoy.', 'review', 'Entrenar') : ''
       ].join('');
       const news = chronicle(10);
       return `
