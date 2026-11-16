@@ -2,7 +2,7 @@
 <html lang="es" class="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Lexium — Grimorio literario compartido</title>
   <meta name="theme-color" content="#06080F" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -178,6 +178,35 @@
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 10px; opacity: 0.5; }
+
+    /* ===== Afinado: que se lea como un libro y no como un panel =====
+       Los rótulos van en cursiva y minúscula; las versales quedan solo en pestañas y botón principal. */
+    .label-caps { font-family: 'EB Garamond', Georgia, serif; font-style: italic; text-transform: none; letter-spacing: 0.01em; font-size: 0.82rem !important; line-height: 1.3; }
+    label { font-family: 'EB Garamond', Georgia, serif; font-style: italic; text-transform: none; letter-spacing: 0; font-size: 0.9rem !important; }
+    button:not(.plain) { font-family: 'EB Garamond', Georgia, serif; text-transform: none; letter-spacing: 0.01em; }
+    button:not(.plain):not([class*="bg-paper-ink"]) { font-size: 0.85rem !important; }
+    button[class*="bg-paper-ink"] { font-family: 'Cinzel', serif; text-transform: uppercase; letter-spacing: 0.1em; }
+    header nav button[id^="tab-"]:not(.plain) { font-family: 'Gideon Roman', 'Cinzel', serif; text-transform: uppercase; letter-spacing: 0.12em; font-size: 11px !important; }
+    .tag { border: 0; background: none !important; padding: 0; font-family: 'EB Garamond', Georgia, serif; font-style: italic; text-transform: none; font-size: 0.85rem; letter-spacing: 0; color: inherit; opacity: 0.85; }
+    .dark .tag { color: #B4B8C6; }
+    .frame { box-shadow: none; }
+    #toast { font-family: 'EB Garamond', Georgia, serif; text-transform: none; letter-spacing: 0; font-size: 1rem !important; }
+    /* Botones de icono de la cabecera, sin caja */
+    header > div button:not([class*="bg-paper-ink"]) { border-color: transparent !important; }
+    #btnDM { display: none; }
+
+    /* En móvil la navegación baja al pie, al alcance del pulgar */
+    @media (max-width: 639px) {
+      header { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: var(--deep) !important; }
+      header nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: var(--deep); border-top: 1px solid var(--line) !important;
+                   padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.35); }
+      header nav button[id^="tab-"]:not(.plain) { font-size: 8.5px !important; letter-spacing: 0.06em; border-bottom-width: 0 !important; border-top: 2px solid transparent; padding: 0.5rem 0 0.45rem !important; }
+      header nav button.font-medium { border-top-color: var(--gold) !important; }
+      #tab-dm { display: none !important; }
+      #btnDM:not(.hidden) { display: inline-flex; }
+      main { padding-bottom: 6rem !important; }
+      #toast { bottom: 5.5rem !important; left: 1rem; right: 1rem; text-align: center; }
+    }
   </style>
 </head>
 <body class="bg-paper-light text-paper-ink dark:bg-night-bg dark:text-night-ink min-h-screen transition-colors duration-300 flex flex-col">
@@ -226,6 +255,9 @@
           <i class="gi gi-quill-ink text-base"></i> <span class="hidden sm:inline">Apuntar palabra</span>
         </button>
         
+        <button onclick="switchTab('dm')" id="btnDM" title="Panel de máster" class="hidden p-2 rounded-md border border-paper-border dark:border-night-border">
+          <i class="gi gi-castle"></i>
+        </button>
         <button onclick="reloadFromCloud(true)" id="btnQuickSync" title="Recargar el grimorio compartido" class="p-2 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-card dark:hover:bg-night-card transition">
           <i class="gi gi-cycle"></i>
         </button>
@@ -329,15 +361,6 @@
     </section>
 
     <section id="view-review" class="hidden space-y-5 max-w-2xl mx-auto">
-      <div class="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
-        <select id="reviewScope" onchange="startReview()" class="px-4 py-2.5 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm focus:outline-none">
-          <option value="mine">Repasar mis palabras</option>
-          <option value="all">Repasar las de todos</option>
-          <option value="fav">Repasar mis favoritas</option>
-          <option value="unused">Repasar las que aún no he usado</option>
-        </select>
-        <button onclick="startReview()" class="px-4 py-2.5 rounded-2xl text-xs border border-paper-border dark:border-night-border">Barajar de nuevo</button>
-      </div>
       <div id="reviewCard" class="frame rounded-3xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-8 text-center min-h-[320px]"></div>
     </section>
 
@@ -896,8 +919,8 @@
     let likes = [];          // me gusta de todo el grupo: { word_id, user_id }
     let likeMap = {};        // id de palabra -> ids de quienes le han dado me gusta
     let likesReady = false;  // true cuando la base de datos ya tiene la tabla de me gusta
-    let gameReady = false;  // true cuando la base de datos ya tiene clases y rondas de repaso
-    let reviewSessions = []; // rondas de repaso de todo el grupo
+    let gameReady = false;  // true cuando la base de datos ya tiene clases y entrenamientos
+    let reviewSessions = []; // entrenamientos de todo el grupo
     let guild = {};          // id de persona -> experiencia, nivel, estadísticas y logros
     let tonesReady = false; // true cuando la base de datos ya tiene la tabla de atmósferas
     let hasTone2 = true;    // false si la base de datos aún no tiene la segunda atmósfera
@@ -952,7 +975,7 @@
     function toneBadge(tone) {
       const name = TONES.includes(tone) ? tone : DEFAULT_TONE;
       const school = SCHOOLS[name];
-      return `<span class="tag" style="border-color:${school.color}">${esc(name)}</span>`;
+      return `<span class="tag"><i class="gi gi-${school.icon}" style="color:${school.color}"></i>${esc(name)}</span>`;
     }
 
     function toneBadges(item) {
@@ -1132,7 +1155,7 @@
       if (currentUser) {
         dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
         const me = guild[currentUser.id];
-        txt.textContent = authorName(currentUser.id) + (me ? ' · ' + me.title.name + ' · nivel ' + me.level + ' · ' + me.gold + ' de oro' : '');
+        txt.textContent = authorName(currentUser.id) + (me ? ', ' + rankLine(me, true) + '. ' + me.gold + ' de oro' : '');
       } else {
         dot.className = 'w-2 h-2 rounded-full bg-amber-500';
         txt.textContent = 'Sin conectar';
@@ -1220,6 +1243,7 @@
 
     function switchTab(tab) {
       ['glossary', 'reverse', 'review', 'bag', 'guild', 'dm'].forEach(t => {
+        if (t === 'dm') document.getElementById('btnDM').classList.toggle('hidden', !isDM());
         if (t === 'dm' && !isDM()) { document.getElementById('view-dm').classList.add('hidden'); document.getElementById('tab-dm').className = 'hidden'; return; }
         document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab);
         const btn = document.getElementById(`tab-${t}`);
@@ -1229,14 +1253,14 @@
           btn.className = 'py-2.5 border-b-2 border-transparent text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink whitespace-nowrap transition flex items-center gap-1.5';
         }
       });
-      if (tab === 'review' && reviewDeck.length === 0) startReview();
+      if (tab === 'review') renderReview();
       if (tab === 'guild') renderGuild();
       if (tab === 'bag') renderBag();
       if (tab === 'dm') renderDM();
     }
 
     // ---------- EXPERIENCIA, CLASES, NIVELES Y LOGROS ----------
-    // Todo se calcula a partir de lo que ya hay guardado (palabras, marcas y rondas de repaso),
+    // Todo se calcula a partir de lo que ya hay guardado (palabras, marcas y entrenamientos),
     // así que no hay puntos que se puedan descuadrar. Para ajustar el juego basta con tocar estas tablas.
     const XP = { word: 10, source: 5, used: 5, round: 5, hit: 1, roundsPerDay: 3, like: 2, save: 4 };
     const LEVEL_DAMAGE = 0.05; // cada nivel por encima del primero suma un 5 % de daño a los jefes
@@ -1251,18 +1275,19 @@
       xp_source: { label: 'Experiencia extra por cita con obra y autoría', text: v => `+${v} de experiencia por cada cita con obra y autoría.` },
       xp_save: { label: 'Experiencia extra por palabra ajena guardada', text: v => `+${v} de experiencia por cada palabra ajena guardada.` },
       xp_used: { label: 'Experiencia extra por palabra usada', text: v => `+${v} de experiencia por cada palabra marcada como usada.` },
-      xp_hit: { label: 'Experiencia extra por acierto en el repaso', text: v => `+${v} de experiencia por cada acierto en el repaso.` },
+      xp_hit: { label: 'Experiencia extra por acierto al entrenar', text: v => `+${v} de experiencia por cada acierto al entrenar.` },
       xp_like: { label: 'Experiencia extra por me gusta recibido', text: v => `+${v} de experiencia por cada me gusta recibido.` },
       xp_tone: { label: 'Experiencia extra por palabra de una atmósfera', tone: true, text: (v, t) => `+${v} de experiencia por cada palabra de ${t || 'la atmósfera elegida'}.` },
-      extra_round: { label: 'Rondas de repaso extra que puntúan al día', text: v => `Puntúa${v === 1 ? '' : 'n'} ${v} ronda${v === 1 ? '' : 's'} de repaso más cada día.` },
+      extra_round: { label: 'Entrenamientos extra al día', text: v => `${v} entrenamiento${v === 1 ? '' : 's'} más al día.` },
       damage_pct: { label: 'Daño extra a los jefes (%)', text: v => `+${v} % de daño a los jefes.` },
       damage_tone_pct: { label: 'Daño extra con palabras de una atmósfera (%)', tone: true, text: (v, t) => `+${v} % de daño con palabras de ${t || 'la atmósfera elegida'}.` },
-      gold_pct: { label: 'Oro extra en las rondas de repaso (%)', text: v => `+${v} % de oro en las rondas de repaso.` },
+      gold_pct: { label: 'Oro extra al entrenar (%)', text: v => `+${v} % de oro al entrenar.` },
       lockpick: { label: 'Consumible: abre un cofre', text: () => 'Abre un cofre.' },
       poison: { label: 'Consumible: veneno, daño extra durante un día (%)', text: v => `Durante un día, +${v} % de daño al jefe.` },
       potion: { label: 'Consumible: poción (protege una decana)', text: () => 'Te protege una decana sin actividad, o despierta a alguien del gremio que esté en reposo.' },
-      duel: { label: 'Consumible: pergamino de duelo', text: () => 'Reta a alguien del gremio a un duelo de repaso.' },
-      xp_round: { label: 'Experiencia extra por ronda de repaso', text: v => `+${v} de experiencia por cada ronda de repaso que puntúa.` },
+      train_ticket: { label: 'Consumible: pergamino de entrenamiento', text: () => 'Se gasta solo al empezar el segundo o el tercer entrenamiento del día.' },
+      duel: { label: 'Consumible: pergamino de duelo', text: () => 'Reta a alguien del gremio a un duelo.' },
+      xp_round: { label: 'Experiencia extra por entrenamiento', text: v => `+${v} de experiencia por cada entrenamiento.` },
       shop_pct: { label: 'Descuento en la tienda (%)', text: v => `${v} % de descuento en la tienda.` },
       sale_pct: { label: 'Más oro al vender botín (%)', text: v => `+${v} % de oro al vender el botín de los cofres.` },
       no_pick: { label: 'Abre los cofres menores sin ganzúa', text: () => 'Abres los cofres menores sin ganzúa.' },
@@ -1284,7 +1309,10 @@
     // Oro: se gana con lo que más enseña (repasar, usar las palabras, la constancia) y con los jefes
     CHESTS.level.sale = 10; CHESTS.boss.sale = 25; // oro por vender un cofre sin abrir
     CHESTS.prestige = { label: 'Cofre de prestigio', icon: 'open-treasure-chest', free: true, sale: 40, weights: { 'común': 0, 'raro': 30, 'épico': 45, 'legendario': 25 } };
-    const GOLD = { round: 3, hit: 1, used: 5, day: 2, noLoot: 30 };
+    // round y hit valen solo para los entrenamientos anteriores al cambio de reglas (los que no guardan el modo)
+    const GOLD = { round: 3, hit: 1, used: 5, day: 2, noLoot: 30, hitMine: 1, hitAll: 2, perfect: 5 };
+    // Entrenamiento: palabras por sesión y cuántos al día son gratis (el máximo diario es XP.roundsPerDay)
+    const TRAIN = { words: 10, free: 1 };
     // Vida: tres corazones; se pierde uno por cada decana (10 días) sin actividad. Empieza a contar en esta fecha.
     const LIFE = { start: '2026-11-16T00:00:00', days: 10, hearts: 3 };
     // Duelos: palabras por duelo y prestigio que dan; cada tanto prestigio, un cofre de prestigio
@@ -1446,9 +1474,9 @@
 
     const CLASSES = {
       mago: { icon: 'wizard-staff', names: { m: 'Mago', f: 'Maga', n: 'Mague' }, bonus: 'Un 50 % más de experiencia por cada palabra que apunta.' },
-      hechicero: { icon: 'magic-swirl', names: { m: 'Hechicero', f: 'Hechicera', n: 'Hechicere' }, bonus: 'Un 50 % más por cada acierto en el repaso, y el doble en las rondas perfectas.' },
+      hechicero: { icon: 'magic-swirl', names: { m: 'Hechicero', f: 'Hechicera', n: 'Hechicere' }, bonus: 'Un 50 % más por cada acierto al entrenar, y el doble en los entrenamientos perfectos.' },
       bardo: { icon: 'lyre', names: { m: 'Bardo', f: 'Barda', n: 'Barde' }, bonus: 'Un 50 % más por las citas con obra y autoría y por las palabras ya usadas.' },
-      barbaro: { icon: 'barbarian', names: { m: 'Bárbaro', f: 'Bárbara', n: 'Bárbare' }, bonus: 'Un 50 % más por cada ronda de repaso completada, acierte o no.' },
+      barbaro: { icon: 'barbarian', names: { m: 'Bárbaro', f: 'Bárbara', n: 'Bárbare' }, bonus: 'Un 50 % más por cada entrenamiento completado, acierte o no.' },
       paladin: { icon: 'templar-shield', names: { m: 'Paladín', f: 'Paladina', n: 'Paladine' }, bonus: 'Un 10 % más por cada día seguido de actividad, hasta un 50 %.' },
       picaro: { icon: 'rogue', names: { m: 'Pícaro', f: 'Pícara', n: 'Pícare' }, bonus: 'Gana 10 de experiencia, en lugar de 4, por cada palabra ajena que guarda en su grimorio.' }
     };
@@ -1470,8 +1498,8 @@
       { icon: 'polar-star', name: 'Multiclase', desc: 'Ten palabras de cinco atmósferas distintas', test: s => Object.keys(s.byTone).length >= 5 },
       { icon: 'scroll-unfurled', name: 'Saber arcano', desc: 'Diez citas con obra y autoría', test: s => s.sourced >= 10 },
       { icon: 'quill-ink', name: 'Conjuro lanzado', desc: 'Usa diez palabras en tus textos', test: s => s.used >= 10 },
-      { icon: 'round-star', name: 'Veinte natural', desc: 'Acierta todas en una ronda de cinco o más', test: s => s.perfect >= 1 },
-      { icon: 'hourglass', name: 'Entrenamiento de combate', desc: 'Completa veinte rondas de repaso', test: s => s.rounds >= 20 },
+      { icon: 'round-star', name: 'Veinte natural', desc: 'Acierta todas las palabras de un entrenamiento', test: s => s.perfect >= 1 },
+      { icon: 'hourglass', name: 'Entrenamiento de combate', desc: 'Completa veinte entrenamientos', test: s => s.rounds >= 20 },
       { icon: 'fire', name: 'Guardia de siete noches', desc: 'Siete días seguidos de actividad', test: s => s.bestStreak >= 7 },
       { icon: 'palette', name: 'Artífice de mundos', desc: 'Crea una atmósfera', test: s => s.tonesCreated >= 1 },
       { icon: 'swap-bag', name: 'Juego de manos', desc: 'Guarda en tu grimorio cinco palabras de otras personas', test: s => s.saved >= 5 },
@@ -1590,7 +1618,10 @@
         let hitPoints = s.hits * (XP.hit + fx('xp_hit', at)) * (cls === 'hechicero' ? 1.5 : 1);
         if (cls === 'hechicero' && isPerfect) hitPoints *= 2;
         addDay(s.created_at, (XP.round + fx('xp_round', at)) * (cls === 'barbaro' ? 1.5 : 1) + hitPoints);
-        goldEarned += (GOLD.round + s.hits * GOLD.hit) * (1 + fx('gold_pct', at) / 100);
+        const sessionGold = !s.scope ? GOLD.round + s.hits * GOLD.hit
+          : s.scope === 'all' ? s.hits * GOLD.hitAll + (s.hits === s.total && s.total >= TRAIN.words ? GOLD.perfect : 0)
+          : s.hits * GOLD.hitMine;
+        goldEarned += sessionGold * (1 + fx('gold_pct', at) / 100);
       });
 
       // Vida: corazones, decanas sin actividad y periodos en reposo (lo hecho en reposo no daña ni puntúa)
@@ -1662,6 +1693,8 @@
       stats.week = Math.round(stats.weekly[weekKey(Date.now())] || 0);
       stats.weeksWon = 0; // se rellena en refreshGuild, comparando con el resto del gremio
       stats.life = life;
+      stats.trainToday = roundsByDay[dayKey(new Date())] || 0;
+      stats.trainMax = XP.roundsPerDay + fx('extra_round', null);
       stats.perk = { shop: Math.min(90, fx('shop_pct', null)), sale: fx('sale_pct', null), noPick: fx('no_pick', null) > 0 };
       Object.assign(stats, duelStats(userId));
       stats.finishers = dungeonRows.filter(r => r.defeated_by === userId).length;
@@ -1670,6 +1703,13 @@
 
       stats.achievements = ACHIEVEMENTS.map(a => Boolean(a.test(stats)));
       return stats;
+    }
+
+    // «pícara escriba de nivel 3», para leerlo como una frase
+    function rankLine(s, withLevel = false) {
+      if (!s) return 'aprendiz';
+      const who = [s.className, s.title.name].filter(Boolean).join(' ').toLowerCase();
+      return withLevel ? `${who} de nivel ${s.level}` : who;
     }
 
     function likesFor(wordId) { return likeMap[wordId] || []; }
@@ -1834,7 +1874,7 @@
           </ul>
           ${relicsBlock()}
           ${fallen ? `<div class="rule mt-6"><span class="quote text-xs">Jefes caídos</span></div><ul class="mt-3 space-y-1.5 max-w-md mx-auto">${fallen}</ul>` : ''}
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-5 text-center">Apuntar palabras, repasar y recibir me gusta hace daño al jefe actual. No hay plazo, y el daño que sobra al derrotarlo no pasa al siguiente.</p>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-5 text-center">Apuntar palabras, entrenar y recibir me gusta hace daño al jefe actual. No hay plazo, y el daño que sobra al derrotarlo no pasa al siguiente.</p>
         </div>`;
     }
 
@@ -1871,7 +1911,7 @@
         <div class="frame rank-card bg-paper-card dark:bg-night-card border ${me ? 'border-paper-accent/60 dark:border-night-accent/50' : 'border-paper-border dark:border-night-border'} min-w-0 px-2 py-3 sm:px-4 sm:py-5 text-center">
           ${portrait(p, s)}
           <p class="word-title text-lg sm:text-2xl text-paper-accent dark:text-night-accent">${esc(s.title.name)}</p>
-          <p class="label-caps text-[9.5px] mt-1.5 truncate">${esc(s.className || 'Sin clase')} · nivel ${s.level}</p>
+          <p class="label-caps text-[9.5px] mt-1.5 truncate">${esc(s.className || 'Sin clase')} de nivel ${s.level}</p>
           <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted mt-1 flex items-center justify-center gap-1.5">
             <span class="w-1.5 h-1.5 shrink-0 rounded-full" style="background:${authorColor(p.id)}"></span>
             <span class="truncate">${esc(p.display_name)}${me ? ' (tú)' : ''}</span>
@@ -1880,7 +1920,7 @@
             <div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div>
           </div>
           ${heartsRow(s)}
-          <p class="hidden sm:block quote text-xs mt-2">${s.xp} XP · faltan ${s.toNext} para el nivel ${s.level + 1}</p>
+          <p class="hidden sm:block quote text-xs mt-2">${s.xp} de experiencia, faltan ${s.toNext} para el nivel ${s.level + 1}</p>
         </div>`;
       }).join('');
     }
@@ -1917,7 +1957,7 @@
         const me = p.id === currentUser.id;
         const rows = [
           ['Palabras', s.words], ['Este mes', s.thisMonth], ['Citas con fuente', s.sourced],
-          ['Ya usadas', `${s.used} (${pct(s.used, s.words)})`], ['Rondas de repaso', s.rounds],
+          ['Ya usadas', `${s.used} (${pct(s.used, s.words)})`], ['Entrenamientos', s.rounds],
           ['Aciertos', pct(s.hits, s.asked)], ['Racha actual', s.currentStreak + (s.currentStreak === 1 ? ' día' : ' días')],
           ['Mejor racha', s.bestStreak + (s.bestStreak === 1 ? ' día' : ' días')],
           ['Oro', s.gold], ['Guardadas de otros', s.saved], ['Prestigio', s.prestige], ['Duelos ganados', `${s.duelsWon} de ${s.duelsPlayed}`], ['Semanas ganadas', s.weeksWon], ['Golpes de gracia', s.finishers], ['Daño a los jefes', '+' + Math.round((s.damageBonus - 1) * 100) + ' %'],
@@ -1930,9 +1970,9 @@
           <div class="text-center">
             ${portrait(p, s)}
             <p class="word-title text-2xl text-paper-accent dark:text-night-accent">${esc(s.title.name)}</p>
-            <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted mt-1.5">${esc(p.display_name)}${me ? ' (tú)' : ''} · ${esc(s.className || 'Sin clase')} · nivel ${s.level}</p>
+            <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted mt-1.5">${esc(p.display_name)}${me ? ' (tú)' : ''}, ${esc((s.className || 'sin clase').toLowerCase())} de nivel ${s.level}</p>
             <div class="mt-3 h-px bg-paper-border dark:bg-night-border"><div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div></div>
-            <p class="quote text-xs mt-2">${s.xp} XP · faltan ${s.toNext} para el nivel ${s.level + 1}</p>
+            <p class="quote text-xs mt-2">${s.xp} de experiencia, faltan ${s.toNext} para el nivel ${s.level + 1}</p>
             ${heartsRow(s)}
             ${gearRow(p.id)}
             ${perkLine(p.id, s.cls)}
@@ -1961,7 +2001,7 @@
               <span><strong class="font-medium">${esc(a.name)}</strong><span class="block text-xs text-paper-muted dark:text-night-muted">${esc(a.desc)}</span></span>
             </li>`).join('')}
           </ul>
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save} por cada palabra ajena que guardas en tu grimorio, ${XP.used} por palabra ya usada, ${XP.round} por ronda de repaso más ${XP.hit} por acierto (puntúan las ${XP.roundsPerDay} primeras rondas de cada día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${Math.round(LEVEL_DAMAGE * 100)} % de daño a los jefes.</p>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save} por cada palabra ajena que guardas en tu grimorio, ${XP.used} por palabra ya usada, ${XP.round} por entrenamiento más ${XP.hit} por acierto (hasta ${XP.roundsPerDay} al día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${Math.round(LEVEL_DAMAGE * 100)} % de daño a los jefes.</p>
         </div>`;
 
       panel.innerHTML = dungeonPanel() + weeklyBlock() + duelsBlock() + chooser + `<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">${members}</div>` + legend;
@@ -2026,7 +2066,7 @@
         .sort((a, b) => a.display_name.localeCompare(b.display_name, 'es'));
       select.innerHTML =
         '<option value="all">Todos los autores</option>' +
-        '<option value="mine">Solo mi grimorio</option>' +
+        '<option value="mine">Mi grimorio (mías y guardadas)</option>' +
         others.map(p => `<option value="${esc(p.id)}">De ${esc(p.display_name)}</option>`).join('');
       select.value = [...select.options].some(o => o.value === previous) ? previous : 'all';
     }
@@ -2097,20 +2137,20 @@
           : `<button onclick="toggleLike('${esc(item.id)}')" title="${esc(likersTitle)}" class="plain text-base leading-none whitespace-nowrap ${liked ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${liked ? '♥' : '♡'}${likers.length ? ' ' + likers.length : ''}</button>`;
         const action = mine
           ? `<span class="flex items-center gap-3">
-               <button onclick="toggleFlag('${esc(item.id)}', 'is_favorite')" title="${item.is_favorite ? 'Quitar de favoritas' : 'Marcar como favorita'}" class="plain text-base leading-none ${item.is_favorite ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${item.is_favorite ? '★' : '☆'}</button>
+               <button onclick="toggleFlag('${esc(item.id)}', 'is_favorite')" title="${item.is_favorite ? 'Es una de tus favoritas. Pulsa para quitarla' : 'Favorita: la destacas para filtrarla o entrenar solo con ellas'}" class="plain text-base leading-none ${item.is_favorite ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${item.is_favorite ? '★' : '☆'}</button>
                <button onclick="toggleFlag('${esc(item.id)}', 'is_used')" title="${item.is_used ? 'Ya la has usado en un texto. Pulsa para desmarcar' : 'Marcar como ya usada en un texto'}" class="text-[10px] ${item.is_used ? 'text-emerald-500' : 'text-paper-muted dark:text-night-muted'}"><i class="gi gi-check-mark"></i> ${item.is_used ? 'Usada' : 'Sin usar'}</button>
                <button onclick="openEditModal('${esc(item.id)}')" title="Editar" class="text-sm text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink"><i class="gi gi-quill"></i></button>
                <button onclick="deleteGlossaryWord('${esc(item.id)}')" title="Eliminar" class="text-sm text-paper-muted dark:text-night-muted hover:text-red-500"><i class="gi gi-trash-can"></i></button>
              </span>`
           : (saved
               ? `<span class="flex items-center gap-3">
-                   <button onclick="toggleFlag('${esc(item.id)}', 'is_favorite')" title="${marks.fav ? 'Quitar de favoritas' : 'Marcar como favorita'}" class="plain text-base leading-none ${marks.fav ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${marks.fav ? '★' : '☆'}</button>
+                   <button onclick="toggleFlag('${esc(item.id)}', 'is_favorite')" title="${marks.fav ? 'Es una de tus favoritas. Pulsa para quitarla' : 'Favorita: la destacas para filtrarla o entrenar solo con ellas'}" class="plain text-base leading-none ${marks.fav ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${marks.fav ? '★' : '☆'}</button>
                    <button onclick="toggleFlag('${esc(item.id)}', 'is_used')" title="${marks.used ? 'Ya la has usado en un texto. Pulsa para desmarcar' : 'Marcar como ya usada en un texto'}" class="text-[10px] ${marks.used ? 'text-emerald-500' : 'text-paper-muted dark:text-night-muted'}"><i class="gi gi-check-mark"></i> ${marks.used ? 'Usada' : 'Sin usar'}</button>
-                   <button onclick="toggleSave('${esc(item.id)}')" title="Quitar de tu grimorio" class="text-sm text-paper-muted dark:text-night-muted hover:text-red-500"><i class="gi gi-cancel"></i></button>
+                   <button onclick="toggleSave('${esc(item.id)}')" title="Está guardada en tu grimorio: entra en tus entrenamientos y puedes marcarla. Pulsa para quitarla." class="text-[10px] text-paper-accent dark:text-night-accent"><i class="gi gi-check-mark"></i> En tu grimorio</button>
                  </span>`
               : (myWords().some(w => norm(w.word) === norm(item.word))
-                  ? `<span class="text-[11px] text-paper-muted dark:text-night-muted">★ También en el tuyo</span>`
-                  : `<button onclick="toggleSave('${esc(item.id)}')" class="text-[11px] px-2.5 py-0.5 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-light dark:hover:bg-night-bg transition">+ A mi grimorio</button>`));
+                  ? `<span class="text-xs text-paper-muted dark:text-night-muted">También la tienes apuntada</span>`
+                  : `<button onclick="toggleSave('${esc(item.id)}')" class="text-[11px] px-2.5 py-0.5 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-light dark:hover:bg-night-bg transition" title="No la copia: la añade a tu grimorio para entrenarla y marcarla como usada o favorita. Sigue siendo de quien la apuntó.">Guardar en mi grimorio</button>`));
         return `
         <article class="frame lift bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5 flex flex-col justify-between gap-3">
           ${ribbons(item)}
@@ -2130,12 +2170,12 @@
           <div class="space-y-2 text-xs">
             <div class="rule"><i class="gi gi-${schoolOf(item.tone).icon}"></i></div>
             <div class="flex items-center justify-between gap-2">
-              <span class="text-paper-muted dark:text-night-muted"><span class="label-caps text-[9.5px]">Idea llana</span> <strong class="text-paper-accent dark:text-night-accent font-medium">${esc(item.plain || '—')}</strong></span>
+              <span class="text-paper-muted dark:text-night-muted">${item.plain ? `En llano: <strong class="text-paper-accent dark:text-night-accent font-medium">${esc(item.plain)}</strong>` : ''}</span>
               <span class="text-[11px] text-paper-muted dark:text-night-muted">${esc(item.syllables)}</span>
             </div>
             <div class="flex items-center gap-1.5 text-[11px] text-paper-muted dark:text-night-muted">
               ${miniAvatar(item.author_id)}
-              <span>Apuntada por ${mine ? 'ti' : esc(name)} · ${esc([guild[item.author_id]?.className, guild[item.author_id]?.title.name || 'Aprendiz'].filter(Boolean).join(' · '))}${saved ? ' · en tu grimorio' : ''}</span>
+              <span>Apuntada por ${mine ? 'ti' : esc(name) + ', ' + esc(rankLine(guild[item.author_id]))}.</span>
             </div>
           </div>
         </article>`;
@@ -2666,7 +2706,7 @@
 
     // ---------- VIDA, CLASIFICACIÓN SEMANAL, DUELOS Y PRESTIGIO ----------
     // Recorre la actividad de una persona en orden y devuelve sus corazones y sus periodos en reposo.
-    // Cada decana sin actividad quita un corazón (o gasta una poción). Una ronda de repaso devuelve uno.
+    // Cada decana sin actividad quita un corazón (o gasta una poción). Un entrenamiento devuelve uno.
     // A cero queda en reposo hasta completar una ronda o recibir una poción de otra persona.
     function lifeState(userId, activity, rounds) {
       const D = LIFE.days * 86400000;
@@ -2715,8 +2755,8 @@
       if (!lifeReady || !s.life) return '';
       const date = t => new Date(t).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
       const text = s.life.resting
-        ? 'Estás en reposo: conservas palabras y nivel, pero no haces daño ni puntúas en la clasificación. Te despierta completar una ronda de repaso o que alguien del gremio te dé una poción.'
-        : `Cada decana (${LIFE.days} días) sin apuntar, guardar ni repasar pierdes un corazón; el próximo, el ${date(s.life.nextLoss)}. Una ronda de repaso devuelve uno.${s.life.shield ? ` Tienes ${s.life.shield === 1 ? 'una poción activa' : s.life.shield + ' pociones activas'}.` : ''}`;
+        ? 'Estás en reposo: conservas palabras y nivel, pero no haces daño ni puntúas en la clasificación. Te despierta completar un entrenamiento o que alguien del gremio te dé una poción.'
+        : `Cada decana (${LIFE.days} días) sin apuntar, guardar ni entrenar pierdes un corazón; el próximo, el ${date(s.life.nextLoss)}. Un entrenamiento devuelve uno.${s.life.shield ? ` Tienes ${s.life.shield === 1 ? 'una poción activa' : s.life.shield + ' pociones activas'}.` : ''}`;
       return `<div class="flex items-start justify-center gap-3 mt-4 pt-4 border-t border-paper-border/60 dark:border-night-border/60">${heartsRow(s)}</div>
           <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-2">${text}</p>`;
     }
@@ -2814,7 +2854,7 @@
       if (!lifeGuard() || !u || !me || itemsById[u.item_id].effect_type !== 'potion') return;
       const it = itemsById[u.item_id];
       if (targetId && (!profiles[targetId] || targetId === currentUser.id)) return;
-      if (!targetId && me.life.resting) { showToast('En reposo solo te despierta una ronda de repaso o la poción de otra persona'); return; }
+      if (!targetId && me.life.resting) { showToast('En reposo solo te despierta un entrenamiento o la poción de otra persona'); return; }
       const question = targetId
         ? `¿Dar «${it.name}» a ${authorName(targetId)}?${guild[targetId].life.resting ? ' Despertará de su reposo.' : ' Le protegerá una decana sin actividad.'}`
         : `¿Beber «${it.name}»? Te protegerá una decana sin actividad.`;
@@ -2866,6 +2906,7 @@
       glossary.forEach(w => { byId[w.id] = w; });
       const deck = (Array.isArray(d.word_ids) ? d.word_ids : []).map(id => byId[id]).filter(Boolean);
       if (deck.length === 0) { showToast('Las palabras de este duelo ya no existen'); return; }
+      reviewActive = true;
       reviewDuel = { id: d.id, side, started: Date.now(), rival: side === 'challenger' ? d.opponent_id : d.challenger_id };
       reviewDeck = deck;
       reviewIndex = 0;
@@ -2895,6 +2936,7 @@
 
     function leaveDuel() {
       reviewDuel = null;
+      reviewActive = false;
       reviewDeck = [];
       switchTab('guild');
     }
@@ -2981,7 +3023,7 @@
             <div><i class="gi gi-locked-chest text-3xl text-paper-accent dark:text-night-accent"></i><p class="word-title text-3xl mt-1">${me.chests.length}</p><p class="label-caps text-[9px] text-paper-muted dark:text-night-muted">Cofres por abrir</p></div>
             <div><i class="gi gi-key text-3xl text-paper-accent dark:text-night-accent"></i><p class="word-title text-3xl mt-1">${picks.length}</p><p class="label-caps text-[9px] text-paper-muted dark:text-night-muted">Ganzúas</p></div>
           </div>
-          <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-4">El oro se gana repasando (${GOLD.round} por ronda que puntúa y ${GOLD.hit} por acierto), usando palabras en tus textos (${GOLD.used} cada una), con cada día de actividad (${GOLD.day}) y al caer un jefe.${me.poisoned ? ' Tienes veneno activo: +' + me.poisoned + ' % de daño.' : ''}</p>
+          <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-4">El oro se gana entrenando (${GOLD.hitMine} por acierto con tu grimorio; ${GOLD.hitAll} con los de todo el gremio, y ${GOLD.perfect} más si aciertas todas), usando palabras en tus textos (${GOLD.used} cada una), con cada día de actividad (${GOLD.day}) y al caer un jefe.${me.poisoned ? ' Tienes veneno activo: +' + me.poisoned + ' % de daño.' : ''}</p>
           ${lifeNote(me)}
         </div>`;
 
@@ -3023,7 +3065,7 @@
               `<button onclick="sellItem('${esc(u.id)}')" class="${small}">Vender por ${sale(it)}</button>` +
               (perksReady && others.length ? `<button onclick="openTrade('${esc(u.id)}')" class="${small}">Ofrecer</button>` : '')); }).join('')}
             ${Object.entries(consumables).map(([id, units]) => { const it = itemsById[id]; return itemCard(it,
-              `<span class="label-caps text-[9px] text-paper-muted dark:text-night-muted w-full">Tienes ${units.length}</span>` +
+              `<span class="text-xs text-paper-muted dark:text-night-muted w-full">Tienes ${units.length}</span>` +
               (it.effect_type === 'poison' ? `<button onclick="usePoison('${esc(units[0].id)}')" class="${smallGold}">Usar</button>` : '') +
               (it.effect_type === 'potion' ? (me.life.resting ? '' : `<button onclick="usePotion('${esc(units[0].id)}', '')" class="${smallGold}">Beber</button>`) +
                 others.map(p => `<button onclick="usePotion('${esc(units[0].id)}', '${esc(p.id)}')" class="${small}">Dar a ${esc(p.display_name)}</button>`).join('') : '') +
@@ -3947,26 +3989,98 @@
     let lastReviewNote = '';
     let reviewResult = null;  // null = aún sin responder; 'ok', 'accent' (bien salvo tildes) o 'fail'
     let reviewTyped = '';
+    let reviewActive = false; // false = se muestra la portada del entrenamiento
+    let reviewMode = 'mine';  // 'mine' o 'all': decide el oro del entrenamiento en curso
+    let trainScope = 'mine';  // lo elegido en la portada
 
+    // Vuelve a la portada del entrenamiento
     function startReview() {
       reviewDuel = null;
-      const scope = document.getElementById('reviewScope').value;
+      reviewActive = false;
+      reviewDeck = [];
+      renderReview();
+    }
+
+    function setTrainScope(value) { trainScope = ['mine', 'all', 'fav', 'unused'].includes(value) ? value : 'mine'; }
+
+    function myTickets() { return myItems().filter(u => itemsById[u.item_id].effect_type === 'train_ticket'); }
+
+    function trainingPool(scope) {
       let pool = glossary.filter(w => str(w.definition));
       if (scope !== 'all') pool = pool.filter(w => myMarks(w).inMine);
       if (scope === 'fav') pool = pool.filter(w => myMarks(w).fav);
       if (scope === 'unused') pool = pool.filter(w => !myMarks(w).used);
+      return pool;
+    }
+
+    // Empieza un entrenamiento: comprueba el máximo del día y gasta un pergamino si no es el gratuito
+    async function beginTraining() {
+      const me = currentUser ? guild[currentUser.id] : null;
+      if (!me) return;
+      if (me.trainToday >= me.trainMax) { showToast(`Ya has hecho los ${me.trainMax} entrenamientos de hoy`); return; }
+      const pool = trainingPool(trainScope);
+      if (pool.length === 0) { showToast('No hay palabras para entrenar con esa selección'); return; }
+      if (economyReady && me.trainToday >= TRAIN.free) {
+        const ticket = myTickets()[0];
+        if (!ticket) { showToast('Necesitas un pergamino de entrenamiento. Se compran en la tienda del zurrón.'); return; }
+        const { error } = await sb.from('user_items').delete().eq('id', ticket.id);
+        if (error) { showToast('No se pudo gastar el pergamino: ' + error.message); return; }
+        userItems = userItems.filter(x => x.id !== ticket.id);
+      }
       for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [pool[i], pool[j]] = [pool[j], pool[i]];
       }
-      reviewDeck = pool.slice(0, 20);
+      reviewDuel = null;
+      reviewMode = trainScope === 'all' ? 'all' : 'mine';
+      reviewDeck = pool.slice(0, TRAIN.words);
       reviewIndex = 0;
       reviewHits = 0;
       reviewRevealed = false;
       reviewResult = null;
       reviewTyped = '';
       lastReviewNote = '';
+      reviewActive = true;
       renderReview();
+    }
+
+    // Portada: cuántos llevas hoy, qué cuesta el siguiente y qué da cada modo
+    function trainingMenu() {
+      const me = currentUser ? guild[currentUser.id] : null;
+      if (!me) return '';
+      const primary = 'px-5 py-2.5 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg';
+      const secondary = 'px-5 py-2.5 rounded-xl text-xs border border-paper-border dark:border-night-border';
+      const done = me.trainToday >= me.trainMax;
+      const paid = economyReady && me.trainToday >= TRAIN.free;
+      const tickets = myTickets().length;
+      const next = done ? `Ya has hecho los ${me.trainMax} de hoy. Mañana vuelves a tener el primero gratis.`
+        : !paid ? 'El siguiente es gratis.'
+        : tickets ? `El siguiente gasta un pergamino de entrenamiento. Te ${tickets === 1 ? 'queda uno' : 'quedan ' + tickets}.`
+        : 'El siguiente cuesta un pergamino de entrenamiento y no te queda ninguno.';
+      const options = [
+        ['mine', `Solo mi grimorio: ${GOLD.hitMine} de oro por acierto`],
+        ['all', `Todos los grimorios: ${GOLD.hitAll} de oro por acierto y ${GOLD.perfect} más si aciertas todas`],
+        ['fav', `Solo mis favoritas: ${GOLD.hitMine} de oro por acierto`],
+        ['unused', `Las que aún no he usado: ${GOLD.hitMine} de oro por acierto`]
+      ];
+      return `
+          <h2 class="title-outline text-4xl">Entrenamiento</h2>
+          <p class="word-title text-5xl mt-6 text-paper-accent dark:text-night-accent">${me.trainToday} de ${me.trainMax}</p>
+          <p class="text-sm text-paper-muted dark:text-night-muted mt-1">entrenamientos hechos hoy</p>
+          <p class="quote text-base mt-4">${next}</p>
+          ${done ? '' : `
+          <div class="max-w-sm mx-auto mt-6 text-left">
+            <label for="reviewScope" class="text-xs font-medium text-paper-muted dark:text-night-muted">Qué palabras entran</label>
+            <select id="reviewScope" onchange="setTrainScope(this.value)" class="w-full mt-1 px-3 py-2.5 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm">
+              ${options.map(([v, l]) => `<option value="${v}"${v === trainScope ? ' selected' : ''}>${l}</option>`).join('')}
+            </select>
+          </div>
+          <div class="flex flex-wrap justify-center gap-3 mt-6">
+            ${paid && !tickets
+              ? `<button onclick="switchTab('bag')" class="${primary}">Ir a la tienda</button>`
+              : `<button onclick="beginTraining()" class="${primary}">Empezar entrenamiento</button>`}
+          </div>`}
+          <p class="text-sm text-paper-muted dark:text-night-muted mt-8 max-w-md mx-auto leading-relaxed">Cada entrenamiento son ${TRAIN.words} palabras al azar: lees la definición y escribes la palabra. Puedes hacer ${me.trainMax} al día como máximo. El primero es gratis; cada uno de los demás gasta un pergamino de entrenamiento, que se compra en la tienda. Todos dan ${XP.round} de experiencia más ${XP.hit} por acierto, y devuelven un corazón.</p>`;
     }
 
     const stripAccents = s => str(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -3998,34 +4112,31 @@
     async function recordReview() {
       if (!gameReady || !currentUser) return;
       const before = guild[currentUser.id] || computeStats(currentUser.id);
-      const { data, error } = await sb.from('review_sessions').insert({ total: reviewDeck.length, hits: reviewHits }).select().single();
-      if (error) { lastReviewNote = 'No se pudo registrar la ronda: ' + error.message; return; }
+      let { data, error } = await sb.from('review_sessions').insert({ total: reviewDeck.length, hits: reviewHits, scope: reviewMode }).select().single();
+      // Si la base de datos aún no conoce el modo, se guarda como antes
+      if (error && /scope/.test(error.message || '')) ({ data, error } = await sb.from('review_sessions').insert({ total: reviewDeck.length, hits: reviewHits }).select().single());
+      if (error) { lastReviewNote = 'No se pudo registrar el entrenamiento: ' + error.message; return; }
       reviewSessions.push(data);
       renderGlossary();
       const after = guild[currentUser.id] || before;
-      const gained = after.xp - before.xp;
-      lastReviewNote = gained > 0
-        ? `+${gained} XP` + (after.level > before.level ? ` · ¡Subes al nivel ${after.level}!` : '')
-        : 'Hoy ya has puntuado tres rondas; esta no suma experiencia.';
+      const gained = after.xp - before.xp, gold = after.gold - before.gold;
+      lastReviewNote = `+${gained} de experiencia` + (gold > 0 ? ` y +${gold} de oro` : '') + (after.level > before.level ? `. ¡Subes al nivel ${after.level}!` : '.');
     }
 
     function renderReview() {
       const box = document.getElementById('reviewCard');
       const primary = 'px-5 py-2.5 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg';
       const secondary = 'px-5 py-2.5 rounded-xl text-xs border border-paper-border dark:border-night-border';
-      if (reviewDeck.length === 0) {
-        box.innerHTML = `<p class="quote text-base mt-16">No hay palabras para repasar con esta selección.</p>`;
-        return;
-      }
+      if (!reviewActive || reviewDeck.length === 0) { box.innerHTML = trainingMenu(); return; }
       if (reviewIndex >= reviewDeck.length) {
         box.innerHTML = `
-          <div class="rule"><span class="quote text-xs">${reviewDuel ? 'Duelo terminado' : 'Ronda terminada'}</span></div>
+          <div class="rule"><span class="quote text-xs">${reviewDuel ? 'Duelo terminado' : 'Entrenamiento terminado'}</span></div>
           <p class="word-title text-5xl mt-8 text-paper-accent dark:text-night-accent">${reviewHits} de ${reviewDeck.length}</p>
           <p class="label-caps text-[10px] text-paper-muted dark:text-night-muted mt-2">palabras acertadas</p>
           ${lastReviewNote ? `<p class="quote text-sm mt-4">${esc(lastReviewNote)}</p>` : ''}
           <div class="mt-8">${reviewDuel
             ? `<button onclick="leaveDuel()" class="${primary}">Volver al gremio</button>`
-            : `<button onclick="startReview()" class="${primary}">Otra ronda</button>`}</div>`;
+            : `<button onclick="startReview()" class="${primary}">Volver</button>`}</div>`;
         return;
       }
       const w = reviewDeck[reviewIndex];
@@ -4041,7 +4152,7 @@
           <h3 class="word-title text-5xl mt-2">${fancyWord(w.word)}</h3>
           <p class="text-xs italic text-paper-muted dark:text-night-muted mt-1">${esc(w.category)}${w.syllables ? ' · ' + esc(w.syllables) : ''}</p>
           ${w.example ? `<p class="quote text-sm mt-4">«${esc(w.example.replace(/[«»]/g, ''))}»</p>` : ''}
-          <div class="mt-7"><button id="reviewNext" onclick="nextReview()" class="${primary}">${reviewIndex + 1 === reviewDeck.length ? 'Terminar la ronda' : 'Siguiente'}</button></div>` : `
+          <div class="mt-7"><button id="reviewNext" onclick="nextReview()" class="${primary}">${reviewIndex + 1 === reviewDeck.length ? 'Terminar' : 'Siguiente'}</button></div>` : `
           <div class="max-w-xs mx-auto mt-7">
             <input type="text" id="reviewAnswer" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Escribe la palabra" onkeydown="if(event.key==='Enter')checkReview()"
                    class="w-full px-4 py-2.5 rounded-xl bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border text-center" />
