@@ -172,7 +172,7 @@
 
     /* Impresión o PDF: solo las fichas del grimorio, en tinta sobre blanco */
     @media print {
-      header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-bag, #view-guild, #view-dm, #dmBossModal, #dmItemModal, #lootModal, #tradeModal, #helpModal, #welcomeModal, .no-print, .ribbon-wrap { display: none !important; }
+      header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-bag, #view-guild, #view-dm, #dmBossModal, #dmItemModal, #lootModal, #tradeModal, #helpModal, #welcomeModal, #notifModal, .no-print, .ribbon-wrap { display: none !important; }
       html { font-size: 12px; }
       body::before { display: none !important; }
       body, #view-glossary article { background: #fff !important; background-image: none !important; color: #000 !important; }
@@ -205,7 +205,9 @@
     header nav button[id^="tab-"] { position: relative; }
     .nav-badge { position: absolute; top: 2px; right: -10px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 9999px; background: var(--gold); color: #06080F;
                  font: 600 9.5px/15px 'EB Garamond', Georgia, serif; letter-spacing: 0; text-align: center; }
-    @media (max-width: 639px) { .nav-badge { top: 4px; right: calc(50% - 22px); } }
+    @media (max-width: 639px) { header nav .nav-badge { top: 4px; right: calc(50% - 22px); } }
+    #btnNotifs { position: relative; }
+    #btnNotifs .nav-badge { top: -4px; right: -4px; }
     /* Instalada como app, la cabecera deja sitio a la barra de estado del teléfono */
     header { padding-top: env(safe-area-inset-top); }
     details > summary { list-style-position: outside; }
@@ -273,8 +275,8 @@
         <button onclick="switchTab('dm')" id="btnDM" title="Panel de máster" class="hidden p-2 rounded-md border border-paper-border dark:border-night-border">
           <i class="gi gi-castle"></i>
         </button>
-        <button onclick="reloadFromCloud(true)" id="btnQuickSync" title="Recargar el grimorio compartido" class="p-2 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-card dark:hover:bg-night-card transition">
-          <i class="gi gi-cycle"></i>
+        <button onclick="openNotifs()" id="btnNotifs" title="Avisos" class="p-2 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-card dark:hover:bg-night-card transition">
+          <i class="gi gi-ringing-bell"></i>
         </button>
 
         <button onclick="toggleTheme()" title="Cambiar modo de lectura" class="p-2 rounded-md border border-paper-border dark:border-night-border hover:bg-paper-card dark:hover:bg-night-card transition">
@@ -517,6 +519,15 @@
         </div>
       </div>
 
+      <div>
+        <label for="dmBossLootMode" class="text-xs font-medium text-paper-muted dark:text-night-muted">Qué suelta su cofre</label>
+        <select id="dmBossLootMode" onchange="bossLootPreview()" class="w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm">
+          <option value="chest">El cofre de jefe normal</option>
+          <option value="own">Botín propio: elijo los objetos</option>
+        </select>
+        <div id="dmBossLootList" class="hidden mt-3 space-y-1.5"></div>
+      </div>
+
       <div class="flex justify-end gap-2 pt-2">
         <button onclick="closeBossEditor()" class="px-4 py-2 rounded-xl text-xs border border-paper-border dark:border-night-border">Cancelar</button>
         <button onclick="saveBoss()" id="btnSaveBoss" class="px-5 py-2 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg">Guardar monstruo</button>
@@ -550,7 +561,11 @@
           </div>
         </div>
       </div>
-      <div id="dmItemGearWrap" class="grid grid-cols-2 gap-3">
+      <div id="dmItemGearWrap" class="grid grid-cols-3 gap-3">
+        <div>
+          <label for="dmItemDrop" class="text-xs font-medium text-paper-muted dark:text-night-muted">Frecuencia en cofres</label>
+          <input type="number" id="dmItemDrop" min="0" step="0.5" class="w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm" />
+        </div>
         <div>
           <label for="dmItemRarity" class="text-xs font-medium text-paper-muted dark:text-night-muted">Rareza</label>
           <select id="dmItemRarity" onchange="previewItem()" class="w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm"></select>
@@ -648,6 +663,17 @@
         <button onclick="closeWelcome('help')" class="px-5 py-2.5 rounded-xl text-xs border border-paper-border dark:border-night-border">Leer cómo se juega</button>
         <button onclick="closeWelcome()" class="plain text-sm text-paper-muted dark:text-night-muted mt-1">Ahora no</button>
       </div>
+    </div>
+  </div>
+
+  <div id="notifModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4" onclick="if(event.target===this)closeNotifs()">
+    <div class="bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border rounded-3xl max-w-lg w-full p-6 shadow-xl max-h-[88vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <h3 class="title-outline text-3xl">Avisos</h3>
+        <button onclick="closeNotifs()" class="text-paper-muted hover:text-paper-ink text-xl">✕</button>
+      </div>
+      <div id="notifBody" class="mt-2"></div>
+      <div class="flex justify-end mt-5"><button onclick="notifRefresh()" class="px-4 py-2 rounded-xl text-xs border border-paper-border dark:border-night-border"><i class="gi gi-cycle"></i> Actualizar</button></div>
     </div>
   </div>
 
@@ -967,6 +993,8 @@
     let statsReady = false;   // true cuando la base de datos ya guarda aciertos por palabra
     let dmLogRows = [];       // registro de cambios del máster (solo lo ve el máster)
     let reviewLog = [];       // resultado de cada palabra del entrenamiento en curso
+    let attrRows = {};        // puntos de atributo repartidos: user_id -> { fuerza: 2, ... }
+    let attrsReady = false;   // true cuando la base de datos ya guarda atributos
     let contentReady = false; // true cuando la base de datos ya tiene las tablas de jefes y objetos
     let contentFromDb = false; // true cuando los jefes que se muestran vienen de la base de datos
     let saves = [];          // palabras ajenas guardadas en el grimorio de cada persona: { word_id, user_id, is_favorite, is_used }
@@ -1220,7 +1248,7 @@
     // ---------- CARGA DE DATOS ----------
     async function reloadFromCloud(notify = false) {
       if (!currentUser) return;
-      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes, cgRes, duRes, pkRes, trRes, cfRes, aeRes, wsRes, logRes] = await Promise.all([
+      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes, cgRes, duRes, pkRes, trRes, cfRes, aeRes, wsRes, logRes, atRes] = await Promise.all([
         sb.from('profiles').select('*'),
         sb.from('words').select('*').order('created_at', { ascending: false }),
         sb.from('tones').select('*').order('created_at', { ascending: true }),
@@ -1242,7 +1270,8 @@
         sb.from('game_config').select('*'),
         sb.from('allowed_emails').select('*'),
         sb.from('word_stats').select('*').eq('user_id', currentUser.id),
-        sb.from('dm_log').select('*').order('created_at', { ascending: false }).limit(60)
+        sb.from('dm_log').select('*').order('created_at', { ascending: false }).limit(60),
+        sb.from('user_attrs').select('*')
       ]);
       if (pRes.error || wRes.error) {
         showToast('No se pudo cargar el grimorio: ' + (pRes.error || wRes.error).message);
@@ -1284,6 +1313,9 @@
       wordStats = {};
       (statsReady ? wsRes.data : []).forEach(r => { wordStats[r.word_id] = { hits: r.hits, fails: r.fails }; });
       dmLogRows = logRes.error ? [] : logRes.data;
+      attrsReady = !atRes.error;
+      attrRows = {};
+      (attrsReady ? atRes.data : []).forEach(r => { attrRows[r.user_id] = r.points && typeof r.points === 'object' ? r.points : {}; });
       perkRows = perksReady ? pkRes.data : [];
       trades = perksReady ? trRes.data : [];
       contentReady = !bRes.error && !iRes.error;
@@ -1335,6 +1367,8 @@
     // Multiplicador del daño ante la debilidad y ante la resistencia de un jefe
     const COMBAT = { weak: 2, strong: 0.5 };
     // Bonificación de cada clase, en % extra (la del pícaro es experiencia fija por palabra ajena guardada)
+    // Atributos: puntos que da cada nivel a partir del 2 y lo que vale cada punto
+    const ATTR = { perLevel: 1, fuerza: 2, inteligencia: 0.5, sabiduria: 0.2, destreza: 5, constitucion: 1, carismaOro: 3, carismaTienda: 1 };
     const CLS = { mago: { word: 50 }, hechicero: { hit: 50, perfect: 100 }, bardo: { source: 50, used: 50 }, barbaro: { round: 50 }, paladin: { step: 10, max: 50 }, picaro: { save: 10 } };
 
     // La mazmorra: jefes encadenados, sin plazo. Toda la experiencia que gana el grupo es daño al jefe actual.
@@ -1364,6 +1398,8 @@
       sale_pct: { label: 'Más oro al vender botín (%)', text: v => `+${v} % de oro al vender el botín de los cofres.` },
       no_pick: { label: 'Abre los cofres menores sin ganzúa', text: () => 'Abres los cofres menores sin ganzúa.' },
       xp_pct: { label: 'Experiencia extra en todo (%)', text: v => `+${v} % de experiencia por apuntar, guardar y entrenar.` },
+      loot_luck: { label: 'Suerte con el botín (%)', text: v => `+${v} % de probabilidad de botín épico o legendario.` },
+      heart_days: { label: 'Días extra antes de perder un corazón', text: v => `${v} día${v === 1 ? '' : 's'} más antes de perder un corazón.` },
       weak_factor: { label: 'Golpe más fuerte a la debilidad del jefe', text: v => `Los golpes a la debilidad del jefe hacen ×${String(2 + v).replace('.', ',')} en lugar de ×2.` }
     };
 
@@ -1394,7 +1430,7 @@
     const WEEK = { start: '2026-11-16', gold: 50 };
 
     // ----- Reglas que el máster puede cambiar desde su panel (lo demás sigue en el código) -----
-    const RULE_ROOTS = { XP, GOLD, TRAIN, LIFE, DUEL, WEEK, COMBAT, CHESTS, RARITY, CLS };
+    const RULE_ROOTS = { XP, GOLD, TRAIN, LIFE, DUEL, WEEK, COMBAT, CHESTS, RARITY, CLS, ATTR };
     const rf = (path, label, opts = {}) => ({ path, label, min: 0, step: 1, int: true, ...opts });
     const RULES = [
       { title: 'Experiencia', fields: [
@@ -1410,6 +1446,11 @@
         rf('CLS.mago.word', 'Mago: % extra por palabra apuntada'), rf('CLS.hechicero.hit', 'Hechicero: % extra por acierto'), rf('CLS.hechicero.perfect', 'Hechicero: % extra si acierta todas'),
         rf('CLS.bardo.source', 'Bardo: % extra por cita con obra y autoría'), rf('CLS.bardo.used', 'Bardo: % extra por palabra usada'), rf('CLS.barbaro.round', 'Bárbaro: % extra por entrenamiento'),
         rf('CLS.paladin.step', 'Paladín: % extra por día seguido'), rf('CLS.paladin.max', 'Paladín: tope de ese % extra'), rf('CLS.picaro.save', 'Pícaro: experiencia por palabra ajena guardada') ] },
+      { title: 'Atributos', note: 'Lo que da cada punto. Conviene que sean valores pequeños: se suman a la clase, las habilidades y el equipo.', fields: [
+        rf('ATTR.perLevel', 'Puntos por cada nivel subido', { max: 5 }), rf('ATTR.fuerza', 'Fuerza: % de daño a los jefes', { step: 0.5, int: false }),
+        rf('ATTR.inteligencia', 'Inteligencia: experiencia por palabra apuntada', { step: 0.1, int: false }), rf('ATTR.sabiduria', 'Sabiduría: experiencia por acierto', { step: 0.1, int: false }),
+        rf('ATTR.destreza', 'Destreza: % de suerte con el botín', { step: 0.5, int: false }), rf('ATTR.constitucion', 'Constitución: días extra antes de perder un corazón', { step: 0.5, int: false }),
+        rf('ATTR.carismaOro', 'Carisma: % de oro al entrenar', { step: 0.5, int: false }), rf('ATTR.carismaTienda', 'Carisma: % de descuento en la tienda', { step: 0.5, int: false }) ] },
       { title: 'Mazmorra', fields: [
         rf('COMBAT.weak', 'Multiplicador ante la debilidad del jefe', { min: 1, step: 0.1, int: false }), rf('COMBAT.strong', 'Multiplicador ante su resistencia', { max: 1, step: 0.1, int: false }) ] },
       { title: 'Vida', fields: [
@@ -1492,6 +1533,32 @@
         .map(p => ({ name: p.name, effect_type: p.type, effect_value: p.value, effect_tone: '' }));
     }
 
+    const ATTRS = [
+      { key: 'fuerza', name: 'Fuerza', icon: 'biceps', effects: () => [['damage_pct', ATTR.fuerza]] },
+      { key: 'inteligencia', name: 'Inteligencia', icon: 'brain', effects: () => [['xp_word', ATTR.inteligencia]] },
+      { key: 'sabiduria', name: 'Sabiduría', icon: 'owl', effects: () => [['xp_hit', ATTR.sabiduria]] },
+      { key: 'destreza', name: 'Destreza', icon: 'juggler', effects: () => [['loot_luck', ATTR.destreza]] },
+      { key: 'constitucion', name: 'Constitución', icon: 'heart-organ', effects: () => [['heart_days', ATTR.constitucion]] },
+      { key: 'carisma', name: 'Carisma', icon: 'charm', effects: () => [['gold_pct', ATTR.carismaOro], ['shop_pct', ATTR.carismaTienda]] }
+    ];
+    const round2 = v => Math.round(v * 100) / 100;
+    // Puntos que tiene repartidos una persona, ya limpios
+    function attrAlloc(userId) {
+      const raw = attrRows[userId] || {}, out = {};
+      ATTRS.forEach(a => { const n = Math.floor(Number(raw[a.key]) || 0); out[a.key] = n > 0 ? n : 0; });
+      return out;
+    }
+    const attrTotal = alloc => ATTRS.reduce((sum, a) => sum + (alloc[a.key] || 0), 0);
+    // Si alguien tiene más puntos puestos de los que le tocan, dejan de contar los últimos
+    function trimAlloc(alloc, budget) {
+      const out = { ...alloc };
+      let extra = attrTotal(out) - budget;
+      for (let i = ATTRS.length - 1; i >= 0 && extra > 0; i--) { const cut = Math.min(extra, out[ATTRS[i].key]); out[ATTRS[i].key] -= cut; extra -= cut; }
+      return out;
+    }
+    // Lo que da un atributo con n puntos, en palabras
+    function attrText(a, n) { return a.effects().map(([t, v]) => effectText({ effect_type: t, effect_value: round2(v * n) })).join(' '); }
+
     function effectText(item) {
       const effect = EFFECTS[item.effect_type] || EFFECTS.none;
       return effect.text(Number(item.effect_value) || 0, item.effect_tone);
@@ -1536,7 +1603,8 @@
           id: it.id, kind: it.kind, name: str(it.name), icon: validIcon(it.icon), image: str(it.image_url),
           rarity: RARITY[it.rarity] ? it.rarity : 'común', slot: SLOTS[it.slot] ? it.slot : '',
           effect_type: EFFECTS[it.effect_type] ? it.effect_type : 'none', effect_value: Number(it.effect_value) || 0, effect_tone: str(it.effect_tone),
-          price: Math.max(0, Number(it.price) || 0), for_sale: Boolean(it.for_sale)
+          price: Math.max(0, Number(it.price) || 0), for_sale: Boolean(it.for_sale),
+          drop: it.drop_weight == null ? 1 : Math.max(0, Number(it.drop_weight) || 0)
         };
       });
       contentFromDb = Boolean(bossRows && bossRows.length);
@@ -1546,6 +1614,7 @@
         return {
           position: r.position, name: str(r.name), lore: str(r.lore), hp: Math.max(1, Number(r.hp) || 1), reward: Math.max(0, Number(r.reward) || 0),
           weak: str(r.weak), strong: str(r.strong), icon: validIcon(r.icon), image: str(r.image_url),
+          loot: Array.isArray(r.loot) ? r.loot.filter(l => l && l.item_id && Number(l.weight) > 0).map(l => ({ item_id: l.item_id, weight: Number(l.weight) })) : [],
           relic: it ? { key: it.id, dbId: it.id, name: str(it.name), icon: validIcon(it.icon), image: str(it.image_url),
                         effect_type: EFFECTS[it.effect_type] ? it.effect_type : 'none', effect_value: Number(it.effect_value) || 0, effect_tone: str(it.effect_tone) } : null
         };
@@ -1696,8 +1765,8 @@
     }
 
     // Puntos de aviso en las pestañas: cofres y ofertas en el zurrón, duelos por jugar en el gremio
-    function setBadge(tab, count) {
-      const button = document.getElementById('tab-' + tab);
+    function setBadge(id, count) {
+      const button = document.getElementById(id);
       if (!button || !button.querySelector) return;
       let badge = button.querySelector('.nav-badge');
       if (!badge) { badge = document.createElement('span'); badge.className = 'nav-badge'; button.appendChild(badge); }
@@ -1706,15 +1775,52 @@
     }
     function pendingCounts() {
       const me = currentUser ? guild[currentUser.id] : null;
-      if (!me) return { bag: 0, guild: 0 };
+      if (!me) return { bag: 0, guild: 0, attrs: 0 };
       const offers = trades.filter(t => t.to_id === currentUser.id && tradeAlive(t)).length;
       const myDuels = duels.filter(d => !d.declined && ((d.challenger_id === currentUser.id && !d.challenger_done_at) || (d.opponent_id === currentUser.id && !d.opponent_done_at))).length;
-      return { bag: me.chests.length + offers, guild: myDuels };
+      return { bag: me.chests.length + offers, guild: myDuels, attrs: attrsReady && me.attrBudget > me.attrSpent ? 1 : 0, chests: me.chests.length, offers, duels: myDuels };
     }
     function updateBadges() {
       const c = pendingCounts();
-      setBadge('bag', c.bag);
-      setBadge('guild', c.guild);
+      setBadge('tab-bag', c.bag);
+      setBadge('tab-guild', c.guild + c.attrs);
+      setBadge('btnNotifs', c.bag + c.guild + c.attrs);
+    }
+
+    // Avisos: lo que tengo pendiente y lo último que ha pasado en el gremio
+    function notifContent() {
+      const me = currentUser ? guild[currentUser.id] : null;
+      if (!me) return '';
+      const c = pendingCounts();
+      const go = 'px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border';
+      const row = (icon, text, tab, label) => `<li class="flex items-center gap-3 py-2.5"><i class="gi gi-${icon} text-xl text-paper-accent dark:text-night-accent"></i><span class="flex-1 min-w-0 text-sm">${text}</span><button onclick="notifGo('${tab}')" class="${go}">${label}</button></li>`;
+      const left = me.attrBudget - me.attrSpent;
+      const pending = [
+        c.chests ? row('locked-chest', c.chests === 1 ? 'Tienes un cofre por abrir.' : `Tienes ${c.chests} cofres por abrir.`, 'bag', 'Ir al zurrón') : '',
+        c.offers ? row('swap-bag', c.offers === 1 ? 'Te han hecho una oferta de intercambio.' : `Te han hecho ${c.offers} ofertas de intercambio.`, 'bag', 'Ir al zurrón') : '',
+        c.duels ? row('sword-clash', c.duels === 1 ? 'Tienes un duelo por jugar.' : `Tienes ${c.duels} duelos por jugar.`, 'guild', 'Ir al gremio') : '',
+        c.attrs ? row('biceps', left === 1 ? 'Te queda un punto de atributo por repartir.' : `Te quedan ${left} puntos de atributo por repartir.`, 'guild', 'Ir al gremio') : '',
+        me.trainToday === 0 ? row('target-dummy', 'Hoy todavía no has entrenado: el primero es gratis.', 'review', 'Entrenar') : ''
+      ].join('');
+      const news = chronicle(10);
+      return `
+        <ul class="divide-y divide-paper-border/60 dark:divide-night-border/60">${pending || '<li class="quote text-sm py-3">No tienes nada pendiente.</li>'}</ul>
+        ${news.length ? `<div class="rule mt-4"><span class="quote text-xs">Lo último en el gremio</span></div>
+        <ul class="mt-3 space-y-2">${news.map(e => `<li class="flex items-baseline gap-2.5 text-sm"><i class="gi gi-${e.icon} text-paper-accent dark:text-night-accent shrink-0"></i><span class="flex-1 min-w-0">${esc(e.text)}</span><span class="text-xs text-paper-muted dark:text-night-muted whitespace-nowrap">${esc(daysAgo(e.at))}</span></li>`).join('')}</ul>` : ''}`;
+    }
+    function openNotifs() {
+      document.getElementById('notifBody').innerHTML = notifContent();
+      document.getElementById('notifModal').classList.remove('hidden');
+      document.getElementById('notifModal').classList.add('flex');
+    }
+    function closeNotifs() {
+      document.getElementById('notifModal').classList.add('hidden');
+      document.getElementById('notifModal').classList.remove('flex');
+    }
+    function notifGo(tab) { closeNotifs(); switchTab(tab); }
+    async function notifRefresh() {
+      await reloadFromCloud(true);
+      document.getElementById('notifBody').innerHTML = notifContent();
     }
 
     // Bienvenida: la primera vez que entra alguien que aún no tiene clase ni palabras
@@ -1792,7 +1898,7 @@
       return cls.names[['m', 'f', 'n'].includes(profile.class_form) ? profile.class_form : 'n'];
     }
 
-    function computeStats(userId) {
+    function computeStats(userId, opts = {}) {
       const profile = profiles[userId] || {};
       const cls = CLASSES[profile.class] ? profile.class : null;
       const words = glossary.filter(w => w.author_id === userId);
@@ -1810,6 +1916,9 @@
       // Las habilidades de clase cuentan siempre, como la bonificación de la clase
       classPerks(userId, cls).forEach(p => gear.push({ item: p, from: -Infinity, to: Infinity }));
       const worn = (g, at) => at === null ? (g.to === Infinity || (Date.now() >= g.from && Date.now() < g.to)) : (at >= g.from && at < g.to);
+      // Atributos: cada punto repartido cuenta siempre
+      const alloc = opts.alloc || attrAlloc(userId);
+      ATTRS.forEach(a => { const n = alloc[a.key] || 0; if (n > 0) a.effects().forEach(([t, v]) => gear.push({ item: { effect_type: t, effect_value: v * n, effect_tone: '' }, from: -Infinity, to: Infinity })); });
       // Los eventos del máster valen para todo el gremio mientras duran
       GAME_EVENTS.forEach(ev => gear.push({ item: ev, from: ev.fromMs, to: ev.toMs }));
       // Suma de un tipo de efecto entre las reliquias del gremio y el equipo propio activos en ese momento
@@ -1883,7 +1992,7 @@
       });
 
       // Vida: corazones, decanas sin actividad y periodos en reposo (lo hecho en reposo no daña ni puntúa)
-      const life = lifeState(userId, [...words.map(w => w.created_at), ...mySaves.map(s => s.created_at)], sessions.map(s => s.created_at));
+      const life = lifeState(userId, [...words.map(w => w.created_at), ...mySaves.map(s => s.created_at)], sessions.map(s => s.created_at), fx('heart_days', null));
       const resting = at => life.rest.some(r => at >= r.from && at < r.to);
 
       // Rachas de días seguidos con actividad (y su bonificación para la clase paladín)
@@ -1953,7 +2062,7 @@
       stats.life = life;
       stats.trainToday = roundsByDay[dayKey(new Date())] || 0;
       stats.trainMax = XP.roundsPerDay + fx('extra_round', null);
-      stats.perk = { shop: Math.min(90, fx('shop_pct', null)), sale: fx('sale_pct', null), noPick: fx('no_pick', null) > 0 };
+      stats.perk = { shop: Math.min(90, fx('shop_pct', null)), sale: fx('sale_pct', null), noPick: fx('no_pick', null) > 0, luck: fx('loot_luck', null) };
       Object.assign(stats, duelStats(userId));
       stats.finishers = dungeonRows.filter(r => r.defeated_by === userId).length;
       stats.chestsOpened = chestOpens.filter(c => c.user_id === userId && !c.sold).length;
@@ -1962,6 +2071,10 @@
       stats.chests = pendingChests(userId, stats.level, stats.prestige);
 
       stats.achievements = ACHIEVEMENTS.map(a => achieved(a, stats));
+      stats.attrs = alloc;
+      stats.attrSpent = attrTotal(alloc);
+      stats.attrBudget = Math.max(0, stats.level - 1) * ATTR.perLevel;
+      if (!opts.alloc && stats.attrSpent > stats.attrBudget) return computeStats(userId, { alloc: trimAlloc(alloc, stats.attrBudget) });
       return stats;
     }
 
@@ -2240,6 +2353,7 @@
             ${heartsRow(s)}
             ${gearRow(p.id)}
             ${perkLine(p.id, s.cls)}
+            ${attrLine(s)}
           </div>
           <dl class="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-4 text-sm">
             ${rows.map(([k, v]) => `<dt class="label-caps text-[9px] text-paper-muted dark:text-night-muted self-center">${k}</dt><dd class="text-right">${esc(v)}</dd>`).join('')}
@@ -2268,7 +2382,7 @@
           <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save} por cada palabra ajena que guardas en tu grimorio, ${XP.used} por palabra ya usada, ${XP.round} por entrenamiento más ${XP.hit} por acierto (hasta ${XP.roundsPerDay} al día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${XP.levelDamage} % de daño a los jefes.</p>
         </div>`;
 
-      panel.innerHTML = helpLink() + dungeonPanel() + weeklyBlock() + duelsBlock() + chronicleBlock() + chooser + `<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">${members}</div>` + legend;
+      panel.innerHTML = helpLink() + dungeonPanel() + weeklyBlock() + duelsBlock() + chronicleBlock() + chooser + attrsBlock() + `<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">${members}</div>` + legend;
     }
 
     async function updateMyProfile(changes, okMessage) {
@@ -2982,8 +3096,9 @@
     // Recorre la actividad de una persona en orden y devuelve sus corazones y sus periodos en reposo.
     // Cada decana sin actividad quita un corazón (o gasta una poción). Un entrenamiento devuelve uno.
     // A cero queda en reposo hasta completar una ronda o recibir una poción de otra persona.
-    function lifeState(userId, activity, rounds) {
-      const D = LIFE.days * 86400000;
+    function lifeState(userId, activity, rounds, extraDays = 0) {
+      const days = LIFE.days + (Number(extraDays) || 0);
+      const D = days * 86400000;
       const start = Math.max(Date.parse(LIFE.start) || 0, Date.parse((profiles[userId] || {}).created_at) || 0);
       const events = [
         ...activity.map(a => ({ at: Date.parse(a) || 0, type: 'act' })),
@@ -3015,7 +3130,7 @@
       });
       decay(Date.now());
       if (hearts === 0) rest.push({ from: restFrom, to: Infinity });
-      return { hearts, shield, resting: hearts === 0, rest, nextLoss: hearts > 0 ? anchor + D : null };
+      return { hearts, shield, days, resting: hearts === 0, rest, nextLoss: hearts > 0 ? anchor + D : null };
     }
 
     function heartsRow(s, place = 'justify-center mt-2') {
@@ -3033,7 +3148,7 @@
       const date = t => new Date(t).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
       const text = s.life.resting
         ? 'Estás en reposo: conservas palabras y nivel, pero no haces daño ni puntúas en la clasificación. Te despierta completar un entrenamiento o que alguien del gremio te dé una poción.'
-        : `Cada decana (${LIFE.days} días) sin apuntar, guardar ni entrenar pierdes un corazón; el próximo, el ${date(s.life.nextLoss)}. Un entrenamiento devuelve uno.${s.life.shield ? ` Tienes ${s.life.shield === 1 ? 'una poción activa' : s.life.shield + ' pociones activas'}.` : ''}`;
+        : `Cada ${round2(s.life.days)} días sin apuntar, guardar ni entrenar pierdes un corazón; el próximo, el ${date(s.life.nextLoss)}. Un entrenamiento devuelve uno.${s.life.shield ? ` Tienes ${s.life.shield === 1 ? 'una poción activa' : s.life.shield + ' pociones activas'}.` : ''}`;
       return `<div class="flex items-start justify-center gap-3 mt-4 pt-4 border-t border-paper-border/60 dark:border-night-border/60">${heartsRow(s)}</div>
           <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-2">${text}</p>`;
     }
@@ -3131,6 +3246,8 @@
         section('Clases y habilidades', [
           Object.keys(CLASSES).map(k => `<strong class="font-medium">${esc(CLASSES[k].names.n)}</strong>: ${esc(classBonus(k).replace(/\.$/, ''))}`).join('. ') + '.',
           `En los niveles ${PERK_LEVELS.join(', ')} eliges una de dos habilidades de tu clase. Clase y habilidades se pueden cambiar cuando quieras.` ]),
+        section('Atributos', [
+          `Cada nivel a partir del 2 da ${ATTR.perLevel === 1 ? 'un punto' : ATTR.perLevel + ' puntos'} para repartir, y se pueden recolocar. Cada punto da: ` + ATTRS.map(a => `<strong class="font-medium">${a.name}</strong>, ${esc(attrText(a, 1).replace(/\.$/, '').toLowerCase())}`).join('; ') + '.' ]),
         section('Vida', [
           `Tienes ${LIFE.hearts} corazones. Cada ${LIFE.days} días sin apuntar, guardar ni entrenar pierdes uno; un entrenamiento devuelve uno y una poción te cubre una de esas rachas.`,
           'Sin corazones quedas en reposo: conservas todo, pero lo que hagas no daña al jefe ni cuenta en la clasificación hasta que completes un entrenamiento o alguien te dé una poción.' ]),
@@ -3343,7 +3460,7 @@
     function pendingChests(userId, level, prestige = 0) {
       const opened = new Set(chestOpens.filter(c => c.user_id === userId).map(c => c.source));
       const list = [];
-      defeatedBosses().forEach(b => list.push({ source: 'boss:' + b.position, tier: 'boss', name: 'Cofre de ' + b.name }));
+      defeatedBosses().forEach(b => list.push({ source: 'boss:' + b.position, tier: 'boss', name: 'Cofre de ' + b.name, loot: b.loot }));
       for (let n = 2; n <= level; n++) list.push({ source: 'level:' + n, tier: 'level', name: 'Cofre del nivel ' + n });
       for (let n = DUEL.chestEvery; n <= prestige; n += DUEL.chestEvery) list.push({ source: 'prestige:' + n, tier: 'prestige', name: 'Cofre de prestigio ' + n });
       chestGrants.filter(g => g.user_id === userId && CHESTS[g.tier]).forEach(g => list.push({ source: 'gift:' + g.id, tier: g.tier, name: str(g.note) || 'Cofre del máster' }));
@@ -3638,6 +3755,55 @@
       renderGlossary();
     }
 
+    // ---------- ATRIBUTOS ----------
+    function attrsBlock() {
+      const me = currentUser ? guild[currentUser.id] : null;
+      if (!attrsReady || !me) return '';
+      const left = me.attrBudget - me.attrSpent;
+      const over = attrTotal(attrAlloc(currentUser.id)) > me.attrBudget;
+      const btn = 'plain w-8 h-8 border border-paper-border dark:border-night-border text-lg leading-none';
+      return `
+        <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
+          <div class="rule"><span class="quote text-xs">Tus atributos</span></div>
+          <p class="text-sm text-paper-muted dark:text-night-muted mt-3">Cada nivel a partir del 2 te da ${ATTR.perLevel === 1 ? 'un punto' : ATTR.perLevel + ' puntos'}. Tienes ${me.attrBudget} y has repartido ${me.attrSpent}.${left > 0 ? ` <strong class="font-medium text-paper-accent dark:text-night-accent">Te ${left === 1 ? 'queda uno' : 'quedan ' + left} por poner.</strong>` : ''}${over ? ' Tenías más puntos puestos de los que te tocan ahora; los últimos no cuentan.' : ''} Puedes recolocarlos cuando quieras.</p>
+          <ul class="mt-2 divide-y divide-paper-border/60 dark:divide-night-border/60">
+            ${ATTRS.map(a => { const n = me.attrs[a.key] || 0; return `<li class="flex items-center gap-3 py-3">
+              <i class="gi gi-${a.icon} text-3xl text-paper-accent dark:text-night-accent w-9 text-center shrink-0"></i>
+              <span class="flex-1 min-w-0">
+                <span class="word-title text-xl block leading-tight">${a.name}</span>
+                <span class="block text-sm leading-snug">${n ? esc(attrText(a, n)) : 'Sin puntos.'}</span>
+                <span class="block text-xs text-paper-muted dark:text-night-muted leading-snug">Cada punto: ${esc(attrText(a, 1))}</span>
+              </span>
+              <button type="button" onclick="setAttr('${a.key}', -1)"${n ? '' : ' disabled'} class="${btn}" title="Quitar un punto">−</button>
+              <span class="word-title text-2xl w-6 text-center">${n}</span>
+              <button type="button" onclick="setAttr('${a.key}', 1)"${left > 0 ? '' : ' disabled'} class="${btn}" title="Poner un punto">+</button>
+            </li>`; }).join('')}
+          </ul>
+        </div>`;
+    }
+
+    // Atributos con puntos de una persona, para su ficha del gremio
+    function attrLine(s) {
+      const set = ATTRS.filter(a => (s.attrs || {})[a.key] > 0);
+      return set.length ? `<p class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mt-2 text-sm">${set.map(a =>
+        `<span title="${esc(a.name + ': ' + attrText(a, s.attrs[a.key]))}"><i class="gi gi-${a.icon} text-paper-accent dark:text-night-accent"></i> ${s.attrs[a.key]}</span>`).join('')}</p>` : '';
+    }
+
+    async function setAttr(key, delta) {
+      const me = currentUser ? guild[currentUser.id] : null;
+      if (!me || !ATTRS.some(a => a.key === key)) return;
+      if (!attrsReady) { showToast('Falta ejecutar el último schema.sql en Supabase'); return; }
+      const points = { ...me.attrs }; // parte de lo que cuenta ahora, ya recortado si sobraba
+      if (delta > 0 && me.attrSpent >= me.attrBudget) { showToast('No te quedan puntos por repartir'); return; }
+      points[key] = Math.max(0, (points[key] || 0) + (delta > 0 ? 1 : -1));
+      const res = currentUser.id in attrRows
+        ? await sb.from('user_attrs').update({ points }).eq('user_id', currentUser.id).select().single()
+        : await sb.from('user_attrs').insert({ points }).select().single();
+      if (res.error) { showToast('No se pudo guardar: ' + res.error.message); return; }
+      attrRows[currentUser.id] = points;
+      renderGlossary();
+    }
+
     // ---------- HABILIDADES DE CLASE ----------
     function perksBlock(cls, level) {
       if (!perksReady || !PERKS[cls] || !currentUser) return '';
@@ -3783,22 +3949,44 @@
       } catch (e) { showToast(e.message); }
     }
 
-    // Elige una rareza según los pesos del cofre y, dentro de ella, un objeto de equipo al azar
-    function rollLoot(tier) {
-      const pool = Object.values(itemsById).filter(it => it.kind === 'gear');
-      const weights = CHESTS[tier].weights;
+    // La suerte con el botín da más papeletas a lo épico y lo legendario
+    function luckWeight(rarity, luck) { return ['épico', 'legendario'].includes(rarity) ? 1 + (Number(luck) || 0) / 100 : 1; }
+
+    // Probabilidad de cada objeto en un tipo de cofre: primero la rareza (pesos del cofre) y dentro de ella
+    // la frecuencia de cada objeto. Si no hay objetos de una rareza, su parte pasa a la anterior y luego hacia arriba.
+    function lootOdds(tier, luck = 0) {
       const order = ['común', 'raro', 'épico', 'legendario'];
-      let roll = Math.random() * order.reduce((sum, r) => sum + weights[r], 0);
-      let index = 0;
-      for (let i = 0; i < order.length; i++) { index = i; roll -= weights[order[i]]; if (roll < 0) break; }
-      // Si no hay objetos de esa rareza se baja a la anterior, y luego se prueba hacia arriba
-      const tries = [...order.slice(0, index + 1).reverse(), ...order.slice(index + 1)];
-      for (const rarity of tries) {
-        const options = pool.filter(it => it.rarity === rarity);
-        if (options.length) return options[Math.floor(Math.random() * options.length)];
-      }
-      return null;
+      const pool = Object.values(itemsById).filter(it => it.kind === 'gear' && it.drop > 0);
+      const weight = {};
+      order.forEach(r => { weight[r] = (Number(CHESTS[tier].weights[r]) || 0) * luckWeight(r, luck); });
+      const sum = order.reduce((a, r) => a + weight[r], 0);
+      const odds = new Map();
+      if (!sum) return odds;
+      order.forEach((r, index) => {
+        if (!weight[r]) return;
+        for (const rarity of [...order.slice(0, index + 1).reverse(), ...order.slice(index + 1)]) {
+          const options = pool.filter(it => it.rarity === rarity);
+          const total = options.reduce((a, it) => a + it.drop, 0);
+          if (total > 0) { options.forEach(it => odds.set(it.id, (odds.get(it.id) || 0) + (weight[r] / sum) * (it.drop / total))); break; }
+        }
+      });
+      return odds;
     }
+    // Probabilidad de cada objeto en el botín propio de un jefe
+    function listOdds(list, luck = 0) {
+      const rows = (Array.isArray(list) ? list : []).filter(l => itemsById[l.item_id] && l.weight > 0).map(l => [l.item_id, l.weight * luckWeight(itemsById[l.item_id].rarity, luck)]);
+      const sum = rows.reduce((a, r) => a + r[1], 0);
+      const odds = new Map();
+      rows.forEach(([id, w]) => odds.set(id, (odds.get(id) || 0) + w / sum));
+      return odds;
+    }
+    function rollOdds(odds) {
+      let roll = Math.random(), last = null;
+      for (const [id, p] of odds) { last = id; roll -= p; if (roll < 0) break; }
+      return last ? itemsById[last] : null;
+    }
+    function rollLoot(tier, luck = 0) { return rollOdds(lootOdds(tier, luck)); }
+    const pctText = p => (p * 100).toFixed(p < 0.1 ? 1 : 0).replace('.', ',') + ' %';
 
     async function openChest(source) {
       const me = currentUser ? guild[currentUser.id] : null;
@@ -3808,7 +3996,9 @@
       const free = chestFree(chest, me);
       const pick = free ? null : myItems().find(u => itemsById[u.item_id].effect_type === 'lockpick');
       if (!free && !pick) { showToast('Necesitas una ganzúa. Se compran en la tienda.'); return; }
-      const item = rollLoot(chest.tier);
+      const luck = me.perk ? me.perk.luck : 0;
+      const own = listOdds(chest.loot, luck);
+      const item = own.size ? rollOdds(own) : rollLoot(chest.tier, luck);
       try {
         const opened = await sb.from('chest_opens').insert({ source, item_id: item ? item.id : null, gold: item ? 0 : GOLD.noLoot }).select().single();
         if (opened.error) throw new Error('No se pudo abrir el cofre: ' + opened.error.message);
@@ -3973,7 +4163,7 @@
         </div>`;
       const sections = {
         mazmorra: ['Mazmorra', () => monsters()],
-        objetos: ['Objetos y tienda', () => dmShopBlock() + dmItemsBlock() + dmGiftBlock()],
+        objetos: ['Objetos y tienda', () => dmShopBlock() + dmItemsBlock() + dmLootBlock() + dmGiftBlock()],
         jugadoras: ['Jugadoras', () => dmNoticeBlock() + dmPlayersBlock() + dmGuildBlock()],
         reglas: ['Reglas', () => dmEventsBlock() + dmRulesBlock()],
         clases: ['Clases', () => dmClassesBlock() + dmTitlesBlock()],
@@ -4256,6 +4446,53 @@
         renderDM();
         showToast('Logros guardados');
       } catch (e) { showToast(e.message); }
+    }
+
+    // Lo que sale de cada tipo de cofre, con su probabilidad real
+    function dmLootBlock() {
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Botín de los cofres</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">La probabilidad de cada objeto sale de dos cosas: el peso de su rareza en ese cofre (Reglas → Cofres) y su frecuencia (en la ficha del objeto: 1 es lo normal, 2 sale el doble, 0 no sale de ningún cofre). El botín propio de un jefe se pone en la ficha del monstruo.</p>
+          <div class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
+            ${['level', 'boss', 'prestige'].map(t => { const odds = [...lootOdds(t)].sort((a, b) => b[1] - a[1]); return `<details class="py-3"${dmOpen.has('l' + t) ? ' open' : ''} ontoggle="dmToggle('l${t}', this.open)">
+              <summary class="cursor-pointer"><span class="word-title text-xl">${CHESTS[t].label}</span> <span class="text-xs text-paper-muted dark:text-night-muted">${odds.length} objetos posibles</span></summary>
+              <ul class="mt-2">${odds.map(([id, p]) => `<li class="flex items-center gap-2 py-0.5 text-sm"><span class="flex-1 min-w-0 truncate">${esc(itemsById[id].name)} <span class="text-xs text-paper-muted dark:text-night-muted">${esc(itemsById[id].rarity)}</span></span><span>${pctText(p)}</span></li>`).join('') || '<li class="text-sm">No hay objetos que puedan salir.</li>'}</ul>
+            </details>`; }).join('')}
+          </div>
+        </div>`;
+    }
+
+    // Botín propio de un jefe, en su ficha: un peso por objeto y el porcentaje que resulta
+    function fillBossLoot(boss) {
+      const own = boss && boss.loot && boss.loot.length ? boss.loot : [];
+      const weights = {};
+      own.forEach(l => { weights[l.item_id] = l.weight; });
+      const gear = Object.values(itemsById).filter(it => it.kind === 'gear').sort((a, b) => a.name.localeCompare(b.name, 'es'));
+      document.getElementById('dmBossLootMode').value = own.length ? 'own' : 'chest';
+      document.getElementById('dmBossLootList').innerHTML = gear.map(it => `<div class="grid grid-cols-[1fr_5rem_3.5rem] gap-2 items-center">
+          <span class="text-sm truncate">${esc(it.name)} <span class="text-xs text-paper-muted dark:text-night-muted">${esc(it.rarity)}</span></span>
+          <input type="number" id="bl-${esc(it.id)}" min="0" step="1" value="${weights[it.id] || 0}" oninput="bossLootPreview()" aria-label="Peso" class="px-2 py-1 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm text-right" />
+          <span id="blp-${esc(it.id)}" class="text-xs text-right text-paper-muted dark:text-night-muted"></span>
+        </div>`).join('') || '<p class="text-sm">Todavía no hay objetos de equipo.</p>';
+      bossLootPreview();
+    }
+    // null = suelta el cofre de jefe normal; si no, la lista de objetos con peso
+    function readBossLoot() {
+      if (document.getElementById('dmBossLootMode').value !== 'own') return null;
+      return Object.values(itemsById).filter(it => it.kind === 'gear').map(it => {
+        const input = document.getElementById('bl-' + it.id);
+        return { item_id: it.id, weight: input ? Math.max(0, parseFloat(input.value) || 0) : 0 };
+      }).filter(l => l.weight > 0);
+    }
+    function bossLootPreview() {
+      const own = document.getElementById('dmBossLootMode').value === 'own';
+      document.getElementById('dmBossLootList').classList.toggle('hidden', !own);
+      const odds = listOdds(readBossLoot() || []);
+      Object.values(itemsById).filter(it => it.kind === 'gear').forEach(it => {
+        const cell = document.getElementById('blp-' + it.id);
+        if (cell) cell.textContent = odds.has(it.id) ? pctText(odds.get(it.id)) : '';
+      });
     }
 
     function dmToggle(key, open) { if (open) dmOpen.add(key); else dmOpen.delete(key); }
@@ -4773,6 +5010,7 @@
       document.getElementById('dmItemName').value = it ? it.name : '';
       document.getElementById('dmItemRarity').value = it ? it.rarity : 'común';
       document.getElementById('dmItemSlot').value = it && it.slot ? it.slot : 'pluma';
+      document.getElementById('dmItemDrop').value = it ? it.drop : 1;
       document.getElementById('dmItemType').value = it ? it.effect_type : 'xp_word';
       document.getElementById('dmItemValue').value = it ? it.effect_value : 1;
       document.getElementById('dmItemTone').value = it && TONES.includes(it.effect_tone) ? it.effect_tone : '';
@@ -4829,7 +5067,8 @@
         const row = {
           kind, name, icon, image_url: image, rarity: kind === 'gear' ? val('dmItemRarity') : '', slot: kind === 'gear' ? val('dmItemSlot') : '',
           effect_type: type, effect_value: parseFloat(val('dmItemValue')) || 0, effect_tone: EFFECTS[type].tone ? val('dmItemTone') : '',
-          price, for_sale: document.getElementById('dmItemSale').checked
+          price, for_sale: document.getElementById('dmItemSale').checked,
+          drop_weight: kind === 'gear' && parseFloat(val('dmItemDrop')) >= 0 ? parseFloat(val('dmItemDrop')) : 1
         };
         const res = existing
           ? await sb.from('game_items').update(row).eq('id', existing.id)
@@ -4886,6 +5125,7 @@
       document.getElementById('dmRelicTone').value = relic && TONES.includes(relic.effect_tone) ? relic.effect_tone : '';
       document.getElementById('dmRelicIcon').value = relic ? relic.icon : 'locked-chest';
       ['dmBossFile', 'dmRelicFile'].forEach(id => { document.getElementById(id).value = ''; });
+      fillBossLoot(b);
       ['dmBossNoImage', 'dmRelicNoImage'].forEach(id => { document.getElementById(id).checked = false; });
       previewDM();
       document.getElementById('dmBossModal').classList.remove('hidden');
@@ -4935,6 +5175,8 @@
       if (!/^[a-z0-9-]+$/.test(icon) || !/^[a-z0-9-]+$/.test(relicIcon)) { showToast('Los iconos van en minúsculas y con guiones, por ejemplo dragon-head'); return; }
       if (relicName && EFFECTS[relicType].tone && !val('dmRelicTone')) { showToast('Ese efecto necesita una atmósfera'); return; }
 
+      const loot = readBossLoot();
+      if (loot && loot.length === 0) { showToast('Pon peso al menos a un objeto, o elige el cofre de jefe normal'); return; }
       const btn = document.getElementById('btnSaveBoss');
       btn.disabled = true;
       btn.textContent = 'Guardando...';
@@ -4961,7 +5203,7 @@
           relicId = res.data.id;
         }
 
-        const row = { name, lore: val('dmBossLore'), hp, reward, weak: val('dmBossWeak'), strong: val('dmBossStrong'), icon, image_url: image, relic_id: relicName ? relicId : null };
+        const row = { name, lore: val('dmBossLore'), hp, reward, weak: val('dmBossWeak'), strong: val('dmBossStrong'), icon, image_url: image, relic_id: relicName ? relicId : null, loot };
         const res = existing
           ? await sb.from('bosses').update(row).eq('position', existing.position)
           : await sb.from('bosses').insert({ ...row, position: Math.max(0, ...BOSSES.map(b => b.position)) + 1 });
