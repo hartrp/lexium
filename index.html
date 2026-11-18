@@ -1874,14 +1874,17 @@
       epi('portador-talismanes', 'Portador de Talismanes', 'Portadora de Talismanes', 'Portadore de Talismanes', 'colección'),
       epi('mil-mantos', 'de los Mil Mantos', '', '', 'colección'),
       epi('coleccionista', 'Laureado', 'Laureada', 'Laureade', 'colección'),
-      epi('escarchado', 'Escarchado', 'Escarchada', 'Escarchade', 'colección')
+      epi('escarchado', 'Escarchado', 'Escarchada', 'Escarchade', 'colección'),
+      epi('segundon', 'Segundón', 'Segundona', 'Segundone', 'logro'),
+      epi('brazo-derecho', 'Brazo Derecho del Gremio', '', '', 'logro'),
+      epi('pilar', 'Pilar del Gremio', '', '', 'logro')
     ];
     // Qué epíteto da cada logro de partida (por su nombre)
     const ACH_EPITHETS = {
       'Tomo legendario': 'bibliotecario', 'Saber arcano': 'erudito', 'Conjuro lanzado': 'pluma-viva', 'Veinte natural': 'infalible',
       'Entrenamiento de combate': 'veterano', 'Guardia de siete noches': 'insomne', 'Artífice de mundos': 'artifice', 'Juego de manos': 'ladron',
       'Inspiración bárdica': 'bienamado', 'Multiclase': 'trotamundos', 'Primera sangre': 'primera-espada', 'Matadragones': 'matadragones',
-      'Golpe de gracia': 'verdugo', 'Saqueo de mazmorra': 'saqueador', 'Duelo al alba': 'duelista', 'Favor del gremio': 'favorito'
+      'Golpe de gracia': 'verdugo', 'Saqueo de mazmorra': 'saqueador', 'Duelo al alba': 'duelista', 'Favor del gremio': 'favorito', 'Encargo cumplido': 'segundon'
     };
     // Rangos de partida: además del logro base (bronce), plata y oro con su mínimo, nombre y epíteto
     const ACH_RANKS = {
@@ -1892,7 +1895,8 @@
       'Inspiración bárdica': [[50, 'Voz querida', 'adorado']],
       'Guardia de siete noches': [[30, 'Centinela', 'centinela'], [100, 'Llama eterna', 'eterno']],
       'Tomo legendario': [[250, 'Archivo vivo', 'archivero'], [500, 'Memoria del mundo', 'memoria-viva']],
-      'Favor del gremio': [[5, 'Campeonato', 'campeon']]
+      'Favor del gremio': [[5, 'Campeonato', 'campeon']],
+      'Encargo cumplido': [[10, 'Brazo derecho', 'brazo-derecho'], [25, 'Pilar del gremio', 'pilar']]
     };
     const RANK_COLORS = ['', '#B07A4A', '#C0C6D0', '#E8C877']; // bronce, plata, oro
     const EPI_ORIGINS = { logro: 'Con un logro', cofre: 'En los cofres de prestigio', 'colección': 'Al completar una colección', 'máster': 'Solo lo da el máster' };
@@ -1959,7 +1963,8 @@
       saved: 'Palabras ajenas guardadas', rounds: 'Entrenamientos completados', perfect: 'Entrenamientos perfectos', bestStreak: 'Mejor racha de días seguidos',
       likesReceived: 'Me gusta recibidos', likesGiven: 'Me gusta dados', tonesCreated: 'Atmósferas creadas', level: 'Nivel alcanzado',
       bossesDefeated: 'Jefes derrotados por el gremio', dungeonCleared: 'Mazmorra completa (1 = sí)', finishers: 'Golpes de gracia', chestsOpened: 'Cofres abiertos',
-      duelsWon: 'Duelos ganados', duelsPlayed: 'Duelos jugados', prestige: 'Prestigio', weeksWon: 'Semanas ganadas'
+      duelsWon: 'Duelos ganados', duelsPlayed: 'Duelos jugados', prestige: 'Prestigio', weeksWon: 'Semanas ganadas',
+      missions: 'Misiones secundarias cumplidas (habiendo aportado)'
     };
     const ach = (icon, name, desc, stat, min) => ({ icon, name, desc, stat, min });
     const ACH_DEFAULTS = [
@@ -1983,7 +1988,8 @@
       ach('bloody-sword', 'Golpe de gracia', 'Da el golpe que remata a un jefe', 'finishers', 1),
       ach('open-treasure-chest', 'Saqueo de mazmorra', 'Abre cinco cofres', 'chestsOpened', 5),
       ach('sword-clash', 'Duelo al alba', 'Gana tu primer duelo', 'duelsWon', 1),
-      ach('podium', 'Favor del gremio', 'Gana una clasificación semanal', 'weeksWon', 1)
+      ach('podium', 'Favor del gremio', 'Gana una clasificación semanal', 'weeksWon', 1),
+      ach('scroll-unfurled', 'Encargo cumplido', 'Ayuda a cumplir tres misiones secundarias', 'missions', 3)
     ];
     let ACHIEVEMENTS = [];
     ACHIEVEMENTS = ACH_DEFAULTS.map(cleanAchievement);
@@ -2452,6 +2458,8 @@
         weekWinners[k] = all.filter(s => Math.round(s.weekly[k] || 0) === best).map(s => s.userId);
         weekWinners[k].forEach(id => { guild[id].weeksWon++; guild[id].gold += WEEK.gold; });
       });
+      const doneMissions = missionHistory();
+      all.forEach(s => { s.missions = doneMissions.filter(p => p.per[s.userId] > 0).length; });
       all.forEach(s => { s.achievements = ACHIEVEMENTS.map(a => achieved(a, s)); s.achRanks = ACHIEVEMENTS.map(a => achRank(a, s)); });
       all.forEach(s => { s.chests.push(...missionChests(s.userId), ...seasonChests(s.userId)); });
       applySeasonDecor();
@@ -2674,6 +2682,8 @@
       { name: 'Esfuerzo conjunto', icon: 'flame', stat: 'xp', per: 150 }
     ];
     const missionCfg = () => (configRows.mission && typeof configRows.mission === 'object' ? configRows.mission : {});
+    // Objetivo por persona de cada misión automática: el que puso el máster o el de partida
+    function missionPer(i) { const v = Number((missionCfg().per || {})[i]); return v > 0 ? Math.round(v) : MISSION_POOL[i].per; }
     function weekHash(week, salt = '') { let h = 0; for (const ch of week + salt) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; }
     function missionText(m) {
       const what = { words: m.tone ? `palabras de «${m.tone}»` : 'palabras nuevas', saves: 'palabras ajenas guardadas', trainings: 'entrenamientos',
@@ -2691,7 +2701,8 @@
         return { week, name: str(manual.name) || 'Misión secundaria', icon: /^[a-z0-9-]+$/.test(str(manual.icon)) ? str(manual.icon) : 'scroll-unfurled', stat: manual.stat,
           tone: MISSION_STATS[manual.stat].tone ? str(manual.tone) : '', target: Math.round(Number(manual.target)), desc: str(manual.desc), tier: CHESTS[manual.tier] ? manual.tier : tier,
           season: seasonForWeek(week) ? seasonForWeek(week).id : '' };
-      const t = MISSION_POOL[weekHash(week) % MISSION_POOL.length];
+      const idx = weekHash(week) % MISSION_POOL.length;
+      const t = { ...MISSION_POOL[idx], per: missionPer(idx) };
       const people = Math.max(1, Object.keys(profiles).length);
       const tones = Object.keys(BASE_SCHOOLS);
       const tone = t.tone ? tones[weekHash(week, 'tono') % tones.length] : '';
@@ -2720,6 +2731,17 @@
       if (m.stat === 'xp') Object.keys(per).forEach(id => { per[id] = Math.round((guild[id] && guild[id].weekly ? guild[id].weekly[m.week] : 0) || 0); });
       const total = Object.values(per).reduce((a, b) => a + b, 0);
       return { per, total, done: total >= m.target };
+    }
+    // Semanas con la misión cumplida, con lo que aportó cada persona
+    function missionHistory() {
+      const out = [], now = weekKey(Date.now());
+      for (let d = new Date(WEEK.start + 'T00:00:00'); weekKey(d) <= now; d = new Date(d.getTime() + 7 * 86400000)) {
+        const m = missionFor(weekKey(d));
+        if (!m) continue;
+        const p = missionProgress(m);
+        if (p.done) out.push({ week: m.week, per: p.per });
+      }
+      return out;
     }
     // Cofres de misión para alguien: uno por cada semana cumplida en la que aportó algo
     function missionChests(userId) {
@@ -3513,7 +3535,7 @@
           ['Ya usadas', `${s.used} (${pct(s.used, s.words)})`], ['Entrenamientos', s.rounds],
           ['Aciertos', pct(s.hits, s.asked)], ['Racha actual', s.currentStreak + (s.currentStreak === 1 ? ' día' : ' días')],
           ['Mejor racha', s.bestStreak + (s.bestStreak === 1 ? ' día' : ' días')],
-          ['Oro', s.gold], ['Guardadas de otros', s.saved], ['Prestigio', s.prestige], ['Duelos ganados', `${s.duelsWon} de ${s.duelsPlayed}`], ['Semanas ganadas', s.weeksWon], ['Golpes de gracia', s.finishers], ['Daño a los jefes', '+' + Math.round((s.damageBonus - 1) * 100) + ' %'],
+          ['Oro', s.gold], ['Guardadas de otros', s.saved], ['Prestigio', s.prestige], ['Duelos ganados', `${s.duelsWon} de ${s.duelsPlayed}`], ['Semanas ganadas', s.weeksWon], ['Misiones cumplidas', s.missions || 0], ['Golpes de gracia', s.finishers], ['Daño a los jefes', '+' + Math.round((s.damageBonus - 1) * 100) + ' %'],
           ['Me gusta recibidos', s.likesReceived], ['Me gusta dados', s.likesGiven]
         ];
         const tones = Object.entries(s.byTone).sort((a, b) => b[1] - a[1]).slice(0, 6);
@@ -5533,6 +5555,11 @@
             <div><label for="misTarget" class="text-xs">Objetivo entre todas</label><input type="number" id="misTarget" min="1" step="1" value="${esc(manual.target || 10)}" class="${DM_FIELD}" /></div>
             <div class="col-span-2 sm:col-span-3"><label for="misDesc" class="text-xs">Descripción (opcional)</label><input type="text" id="misDesc" maxlength="160" value="${esc(manual.desc || '')}" placeholder="Si lo dejas vacío, se escribe sola" class="${DM_FIELD}" /></div>
           </div>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Misiones automáticas: lo que se pide por persona (se multiplica por las ${Math.max(1, Object.keys(profiles).length)} del gremio). Si cambias el de la misión de esta semana, cambia al momento.</p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-1">
+            ${MISSION_POOL.map((t, i) => `<div><label for="mis-per-${i}" class="text-xs">${esc(t.tone ? 'Ecos de una atmósfera' : t.name)}${m && !manual.stat && cfg.mode !== 'off' && weekHash(week) % MISSION_POOL.length === i ? ' (esta semana)' : ''}</label>
+              <input type="number" id="mis-per-${i}" min="1" step="1" value="${missionPer(i)}" class="${DM_FIELD}" /></div>`).join('')}
+          </div>
           <div class="flex justify-end mt-3"><button onclick="saveMission()" class="${DM_GOLD}">Guardar misión</button></div>
         </div>`;
     }
@@ -5542,7 +5569,14 @@
       const cfg = missionCfg(), week = weekKey(Date.now());
       const val = id => document.getElementById(id).value;
       const mode = val('misMode'), tier = val('misTier');
-      const next = { ...cfg, tier: CHESTS[tier] ? tier : 'level', manual: { ...(cfg.manual || {}) } };
+      const per = {};
+      for (let i = 0; i < MISSION_POOL.length; i++) {
+        const field = document.getElementById('mis-per-' + i);
+        const v = field ? parseInt(field.value, 10) : NaN;
+        if (field && field.value !== '' && (!Number.isInteger(v) || v < 1)) { showToast('Los objetivos por persona tienen que ser 1 o más'); return; }
+        if (Number.isInteger(v) && v !== MISSION_POOL[i].per) per[i] = v;
+      }
+      const next = { ...cfg, per, tier: CHESTS[tier] ? tier : 'level', manual: { ...(cfg.manual || {}) } };
       if (mode === 'off') { next.mode = 'off'; next.since = week; delete next.manual[week]; }
       else {
         next.mode = 'on';
