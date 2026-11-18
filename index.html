@@ -230,7 +230,26 @@
     .char-slot.aura-4 { box-shadow: 0 0 16px rgba(217, 164, 65, 0.5); animation: aura-glow 4.5s ease-in-out infinite; }
     .char-slot.is-open { outline: 1px solid var(--gold); outline-offset: 3px; }
     @media (max-width: 639px) { .char-slot { width: 4.8rem; min-height: 4.8rem; } .char-doll { gap: 0.7rem 0.5rem; } }
-    @media (prefers-reduced-motion: reduce) { .rank-icon.aura-4, .char-slot.aura-4 { animation: none; } }
+    /* Colecciones: lo que falta sale en silueta */
+    .coll-item { width: 3rem; height: 3rem; display: flex; align-items: center; justify-content: center; border: 1px solid; background: var(--deep); }
+    .coll-item.is-missing { border-color: var(--line) !important; }
+    .coll-item.is-missing > * { filter: brightness(0); opacity: 0.45; }
+    /* Objetos forjados: un brillo extra */
+    .item-forged { box-shadow: inset 0 0 0 1px rgba(232, 200, 119, 0.35), 0 0 12px rgba(232, 200, 119, 0.18); }
+    .set-row.is-on { padding-left: 0.6rem; border-left: 2px solid var(--gold); }
+    /* Apertura de cofres: tiembla, se abre con un destello del color de la rareza */
+    @keyframes chest-shake { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(-7deg) scale(1.03); } 30% { transform: rotate(6deg); } 45% { transform: rotate(-5deg) scale(1.06); } 60% { transform: rotate(4deg); } 75% { transform: rotate(-2deg) scale(1.1); } }
+    .chest-shake { animation: chest-shake 1.1s ease-in-out; }
+    @keyframes loot-in { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+    .loot-reveal { position: relative; isolation: isolate; animation: loot-in 0.5s ease-out both; }
+    .loot-burst { position: absolute; left: 50%; top: 5.2rem; width: 14rem; height: 14rem; margin: -7rem 0 0 -7rem; border-radius: 9999px; pointer-events: none; z-index: -1;
+                  background: radial-gradient(circle, var(--burst, rgba(201, 162, 75, 0.45)) 0%, transparent 65%); animation: burst 1.6s ease-out both; }
+    .loot-t2 { --burst: rgba(95, 143, 201, 0.55); } .loot-t3 { --burst: rgba(160, 112, 208, 0.6); } .loot-t4 { --burst: rgba(232, 200, 119, 0.75); }
+    .loot-t4 .loot-burst { background: conic-gradient(from 0deg, transparent, rgba(232, 200, 119, 0.5), transparent 20%, rgba(232, 200, 119, 0.4), transparent 45%, rgba(232, 200, 119, 0.5), transparent 70%, rgba(232, 200, 119, 0.4), transparent);
+                           -webkit-mask: radial-gradient(circle, #000 30%, transparent 70%); mask: radial-gradient(circle, #000 30%, transparent 70%); animation: burst 1.6s ease-out both, spin 9s linear infinite; }
+    @keyframes burst { from { opacity: 0; transform: scale(0.3); } 30% { opacity: 1; } to { opacity: 0.85; transform: scale(1); } }
+    @keyframes spin { to { rotate: 360deg; } }
+    @media (prefers-reduced-motion: reduce) { .rank-icon.aura-4, .char-slot.aura-4, .chest-shake, .loot-reveal, .loot-burst { animation: none; } }
     /* Fichas del gremio: retrato grande, el nombre manda y lo demás en «Ver más» */
     .member-card .rank-icon { width: 4.2rem; height: 4.2rem; font-size: 1.9rem; margin-bottom: 0.55rem; }
     .member-card .rank-icon.portrait { width: 5rem; height: 5rem; }
@@ -1046,6 +1065,10 @@
     let userEpithets = [];    // epítetos ganados en cofres o dados por el máster: { id, user_id, epithet, source, created_at }
     let epiReady = false;     // true cuando la base de datos ya guarda epítetos
     let dmEpiDraft = null;    // epítetos en edición, antes de guardar
+    let collectionLog = [];   // objetos que cada persona ha tenido alguna vez: { user_id, item_id }
+    let collReady = false;    // true cuando la base de datos ya guarda colecciones
+    let dmCollDraft = null;   // colecciones en edición
+    let dmSetDraft = null;    // conjuntos en edición
     let contentReady = false; // true cuando la base de datos ya tiene las tablas de jefes y objetos
     let contentFromDb = false; // true cuando los jefes que se muestran vienen de la base de datos
     let saves = [];          // palabras ajenas guardadas en el grimorio de cada persona: { word_id, user_id, is_favorite, is_used }
@@ -1299,7 +1322,7 @@
     // ---------- CARGA DE DATOS ----------
     async function reloadFromCloud(notify = false) {
       if (!currentUser) return;
-      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes, cgRes, duRes, pkRes, trRes, cfRes, aeRes, wsRes, logRes, atRes, epRes] = await Promise.all([
+      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes, cgRes, duRes, pkRes, trRes, cfRes, aeRes, wsRes, logRes, atRes, epRes, clRes] = await Promise.all([
         sb.from('profiles').select('*'),
         sb.from('words').select('*').order('created_at', { ascending: false }),
         sb.from('tones').select('*').order('created_at', { ascending: true }),
@@ -1323,7 +1346,8 @@
         sb.from('word_stats').select('*').eq('user_id', currentUser.id),
         sb.from('dm_log').select('*').order('created_at', { ascending: false }).limit(60),
         sb.from('user_attrs').select('*'),
-        sb.from('user_epithets').select('*').order('created_at', { ascending: true })
+        sb.from('user_epithets').select('*').order('created_at', { ascending: true }),
+        sb.from('collection_log').select('*')
       ]);
       if (pRes.error || wRes.error) {
         showToast('No se pudo cargar el grimorio: ' + (pRes.error || wRes.error).message);
@@ -1375,6 +1399,9 @@
       contentReady = !bRes.error && !iRes.error;
       applyGameContent(contentReady ? bRes.data : [], contentReady ? iRes.data : []);
       dungeonRows = dRes.error ? [] : dRes.data;
+      collReady = !clRes.error;
+      collectionLog = collReady ? clRes.data : [];
+      healCollection();
       dungeonReady = !dRes.error;
       gameReady = !rRes.error && Object.values(profiles).every(p => 'class' in p);
       tonesReady = !tRes.error; // false si aún no existe la tabla de atmósferas
@@ -1426,6 +1453,8 @@
     const ATTR = { perLevel: 1, fuerza: 2, inteligencia: 0.5, sabiduria: 0.2, destreza: 5, constitucion: 1, carismaOro: 3, carismaTienda: 1 };
     // Probabilidad (%) de que un cofre de prestigio traiga además un epíteto
     const EPI = { prestigeChance: 35 };
+    // Forja: cuántas copias iguales se funden, cuánto efecto suma cada +, hasta qué + y cuánto oro cuesta
+    const FORGE = { copies: 3, bonus: 50, max: 3, cost: 25 };
     const CLS = { mago: { word: 50 }, hechicero: { hit: 50, perfect: 100 }, bardo: { source: 50, used: 50 }, barbaro: { round: 50 }, paladin: { step: 10, max: 50 }, picaro: { save: 5 } };
 
     // La mazmorra: jefes encadenados, sin plazo. Toda la experiencia que gana el grupo es daño al jefe actual.
@@ -1487,7 +1516,7 @@
     const WEEK = { start: '2026-11-16', gold: 50 };
 
     // ----- Reglas que el máster puede cambiar desde su panel (lo demás sigue en el código) -----
-    const RULE_ROOTS = { XP, GOLD, TRAIN, LIFE, DUEL, WEEK, COMBAT, CHESTS, RARITY, CLS, ATTR, EPI };
+    const RULE_ROOTS = { XP, GOLD, TRAIN, LIFE, DUEL, WEEK, COMBAT, CHESTS, RARITY, CLS, ATTR, EPI, FORGE };
     const rf = (path, label, opts = {}) => ({ path, label, min: 0, step: 1, int: true, ...opts });
     const RULES = [
       { title: 'Experiencia', fields: [
@@ -1519,6 +1548,9 @@
         ['level', 'boss', 'prestige'].flatMap(t => [
           ...['común', 'raro', 'épico', 'legendario'].map(r => rf(`CHESTS.${t}.weights.${r}`, `${CHESTS[t].label}: peso de ${r}`)),
           rf(`CHESTS.${t}.sale`, `${CHESTS[t].label}: oro al venderlo sin abrir`) ]).concat([rf('EPI.prestigeChance', 'Cofre de prestigio: % de que traiga además un epíteto', { max: 100 })]) },
+      { title: 'Forja', note: 'Fundir varias copias iguales de un objeto da una versión mejorada (+1, +2…).', fields: [
+        rf('FORGE.copies', 'Copias que se funden', { min: 2, max: 10 }), rf('FORGE.bonus', '% de efecto extra por cada +', { min: 1 }),
+        rf('FORGE.max', 'Mejora máxima (+)', { min: 1, max: 10 }), rf('FORGE.cost', 'Oro que cuesta forjar') ] },
       { title: 'Venta de botín', fields: ['común', 'raro', 'épico', 'legendario'].map(r => rf(`RARITY.${r}.sale`, `Oro por vender un objeto ${r}`)) }
     ];
     const RULE_LIST = RULES.flatMap(g => g.fields);
@@ -1766,7 +1798,25 @@
       epi('tejedor', 'Tejedor de Ecos', 'Tejedora de Ecos', 'Tejedore de Ecos', 'cofre'),
       epi('prohibido', 'Que Leyó lo Prohibido', '', '', 'cofre'),
       epi('elegido', 'Elegido del Máster', 'Elegida del Máster', 'Elegide del Máster', 'máster'),
-      epi('bufon', 'Bufón de la Corte', 'Bufona de la Corte', 'Bufone de la Corte', 'máster')
+      epi('bufon', 'Bufón de la Corte', 'Bufona de la Corte', 'Bufone de la Corte', 'máster'),
+      epi('maestro-duelos', 'Maestro de Duelos', 'Maestra de Duelos', 'Maestre de Duelos', 'logro'),
+      epi('invicto', 'Invicto', 'Invicta', 'Invicte', 'logro'),
+      epi('azote', 'Azote de Jefes', '', '', 'logro'),
+      epi('matagigantes', 'Matagigantes', '', '', 'logro'),
+      epi('mente-diamante', 'Mente de Diamante', '', '', 'logro'),
+      epi('oraculo', 'Oráculo de la Palabra', '', '', 'logro'),
+      epi('senor-botin', 'Señor del Botín', 'Señora del Botín', 'Señore del Botín', 'logro'),
+      epi('cazatesoros', 'Cazatesoros', '', '', 'logro'),
+      epi('adorado', 'Adorado', 'Adorada', 'Adorade', 'logro'),
+      epi('centinela', 'Centinela', '', '', 'logro'),
+      epi('eterno', 'Eterno', 'Eterna', 'Eterne', 'logro'),
+      epi('archivero', 'Archivero', 'Archivera', 'Archivere', 'logro'),
+      epi('memoria-viva', 'Memoria Viva', '', '', 'logro'),
+      epi('campeon', 'Campeón del Gremio', 'Campeona del Gremio', 'Campeone del Gremio', 'logro'),
+      epi('calamo-oro', 'Cálamo de Oro', '', '', 'colección'),
+      epi('portador-talismanes', 'Portador de Talismanes', 'Portadora de Talismanes', 'Portadore de Talismanes', 'colección'),
+      epi('mil-mantos', 'de los Mil Mantos', '', '', 'colección'),
+      epi('coleccionista', 'Coleccionista del Laurel', '', '', 'colección')
     ];
     // Qué epíteto da cada logro de partida (por su nombre)
     const ACH_EPITHETS = {
@@ -1775,7 +1825,19 @@
       'Inspiración bárdica': 'bienamado', 'Multiclase': 'trotamundos', 'Primera sangre': 'primera-espada', 'Matadragones': 'matadragones',
       'Golpe de gracia': 'verdugo', 'Saqueo de mazmorra': 'saqueador', 'Duelo al alba': 'duelista', 'Favor del gremio': 'favorito'
     };
-    const EPI_ORIGINS = { logro: 'Con un logro', cofre: 'En los cofres de prestigio', 'máster': 'Solo lo da el máster' };
+    // Rangos de partida: además del logro base (bronce), plata y oro con su mínimo, nombre y epíteto
+    const ACH_RANKS = {
+      'Duelo al alba': [[10, 'Espada del gremio', 'maestro-duelos'], [50, 'Leyenda de la arena', 'invicto']],
+      'Golpe de gracia': [[3, 'Azote de jefes', 'azote'], [10, 'Matagigantes', 'matagigantes']],
+      'Veinte natural': [[10, 'Mente de diamante', 'mente-diamante'], [50, 'Oráculo de la palabra', 'oraculo']],
+      'Saqueo de mazmorra': [[20, 'Señorío del botín', 'senor-botin'], [50, 'Cazatesoros', 'cazatesoros']],
+      'Inspiración bárdica': [[50, 'Voz querida', 'adorado']],
+      'Guardia de siete noches': [[30, 'Centinela', 'centinela'], [100, 'Llama eterna', 'eterno']],
+      'Tomo legendario': [[250, 'Archivo vivo', 'archivero'], [500, 'Memoria del mundo', 'memoria-viva']],
+      'Favor del gremio': [[5, 'Campeonato', 'campeon']]
+    };
+    const RANK_COLORS = ['', '#B07A4A', '#C0C6D0', '#E8C877']; // bronce, plata, oro
+    const EPI_ORIGINS = { logro: 'Con un logro', cofre: 'En los cofres de prestigio', 'colección': 'Al completar una colección', 'máster': 'Solo lo da el máster' };
     let EPITHETS = EPITHET_DEFAULTS.map(e => ({ ...e }));
     function cleanEpithet(e) {
       if (!e || typeof e !== 'object' || !str(e.m) || !/^[a-z0-9-]+$/.test(str(e.id))) return null;
@@ -1801,9 +1863,13 @@
     function epithetsOwned(userId) {
       const s = guild[userId];
       const out = [];
-      if (s && s.achievements) ACHIEVEMENTS.forEach((a, i) => { if (s.achievements[i] && a.epithet && epithetById(a.epithet) && !out.some(o => o.id === a.epithet)) out.push({ id: a.epithet, source: 'logro', label: 'por el logro «' + a.name + '»' }); });
+      if (s && s.achievements) ACHIEVEMENTS.forEach((a, i) => {
+        const rank = s.achRanks ? s.achRanks[i] : (s.achievements[i] ? 1 : 0);
+        const steps = [{ epithet: a.epithet, name: a.name }, ...(a.ranks || [])].slice(0, rank);
+        steps.forEach(st => { if (st.epithet && epithetById(st.epithet) && !out.some(o => o.id === st.epithet)) out.push({ id: st.epithet, source: 'logro', label: 'por el logro «' + st.name + '»' }); });
+      });
       userEpithets.filter(r => r.user_id === userId && epithetById(r.epithet)).forEach(r => {
-        if (!out.some(o => o.id === r.epithet)) out.push({ id: r.epithet, source: r.source, label: r.source === 'cofre' ? 'de un cofre de prestigio' : 'regalo del máster', row: r });
+        if (!out.some(o => o.id === r.epithet)) out.push({ id: r.epithet, source: r.source, label: r.source === 'cofre' ? 'de un cofre de prestigio' : r.source === 'colección' ? 'por completar una colección' : 'regalo del máster', row: r });
       });
       return out;
     }
@@ -1863,14 +1929,30 @@
     ];
     let ACHIEVEMENTS = [];
     ACHIEVEMENTS = ACH_DEFAULTS.map(cleanAchievement);
+    // Rango alcanzado en un logro: 0 sin conseguir, 1 el logro base, 2 plata, 3 oro
+    function achRank(a, stats) {
+      const v = Number(stats[a.stat]) || 0;
+      if (v < a.min) return 0;
+      return 1 + (a.ranks || []).filter(r => v >= r.min).length;
+    }
+    // Nombre, epíteto y siguiente meta según el rango
+    function achView(a, rank) {
+      const cur = rank >= 2 ? a.ranks[rank - 2] : null;
+      const next = rank >= 1 ? (a.ranks || [])[rank - 1] : null;
+      return { name: cur ? cur.name : a.name, next, color: (a.ranks || []).length ? RANK_COLORS[Math.min(3, rank)] : '' };
+    }
     function achieved(a, stats) { return (Number(stats[a.stat]) || 0) >= a.min; }
     function cleanAchievement(a) {
       if (!a || typeof a !== 'object' || !ACH_STATS[a.stat] || !str(a.name)) return null;
       const min = Number(a.min);
       if (!isFinite(min) || min < 1) return null;
       const name = str(a.name).slice(0, 60);
+      const rawRanks = a.ranks === undefined ? (ACH_RANKS[name] || []).map(([m, n, e]) => ({ min: m, name: n, epithet: e })) : (Array.isArray(a.ranks) ? a.ranks : []);
+      let last = Math.round(min);
+      const ranks = rawRanks.map(r => ({ min: Math.round(Number(r && r.min)), name: str(r && r.name).slice(0, 60), epithet: str(r && r.epithet) }))
+        .filter(r => { const ok = r.name && isFinite(r.min) && r.min > last; if (ok) last = r.min; return ok; }).slice(0, 2);
       return { icon: /^[a-z0-9-]+$/.test(str(a.icon)) ? str(a.icon) : 'round-star', name, desc: str(a.desc).slice(0, 140), stat: a.stat, min: Math.round(min),
-        epithet: a.epithet === undefined ? (ACH_EPITHETS[name] || '') : str(a.epithet) };
+        epithet: a.epithet === undefined ? (ACH_EPITHETS[name] || '') : str(a.epithet), ranks };
     }
     function applyAchievements(list) {
       const clean = Array.isArray(list) ? list.map(cleanAchievement).filter(Boolean) : [];
@@ -2108,6 +2190,8 @@
       // Las habilidades de clase cuentan siempre, como la bonificación de la clase
       classPerks(userId, cls).forEach(p => gear.push({ item: p, from: -Infinity, to: Infinity }));
       const worn = (g, at) => at === null ? (g.to === Infinity || (Date.now() >= g.from && Date.now() < g.to)) : (at >= g.from && at < g.to);
+      // Conjuntos: su bonificación cuenta mientras se llevan todas las piezas a la vez
+      gameSets().forEach(set => setIntervals(gear, set).forEach(([from, to]) => gear.push({ item: { effect_type: set.effect_type, effect_value: set.effect_value, effect_tone: set.effect_tone }, from, to })));
       // Atributos: cada punto repartido cuenta siempre
       const alloc = opts.alloc || attrAlloc(userId);
       ATTRS.forEach(a => { const n = alloc[a.key] || 0; if (n > 0) a.effects().forEach(([t, v]) => gear.push({ item: { effect_type: t, effect_value: v * n, effect_tone: '' }, from: -Infinity, to: Infinity })); });
@@ -2264,6 +2348,7 @@
       stats.chests = pendingChests(userId, stats.level, stats.prestige);
 
       stats.achievements = ACHIEVEMENTS.map(a => achieved(a, stats));
+      stats.achRanks = ACHIEVEMENTS.map(a => achRank(a, stats));
       stats.attrs = alloc;
       stats.attrSpent = attrTotal(alloc);
       stats.attrBudget = Math.max(0, stats.level - 1) * ATTR.perLevel;
@@ -2302,7 +2387,7 @@
         weekWinners[k] = all.filter(s => Math.round(s.weekly[k] || 0) === best).map(s => s.userId);
         weekWinners[k].forEach(id => { guild[id].weeksWon++; guild[id].gold += WEEK.gold; });
       });
-      all.forEach(s => { s.achievements = ACHIEVEMENTS.map(a => achieved(a, s)); });
+      all.forEach(s => { s.achievements = ACHIEVEMENTS.map(a => achieved(a, s)); s.achRanks = ACHIEVEMENTS.map(a => achRank(a, s)); });
       updateBadges();
       if (!welcomeChecked && currentUser && guild[currentUser.id]) { welcomeChecked = true; maybeWelcome(); }
 
@@ -2502,6 +2587,147 @@
     function cardCols(n) { return n <= 4 ? Math.max(1, n) : 3; }
     function rowCols(n) { return n <= 4 ? Math.max(1, n) : n % 4 === 0 || n % 4 === 3 ? 4 : 3; }
 
+    // ---------- COLECCIONES ----------
+    // Por defecto, una colección por hueco y otra con los tesoros del cofre de prestigio (se rellenan solas con los objetos que haya)
+    const COLL_DEFAULTS = [
+      { id: 'plumas', name: 'Plumas del escriba', icon: 'quill-ink', pick: it => it.slot === 'pluma' && it.origin === 'any', gold: 120, epithet: 'calamo-oro' },
+      { id: 'amuletos', name: 'Amuletos y talismanes', icon: 'gem-pendant', pick: it => it.slot === 'amuleto' && it.origin === 'any', gold: 120, epithet: 'portador-talismanes' },
+      { id: 'capas', name: 'Capas y mantos', icon: 'cape', pick: it => it.slot === 'capa' && it.origin === 'any', gold: 120, epithet: 'mil-mantos' },
+      { id: 'laurel', name: 'Tesoros del laurel', icon: 'laurel-crown', pick: it => it.origin === 'prestige', gold: 300, epithet: 'coleccionista' }
+    ];
+    function collections() {
+      const gear = Object.values(itemsById).filter(it => it.kind === 'gear');
+      const saved = Array.isArray(configRows.collections) ? configRows.collections : [];
+      const list = saved.length
+        ? saved.map(c => ({ id: str(c.id), name: str(c.name), icon: /^[a-z0-9-]+$/.test(str(c.icon)) ? str(c.icon) : 'book-cover',
+            items: (Array.isArray(c.items) ? c.items : []).filter(id => itemsById[id]), gold: Math.max(0, Number(c.gold) || 0), epithet: str(c.epithet) }))
+        : COLL_DEFAULTS.map(c => ({ id: c.id, name: c.name, icon: c.icon, items: gear.filter(c.pick).sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity) || a.name.localeCompare(b.name, 'es')).map(it => it.id), gold: c.gold, epithet: c.epithet }));
+      return list.filter(c => c.id && c.name && c.items.length);
+    }
+    function collectedSet(userId) {
+      const ids = new Set(collectionLog.filter(r => r.user_id === userId).map(r => r.item_id));
+      userItems.forEach(u => { if (u.user_id === userId) ids.add(u.item_id); });
+      return ids;
+    }
+    const collClaimed = (userId, c) => ledger.some(l => l.user_id === userId && l.reason === 'Colección: ' + c.id);
+
+    // Apunta en el registro de colección los objetos que tengo y aún no están (por ejemplo, los recibidos en un intercambio)
+    async function healCollection() {
+      if (!collReady || !currentUser) return;
+      const have = new Set(collectionLog.filter(r => r.user_id === currentUser.id).map(r => r.item_id));
+      const ids = new Set([...userItems.filter(u => u.user_id === currentUser.id).map(u => u.item_id), ...chestOpens.filter(c => c.user_id === currentUser.id && c.item_id).map(c => c.item_id)]);
+      const missing = [...ids].filter(id => !have.has(id) && itemsById[id]);
+      if (missing.length) await logCollected(currentUser.id, missing);
+    }
+    async function logCollected(userId, itemIds) {
+      if (!collReady) return;
+      const rows = (Array.isArray(itemIds) ? itemIds : [itemIds]).filter(id => !collectionLog.some(r => r.user_id === userId && r.item_id === id)).map(item_id => ({ user_id: userId, item_id }));
+      if (!rows.length) return;
+      const { error } = await sb.from('collection_log').upsert(rows, { onConflict: 'user_id,item_id', ignoreDuplicates: true });
+      if (!error) collectionLog.push(...rows);
+    }
+
+    function collectionsBlock() {
+      if (!collReady || !currentUser) return '';
+      const list = collections();
+      if (!list.length) return '';
+      const have = collectedSet(currentUser.id);
+      const total = new Set(list.flatMap(c => c.items)).size, got = [...new Set(list.flatMap(c => c.items))].filter(id => have.has(id)).length;
+      return `
+        <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
+          <div class="rule"><span class="quote text-xs">Colecciones · ${got} de ${total}</span></div>
+          <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-3">Cuenta todo lo que has tenido alguna vez, aunque luego lo vendieras. Completa una colección para reclamar su premio.</p>
+          <div class="space-y-5 mt-4">
+            ${list.map(c => {
+              const n = c.items.filter(id => have.has(id)).length, done = n === c.items.length, claimed = collClaimed(currentUser.id, c);
+              const reward = [c.gold ? c.gold + ' de oro' : '', c.epithet && epithetById(c.epithet) ? 'el epíteto «' + epithetText(c.epithet, currentUser.id) + '»' : ''].filter(Boolean).join(' y ');
+              return `<div>
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <i class="gi gi-${c.icon} text-xl text-paper-accent dark:text-night-accent"></i>
+                  <span class="word-title text-xl flex-1 min-w-0">${esc(c.name)}</span>
+                  <span class="text-sm ${done ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${n} de ${c.items.length}</span>
+                </div>
+                <div class="h-px mt-2 bg-paper-border dark:bg-night-border"><div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${Math.round(n / c.items.length * 100)}%"></div></div>
+                <div class="flex flex-wrap gap-2 mt-3">
+                  ${c.items.map(id => { const it = itemsById[id], own = have.has(id), col = (RARITY[it.rarity] || RARITY['común']).color; return `<div class="coll-item ${own ? '' : 'is-missing'}" style="border-color:${col}" title="${esc(own ? it.name + ' (' + it.rarity + ')' : '??? (' + it.rarity + ')')}">
+                    ${art(it.image, it.icon, 'w-9 h-9', 'text-2xl', col)}</div>`; }).join('')}
+                </div>
+                ${reward ? `<p class="text-xs text-paper-muted dark:text-night-muted mt-2">Premio: ${esc(reward)}.${claimed ? ' Ya lo reclamaste.' : ''}</p>` : ''}
+                ${done && !claimed && reward ? `<div class="mt-2"><button onclick="claimCollection('${esc(c.id)}')" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg">Reclamar premio</button></div>` : ''}
+              </div>`; }).join('')}
+          </div>
+        </div>`;
+    }
+
+    async function claimCollection(id) {
+      const c = collections().find(x => x.id === id);
+      if (!c || !currentUser || !economyGuard()) return;
+      const have = collectedSet(currentUser.id);
+      if (!c.items.every(i => have.has(i)) || collClaimed(currentUser.id, c)) return;
+      try {
+        const { data, error } = await sb.from('gold_ledger').insert({ amount: c.gold, reason: 'Colección: ' + c.id }).select().single();
+        if (error) throw new Error('No se pudo reclamar: ' + error.message);
+        ledger.push(data);
+        if (c.epithet && epithetById(c.epithet) && epiReady && !epithetsOwned(currentUser.id).some(o => o.id === c.epithet)) {
+          const res = await sb.from('user_epithets').insert({ epithet: c.epithet, source: 'colección' }).select().single();
+          if (!res.error) userEpithets.push(res.data);
+        }
+        renderGlossary();
+        showToast(`Colección «${c.name}» completada`);
+      } catch (e) { showToast(e.message); }
+    }
+
+    // ---------- CONJUNTOS ----------
+    // Llevar puestas las tres piezas de un conjunto a la vez da una bonificación extra
+    const SET_DEFAULTS = [
+      { id: 'viajero', name: 'El viajero', icon: 'compass', items: ['Pluma de ganso', 'Amuleto de hueso', 'Capa de viaje'], effect_type: 'xp_word', effect_value: 2, effect_tone: '' },
+      { id: 'cuervos', name: 'Noche de cuervos', icon: 'raven', items: ['Pluma de cuervo', 'Ojo de lechuza', 'Capa de niebla'], effect_type: 'damage_pct', effect_value: 15, effect_tone: '' },
+      { id: 'dragon', name: 'El dragón dormido', icon: 'dragon-head', items: ['Pluma de fénix', 'Lágrima de dragón', 'Manto del crepúsculo'], effect_type: 'damage_pct', effect_value: 20, effect_tone: '' },
+      { id: 'archivo', name: 'El archivo', icon: 'book-cover', items: ['Cálamo del primer escriba', 'Colgante de ámbar', 'Capa del archivero'], effect_type: 'gold_pct', effect_value: 30, effect_tone: '' },
+      { id: 'laurel', name: 'La corte del laurel', icon: 'laurel-crown', items: ['Tintero sin fondo', 'Corona de laurel', 'Capa de las mil páginas'], effect_type: 'xp_pct', effect_value: 10, effect_tone: '' }
+    ];
+    function gameSets() {
+      const byName = {};
+      Object.values(itemsById).forEach(it => { if (it.kind === 'gear') byName[it.name] = it.id; });
+      const saved = Array.isArray(configRows.sets) ? configRows.sets : [];
+      const list = saved.length
+        ? saved.map(s => ({ id: str(s.id), name: str(s.name), icon: /^[a-z0-9-]+$/.test(str(s.icon)) ? str(s.icon) : 'linked-rings', items: (Array.isArray(s.items) ? s.items : []).filter(id => itemsById[id]),
+            effect_type: EFFECTS[s.effect_type] ? s.effect_type : 'none', effect_value: Number(s.effect_value) || 0, effect_tone: str(s.effect_tone) }))
+        : SET_DEFAULTS.map(s => ({ ...s, items: s.items.map(n => byName[n]).filter(Boolean) }));
+      return list.filter(s => s.id && s.name && s.items.length >= 2 && new Set(s.items).size === s.items.length);
+    }
+    function setOf(itemId) { return itemId ? gameSets().find(s => s.items.includes(itemId)) || null : null; }
+    // Periodos en que alguien llevó puestas todas las piezas de un conjunto a la vez
+    function setIntervals(gear, set) {
+      let spans = null;
+      for (const id of set.items) {
+        const mine = gear.filter(g => g.item && (g.item.id === id)).map(g => [g.from, g.to]);
+        if (!mine.length) return [];
+        if (!spans) { spans = mine; continue; }
+        const next = [];
+        spans.forEach(([a1, b1]) => mine.forEach(([a2, b2]) => { const a = Math.max(a1, a2), b = Math.min(b1, b2); if (a < b) next.push([a, b]); }));
+        spans = next;
+        if (!spans.length) return [];
+      }
+      return spans || [];
+    }
+    function setsBlock() {
+      if (!currentUser) return '';
+      const have = collectedSet(currentUser.id);
+      const worn = new Set(myItems().filter(u => u.equipped).map(u => u.item_id));
+      const list = gameSets().filter(s => s.items.some(id => have.has(id)));
+      if (!list.length) return '';
+      return `
+          <div class="rule mt-6"><span class="quote text-xs">Conjuntos</span></div>
+          <div class="space-y-3 mt-3">
+            ${list.map(s => { const on = s.items.every(id => worn.has(id)); return `<div class="set-row ${on ? 'is-on' : ''}">
+              <p class="text-sm"><i class="gi gi-${s.icon} ${on ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}"></i> <span class="word-title text-lg">${esc(s.name)}</span>
+                <span class="text-xs ${on ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${on ? 'completo: ' : 'con las tres piezas puestas: '}${esc(effectText(s))}</span></p>
+              <p class="text-xs text-paper-muted dark:text-night-muted mt-0.5">${s.items.map(id => `<span class="${worn.has(id) ? 'text-paper-accent dark:text-night-accent' : have.has(id) ? '' : 'opacity-50'}">${worn.has(id) ? '✓ ' : ''}${esc(have.has(id) ? itemsById[id].name : '???')}</span>`).join(' · ')}</p>
+            </div>`; }).join('')}
+          </div>`;
+    }
+
     // ---------- PERSONAJE ----------
     let charSlot = null; // hueco del muñeco que se ha pulsado
     const SLOT_ICONS = { pluma: 'quill', amuleto: 'gem-pendant', capa: 'cape' };
@@ -2555,10 +2781,11 @@
         <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
           <div class="rule"><span class="quote text-xs">Tus logros</span></div>
           <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 mt-4 text-sm">
-            ${ACHIEVEMENTS.map((a, i) => `<li class="flex items-start gap-2.5 ${mine.achievements[i] ? '' : 'opacity-50'}">
-              <i class="gi gi-${a.icon} text-lg mt-0.5 ${mine.achievements[i] ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}"></i>
-              <span><strong class="font-medium">${esc(a.name)}</strong><span class="block text-xs text-paper-muted dark:text-night-muted">${esc(a.desc)}</span></span>
-            </li>`).join('')}
+            ${ACHIEVEMENTS.map((a, i) => { const rank = mine.achRanks[i], v = achView(a, rank); return `<li class="flex items-start gap-2.5 ${rank ? '' : 'opacity-50'}">
+              <i class="gi gi-${a.icon} text-lg mt-0.5 ${rank ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}"${rank && v.color ? ` style="color:${v.color}"` : ''}></i>
+              <span><strong class="font-medium"${rank && v.color ? ` style="color:${v.color}"` : ''}>${esc(v.name)}</strong>${(a.ranks || []).length ? ` <span class="text-xs text-paper-muted dark:text-night-muted">${['', 'bronce', 'plata', 'oro'][Math.min(3, rank)] || ''}</span>` : ''}
+                <span class="block text-xs text-paper-muted dark:text-night-muted">${esc(a.desc)}${v.next ? `. Siguiente: «${esc(v.next.name)}» al llegar a ${v.next.min}` : ''}</span></span>
+            </li>`; }).join('')}
           </ul>
           <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save ? XP.save + ' por cada palabra ajena que guardas en tu grimorio, ' : ''}${XP.used} por palabra ya usada (tuya o guardada), ${XP.round} por entrenamiento más ${XP.hit} por acierto (hasta ${XP.roundsPerDay} al día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${XP.levelDamage} % de daño a los jefes.</p>
         </div>`;
@@ -2566,7 +2793,7 @@
 
     function slotBox(key) {
       const u = myItems().find(x => x.equipped && itemsById[x.item_id].slot === key);
-      const it = u ? itemsById[u.item_id] : null;
+      const it = uItem(u);
       const tier = it ? RARITY_ORDER.indexOf(it.rarity) + 1 : 0;
       const color = it ? (RARITY[it.rarity] || RARITY['común']).color : '';
       return `<button type="button" onclick="pickSlot('${key}')" class="plain char-slot aura-${tier} ${charSlot === key ? 'is-open' : ''}" style="${it ? 'border-color:' + color : ''}" title="${esc(SLOTS[key] + (it ? ': ' + it.name : ': vacío'))}">
@@ -2587,8 +2814,8 @@
       return `
           <div class="rule mt-6"><span class="quote text-xs">${SLOTS[charSlot]}</span></div>
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-4">
-            ${worn ? itemCard(itemsById[worn.item_id], `<span class="text-xs text-paper-accent dark:text-night-accent w-full">Lo llevas puesto</span><button onclick="unequipItem('${esc(worn.id)}')" class="${small}">Quitar</button>`) : ''}
-            ${spare.map(u => itemCard(itemsById[u.item_id], `<button onclick="equipItem('${esc(u.id)}')" class="${smallGold}">${worn ? 'Cambiar por este' : 'Ponérmelo'}</button>`)).join('')}
+            ${worn ? itemCard(uItem(worn), `<span class="text-xs text-paper-accent dark:text-night-accent w-full">Lo llevas puesto</span><button onclick="unequipItem('${esc(worn.id)}')" class="${small}">Quitar</button>`) : ''}
+            ${spare.map(u => itemCard(uItem(u), `<button onclick="equipItem('${esc(u.id)}')" class="${smallGold}">${worn ? 'Cambiar por este' : 'Ponérmelo'}</button>`)).join('')}
           </div>
           ${!worn && !spare.length ? `<p class="quote text-sm text-center mt-3">No tienes nada para este hueco. Los objetos salen de los cofres.</p>` : ''}`;
     }
@@ -2621,9 +2848,10 @@
           </div>
           <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-4">Pulsa un hueco para ver o cambiar lo que llevas. El brillo del retrato es el de tu mejor objeto puesto, y su marco se enriquece al subir de nivel.</p>
           ${slotPanel()}
+          ${setsBlock()}
         </div>`;
       const epi = epiReady ? `<div class="${box}">${epithetChooser().replace('<div class="rule mt-6">', '<div class="rule">')}</div>` : '';
-      panel.innerHTML = hero + epi + attrsBlock() + classChooser() + achievementsLegend();
+      panel.innerHTML = hero + collectionsBlock() + epi + attrsBlock() + classChooser() + achievementsLegend();
     }
 
     function renderGuild() {
@@ -2677,7 +2905,7 @@
           </ul>` : ''}
           <div class="rule mt-4"><span class="quote text-xs">Logros · ${earned} de ${ACHIEVEMENTS.length}</span></div>
           <div class="flex flex-wrap justify-center gap-1.5 mt-3">
-            ${ACHIEVEMENTS.map((a, i) => `<span title="${esc(a.name + ': ' + a.desc)}" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center border text-base ${s.achievements[i] ? 'border-paper-accent dark:border-night-accent text-paper-accent dark:text-night-accent' : 'border-paper-border dark:border-night-border text-paper-muted dark:text-night-muted opacity-40'}"><i class="gi gi-${a.icon}"></i></span>`).join('')}
+            ${ACHIEVEMENTS.map((a, i) => { const rank = s.achRanks ? s.achRanks[i] : (s.achievements[i] ? 1 : 0), v = achView(a, rank); return `<span title="${esc(v.name + ': ' + a.desc)}" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center border text-base ${rank ? 'border-paper-accent dark:border-night-accent text-paper-accent dark:text-night-accent' : 'border-paper-border dark:border-night-border text-paper-muted dark:text-night-muted opacity-40'}"${rank && v.color ? ` style="color:${v.color};border-color:${v.color}"` : ''}><i class="gi gi-${a.icon}"></i></span>`; }).join('')}
           </div>
           </details>
         </div>`;
@@ -3510,7 +3738,9 @@
       chestOpens.forEach(c => { const it = itemsById[c.item_id]; if (it && !c.sold) add(c.created_at, 'open-treasure-chest', `${authorName(c.user_id)} abrió un cofre y encontró «${it.name}».`); });
       reviewSessions.forEach(s => { if (s.total >= TRAIN.words && s.hits === s.total) add(s.created_at, 'round-star', `${authorName(s.user_id)} acertó las ${s.total} palabras de un entrenamiento.`); });
       itemUses.forEach(u => { if (u.effect_type === 'potion' && u.target_id && u.target_id !== u.user_id) add(u.used_at, 'health-potion', `${authorName(u.user_id)} dio una poción a ${authorName(u.target_id)}.`); });
-      userEpithets.forEach(r => { if (epithetById(r.epithet)) add(r.created_at, 'laurel-crown', r.source === 'cofre' ? `${authorName(r.user_id)} encontró en un cofre de prestigio el epíteto «${epithetText(r.epithet, r.user_id)}».` : `El máster nombró a ${authorName(r.user_id)} «${epithetText(r.epithet, r.user_id)}».`); });
+      userEpithets.forEach(r => { if (epithetById(r.epithet)) add(r.created_at, 'laurel-crown', r.source === 'cofre' ? `${authorName(r.user_id)} encontró en un cofre de prestigio el epíteto «${epithetText(r.epithet, r.user_id)}».` : r.source === 'colección' ? `${authorName(r.user_id)} ganó el epíteto «${epithetText(r.epithet, r.user_id)}» al completar una colección.` : `El máster nombró a ${authorName(r.user_id)} «${epithetText(r.epithet, r.user_id)}».`); });
+      ledger.forEach(l => { const m = /^Colección: (.+)$/.exec(l.reason || ''); const c = m && collections().find(x => x.id === m[1]); if (c) add(l.created_at, c.icon, `${authorName(l.user_id)} completó la colección «${c.name}».`); });
+      userItems.forEach(u => { if (u.source === 'forja' && u.plus >= 2 && itemsById[u.item_id]) add(u.created_at, 'anvil', `${authorName(u.user_id)} forjó «${uItem(u).name}».`); });
       trades.forEach(t => { if (t.status === 'accepted') add(t.created_at, 'swap-bag', `${authorName(t.from_id)} y ${authorName(t.to_id)} cerraron un intercambio.`); });
       Object.entries(weekWinners).forEach(([k, ids]) => add(new Date(k + 'T00:00:00').getTime() + 7 * 86400000, 'podium', `${ids.map(authorName).join(' y ')} ganó la clasificación de la semana.`));
       return events.sort((a, b) => b.at - a.at).slice(0, limit);
@@ -3565,6 +3795,10 @@
         section('Clases y habilidades', [
           Object.keys(CLASSES).map(k => `<strong class="font-medium">${esc(CLASSES[k].names.n)}</strong>: ${esc(classBonus(k).replace(/\.$/, ''))}`).join('. ') + '.',
           `En los niveles ${PERK_LEVELS.map(perkUnlock).join(', ')} eliges una de dos habilidades de tu clase. Clase y habilidades se pueden cambiar cuando quieras.` ]),
+        section('Colecciones, forja y conjuntos', [
+          'En Personaje están las colecciones: cuentan todo lo que has tenido alguna vez. Al completar una puedes reclamar su premio, que puede ser oro y un epíteto.',
+          `Con ${FORGE.copies} copias iguales de un objeto puedes forjar una versión mejorada (+1, hasta +${FORGE.max}) desde el zurrón: cada + suma un ${FORGE.bonus} % a su efecto${FORGE.cost ? ' y cuesta ' + FORGE.cost + ' de oro' : ''}.`,
+          'Algunos objetos forman conjuntos: si llevas puestas todas sus piezas a la vez, ganas una bonificación extra.' ]),
         section('Epítetos', [
           'Un epíteto es un título de honor que se muestra junto a tu nombre. Se ganan con algunos logros, en los cofres de prestigio o porque te lo da el máster, y se elige cuál llevar en Personaje.' ]),
         section('Atributos', [
@@ -3765,15 +3999,23 @@
     function gearIntervals(userId) {
       const list = [];
       equipHistory.forEach(h => {
-        const item = itemsById[h.item_id];
+        const item = forged(itemsById[h.item_id], h.plus);
         if (h.user_id === userId && item) list.push({ item, from: Date.parse(h.equipped_from) || 0, to: Date.parse(h.equipped_to) || 0 });
       });
       userItems.forEach(u => {
-        const item = itemsById[u.item_id];
+        const item = uItem(u);
         if (u.user_id === userId && u.equipped && item) list.push({ item, from: Date.parse(u.equipped_at) || 0, to: Infinity });
       });
       return list;
     }
+
+    // El objeto tal como lo tiene alguien: con su mejora de forja (+1, +2…) aplicada al nombre y al efecto
+    function forged(item, plus) {
+      const n = Math.max(0, Math.floor(Number(plus) || 0));
+      if (!item || !n) return item;
+      return { ...item, plus: n, baseName: item.name, name: item.name + ' +' + n, effect_value: Math.round(item.effect_value * (1 + FORGE.bonus / 100 * n) * 100) / 100 };
+    }
+    function uItem(u) { return u ? forged(itemsById[u.item_id], u.plus) : null; }
 
     function myItems() { return currentUser ? userItems.filter(u => u.user_id === currentUser.id && itemsById[u.item_id]) : []; }
 
@@ -3790,19 +4032,21 @@
 
     function itemCard(item, extra) {
       const r = RARITY[item.rarity] || RARITY['común'];
+      const set = setOf(item.id);
       return `
-        <div class="frame border border-paper-border dark:border-night-border p-3 text-center flex flex-col" style="border-top:2px solid ${r.color}">
+        <div class="frame border border-paper-border dark:border-night-border p-3 text-center flex flex-col${item.plus ? ' item-forged' : ''}" style="border-top:2px solid ${r.color}">
           <div>${art(item.image, item.icon, 'w-12 h-12', 'text-4xl', r.color)}</div>
           <p class="word-title text-lg mt-1.5 leading-tight">${esc(item.name)}</p>
           <p class="label-caps text-[8.5px] mt-1" style="color:${r.color}">${esc(item.kind === 'gear' ? item.rarity + ' · ' + (SLOTS[item.slot] || 'sin hueco') : 'consumible')}</p>
           <p class="text-xs text-paper-muted dark:text-night-muted mt-1 leading-snug flex-1">${esc(effectText(item))}</p>
+          ${set ? `<p class="text-[11px] mt-1 text-paper-accent dark:text-night-accent leading-snug"><i class="gi gi-${set.icon || 'linked-rings'}"></i> Conjunto «${esc(set.name)}»</p>` : ''}
           <div class="flex flex-wrap justify-center gap-1.5 mt-2.5">${extra || ''}</div>
         </div>`;
     }
 
     // Iconos del equipo que lleva alguien, para la ficha del gremio
     function gearRow(userId) {
-      const worn = userItems.filter(u => u.user_id === userId && u.equipped && itemsById[u.item_id]).map(u => itemsById[u.item_id]);
+      const worn = userItems.filter(u => u.user_id === userId && u.equipped && itemsById[u.item_id]).map(uItem);
       if (worn.length === 0) return '';
       return `<p class="flex items-center justify-center gap-2 mt-2.5">${worn.map(it =>
         `<span title="${esc(it.name + ': ' + effectText(it))}">${art(it.image, it.icon, 'w-6 h-6', 'text-lg', (RARITY[it.rarity] || RARITY['común']).color)}</span>`).join('')}</p>`;
@@ -3868,10 +4112,12 @@
           <div class="rule"><span class="quote text-xs">En el zurrón</span></div>
           <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-3">Lo que llevas puesto y tu epíteto están en <button type="button" onclick="switchTab('character')" class="plain underline">tu personaje</button>.</p>
           ${spare.length || Object.keys(consumables).length ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-4">
-            ${spare.map(u => { const it = itemsById[u.item_id]; return itemCard(it,
+            ${gearGroups(spare).map(units => { const u = units[0], it = uItem(u), canForge = forgeUnits(units).length >= FORGE.copies && (u.plus || 0) < FORGE.max; return itemCard(it,
+              (units.length > 1 ? `<span class="text-xs text-paper-muted dark:text-night-muted w-full">Tienes ${units.length}</span>` : '') +
               (it.slot ? `<button onclick="equipItem('${esc(u.id)}')" class="${smallGold}">Equipar</button>` : '') +
               `<button onclick="sellItem('${esc(u.id)}')" class="${small}">Vender por ${sale(it)}</button>` +
-              (perksReady && others.length ? `<button onclick="openTrade('${esc(u.id)}')" class="${small}">Ofrecer</button>` : '')); }).join('')}
+              (perksReady && others.length ? `<button onclick="openTrade('${esc(u.id)}')" class="${small}">Ofrecer</button>` : '') +
+              (canForge ? `<button onclick="forgeItem('${esc(u.item_id)}', ${u.plus || 0})" class="${smallGold}"><i class="gi gi-anvil"></i> Forjar +${(u.plus || 0) + 1}</button>` : '')); }).join('')}
             ${Object.entries(consumables).map(([id, units]) => { const it = itemsById[id]; return itemCard(it,
               `<span class="text-xs text-paper-muted dark:text-night-muted w-full">Tienes ${units.length}</span>` +
               (it.effect_type === 'poison' ? `<button onclick="usePoison('${esc(units[0].id)}')" class="${smallGold}">Usar</button>` : '') +
@@ -3906,8 +4152,9 @@
     // Precio de la tienda para una persona (con su descuento) y lo que le dan al vender
     function priceFor(item, stats) { return Math.max(1, Math.round(item.price * (1 - ((stats && stats.perk ? stats.perk.shop : 0) / 100)))); }
     function saleValue(item, stats) {
-      if (item.price > 0) return Math.floor(item.price / 2); // lo de tienda, a mitad de precio y sin bonificación
-      return Math.round((RARITY[item.rarity] || RARITY['común']).sale * (1 + ((stats && stats.perk ? stats.perk.sale : 0) / 100)));
+      const plus = 1 + (item.plus || 0); // lo forjado vale tanto como las copias que lo formaron
+      if (item.price > 0) return Math.floor(item.price / 2) * plus; // lo de tienda, a mitad de precio y sin bonificación
+      return Math.round((RARITY[item.rarity] || RARITY['común']).sale * (1 + ((stats && stats.perk ? stats.perk.sale : 0) / 100))) * plus;
     }
     // Los cofres de prestigio no piden ganzúa; los menores tampoco con la habilidad adecuada
     function chestFree(chest, stats) { return Boolean(CHESTS[chest.tier].free || (chest.tier === 'level' && stats && stats.perk && stats.perk.noPick)); }
@@ -3943,6 +4190,7 @@
         const { data, error } = await sb.from('user_items').insert({ item_id: f.item.id, source: 'semana ' + f.week }).select().single();
         if (error) throw new Error('No se pudo comprar: ' + error.message);
         userItems.push(data);
+        await logCollected(currentUser.id, f.item.id);
         await spendGold(-price, reason);
         renderGlossary();
         showToast(`Has comprado «${f.item.name}» por ${price} de oro`);
@@ -3974,7 +4222,7 @@
     }
 
     function tradeText(t) {
-      const name = id => { const u = userItems.find(x => x.id === id); return u && itemsById[u.item_id] ? '«' + itemsById[u.item_id].name + '»' : 'un objeto'; };
+      const name = id => { const u = userItems.find(x => x.id === id); return u && itemsById[u.item_id] ? '«' + uItem(u).name + '»' : 'un objeto'; };
       return name(t.give_item) + (t.want_item ? ' a cambio de ' + name(t.want_item) : t.gold > 0 ? ' a cambio de ' + t.gold + ' de oro' : ', de regalo');
     }
 
@@ -4217,6 +4465,7 @@
         const { data, error } = await sb.from('user_items').insert({ item_id: itemId, source: 'tienda' }).select().single();
         if (error) throw new Error('No se pudo comprar: ' + error.message);
         userItems.push(data);
+        await logCollected(currentUser.id, itemId);
         await spendGold(-price, 'Compra: ' + it.name);
         renderGlossary();
         showToast(`Has comprado «${it.name}» por ${price} de oro`);
@@ -4225,7 +4474,9 @@
 
     async function closeEquip(u) {
       if (!u.equipped || !u.equipped_at) return;
-      const { data, error } = await sb.from('equip_history').insert({ item_id: u.item_id, equipped_from: u.equipped_at }).select().single();
+      const row = { item_id: u.item_id, equipped_from: u.equipped_at };
+      if (u.plus) row.plus = u.plus;
+      const { data, error } = await sb.from('equip_history').insert(row).select().single();
       if (error) throw new Error('No se pudo guardar el cambio de equipo: ' + error.message);
       equipHistory.push(data);
     }
@@ -4257,14 +4508,50 @@
         if (current) { await closeEquip(current); await setEquipped(current, false); }
         await setEquipped(u, true);
         renderGlossary();
-        showToast(`Llevas equipado «${it.name}»`);
+        showToast(`Llevas equipado «${uItem(u).name}»`);
       } catch (e) { showToast(e.message); }
+    }
+
+    // Agrupa las unidades iguales (mismo objeto y misma mejora) para mostrarlas juntas
+    function gearGroups(units) {
+      const groups = {};
+      units.forEach(u => { const k = u.item_id + '+' + (u.plus || 0); (groups[k] = groups[k] || []).push(u); });
+      return Object.values(groups);
+    }
+    // Copias que se pueden fundir: sin equipar y sin estar en una oferta abierta
+    function forgeUnits(units) {
+      return units.filter(u => !u.equipped && !trades.some(t => tradeAlive(t) && (t.give_item === u.id || t.want_item === u.id)));
+    }
+
+    async function forgeItem(itemId, plus) {
+      const me = currentUser ? guild[currentUser.id] : null;
+      const base = itemsById[itemId];
+      if (!economyGuard() || !me || !base) return;
+      if (plus >= FORGE.max) { showToast('Ese objeto ya está en su mejora máxima'); return; }
+      const units = forgeUnits(myItems().filter(u => u.item_id === itemId && (u.plus || 0) === plus)).slice(0, FORGE.copies);
+      if (units.length < FORGE.copies) { showToast(`Hacen falta ${FORGE.copies} copias sin equipar`); return; }
+      if (me.gold < FORGE.cost) { showToast(`Forjar cuesta ${FORGE.cost} de oro`); return; }
+      const result = forged(base, plus + 1);
+      if (!confirm(`¿Fundir ${FORGE.copies} «${forged(base, plus).name}» en una «${result.name}»${FORGE.cost ? ` por ${FORGE.cost} de oro` : ''}?\n\n${effectText(result)}`)) return;
+      try {
+        const { data, error } = await sb.from('user_items').insert({ item_id: itemId, source: 'forja', plus: plus + 1 }).select().single();
+        if (error) throw new Error('No se pudo forjar: ' + error.message);
+        for (const u of units) {
+          const del = await sb.from('user_items').delete().eq('id', u.id);
+          if (del.error) throw new Error('Se forjó, pero no se pudo retirar una copia: ' + del.error.message);
+          userItems = userItems.filter(x => x.id !== u.id);
+        }
+        userItems.push(data);
+        if (FORGE.cost) await spendGold(-FORGE.cost, 'Forja: ' + result.name);
+        renderGlossary();
+        showToast(`Has forjado «${result.name}»`);
+      } catch (e) { showToast(e.message); renderGlossary(); }
     }
 
     async function sellItem(userItemId) {
       const u = myItems().find(x => x.id === userItemId);
       if (!economyGuard() || !u) return;
-      const it = itemsById[u.item_id];
+      const it = uItem(u);
       const value = saleValue(it, guild[currentUser.id]);
       if (!confirm(`¿Vender «${it.name}» por ${value} de oro?`)) return;
       try {
@@ -4359,6 +4646,7 @@
           const got = await sb.from('user_items').insert({ item_id: item.id, source: 'cofre ' + source }).select().single();
           if (got.error) throw new Error('El cofre se abrió, pero no se pudo guardar el objeto: ' + got.error.message);
           userItems.push(got.data);
+          await logCollected(currentUser.id, item.id);
         } else {
           await spendGold(GOLD.noLoot, 'Cofre: ' + chest.name);
         }
@@ -4378,6 +4666,7 @@
     }
 
     function showLoot(chest, item, title = null) {
+      const tier = item ? RARITY_ORDER.indexOf(item.rarity) + 1 : 0;
       const r = item ? (RARITY[item.rarity] || RARITY['común']) : null;
       document.getElementById('lootBody').innerHTML = item ? `
           <p class="label-caps text-[10px] text-paper-muted dark:text-night-muted">${esc(chest.name)}</p>
@@ -4393,6 +4682,15 @@
           <div class="rule mt-6"><span class="quote text-xs">Y además, un epíteto</span></div>
           <p class="word-title text-3xl mt-3 text-paper-accent dark:text-night-accent">${esc(displayNameWith(currentUser.id, title))}</p>
           <p class="text-sm text-paper-muted dark:text-night-muted mt-2">Lo puedes llevar desde tu Personaje.</p>`;
+      // Primero el cofre tiembla; después se abre con un destello del color de lo que trae
+      const body = document.getElementById('lootBody');
+      const result = body.innerHTML;
+      const still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!still) {
+        body.innerHTML = `<p class="label-caps text-[10px] text-paper-muted dark:text-night-muted">${esc(chest.name)}</p>
+          <div class="mt-8 mb-6"><i class="gi gi-${CHESTS[chest.tier] ? CHESTS[chest.tier].icon : 'chest'} text-8xl text-paper-accent dark:text-night-accent chest-shake inline-block"></i></div>`;
+        setTimeout(() => { body.innerHTML = `<div class="loot-reveal loot-t${tier}"><span class="loot-burst"></span>${result}</div>`; }, 1100);
+      } else body.innerHTML = result;
       document.getElementById('lootModal').classList.remove('hidden');
       document.getElementById('lootModal').classList.add('flex');
     }
@@ -4526,7 +4824,7 @@
         </div>`;
       const sections = {
         mazmorra: ['Mazmorra', () => monsters()],
-        objetos: ['Objetos y tienda', () => dmShopBlock() + dmItemsBlock() + dmLootBlock() + dmGiftBlock()],
+        objetos: ['Objetos y tienda', () => dmShopBlock() + dmItemsBlock() + dmLootBlock() + dmSetsBlock() + dmCollectionsBlock() + dmGiftBlock()],
         jugadoras: ['Jugadoras', () => dmNoticeBlock() + dmPlayersBlock() + dmGuildBlock()],
         reglas: ['Reglas', () => dmLevelsBlock() + dmEventsBlock() + dmRulesBlock()],
         clases: ['Clases', () => dmClassesBlock() + dmTitlesBlock()],
@@ -4824,6 +5122,124 @@
       } catch (e) { showToast(e.message); }
     }
 
+    // ----- Conjuntos -----
+    function dmSetsBlock() {
+      if (!configReady) return '';
+      if (!dmSetDraft) dmSetDraft = gameSets().map(s => ({ ...s, items: [...s.items, '', ''].slice(0, 3) }));
+      const gear = Object.values(itemsById).filter(it => it.kind === 'gear').sort((a, b) => a.name.localeCompare(b.name, 'es'));
+      const effects = Object.keys(EFFECTS).filter(k => !['none', 'lockpick', 'poison', 'potion', 'duel', 'train_ticket'].includes(k));
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Conjuntos</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">Llevar puestas a la vez todas las piezas de un conjunto da su bonificación. Mejor una pieza por hueco (pluma, amuleto y capa), o no se podrán llevar juntas.</p>
+          <div class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
+            ${dmSetDraft.map((s, i) => `<div class="py-3 grid grid-cols-2 sm:grid-cols-3 gap-2 items-end">
+              <div><label for="set-${i}-name" class="text-xs">Nombre</label><input type="text" id="set-${i}-name" maxlength="60" value="${esc(s.name)}" class="${DM_FIELD}" /></div>
+              <div><label for="set-${i}-icon" class="text-xs">Icono</label><input type="text" id="set-${i}-icon" value="${esc(s.icon)}" class="${DM_FIELD}" /></div>
+              <div class="flex items-end"><button onclick="setRemove(${i})" class="${DM_SMALL}">Quitar conjunto</button></div>
+              ${[0, 1, 2].map(k => `<div><label for="set-${i}-item${k}" class="text-xs">Pieza ${k + 1}</label><select id="set-${i}-item${k}" class="${DM_FIELD}"><option value="">—</option>${gear.map(it => `<option value="${esc(it.id)}"${it.id === s.items[k] ? ' selected' : ''}>${esc(it.name)} (${esc(SLOTS[it.slot] || '')})</option>`).join('')}</select></div>`).join('')}
+              <div class="col-span-2 sm:col-span-1"><label for="set-${i}-type" class="text-xs">Bonificación</label><select id="set-${i}-type" class="${DM_FIELD}">${effects.map(k => `<option value="${k}"${k === s.effect_type ? ' selected' : ''}>${esc(EFFECTS[k].label)}</option>`).join('')}</select></div>
+              <div><label for="set-${i}-value" class="text-xs">Valor</label><input type="number" id="set-${i}-value" min="0" step="1" value="${s.effect_value}" class="${DM_FIELD}" /></div>
+              <div><label for="set-${i}-tone" class="text-xs">Atmósfera (si la pide)</label><select id="set-${i}-tone" class="${DM_FIELD}"><option value="">Ninguna</option>${TONES.map(t => `<option value="${esc(t)}"${t === s.effect_tone ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
+            </div>`).join('') || '<p class="quote text-sm py-3">No hay conjuntos.</p>'}
+          </div>
+          <div class="flex flex-wrap justify-between gap-2 mt-3">
+            <button onclick="setAdd()" class="${DM_SMALL}">Añadir conjunto</button>
+            <span class="flex flex-wrap gap-2"><button onclick="saveSets(true)" class="${DM_SMALL}">Volver a los de partida</button><button onclick="saveSets()" class="${DM_GOLD}">Ver cómo queda y guardar</button></span>
+          </div>
+        </div>`;
+    }
+    function setRead() {
+      if (!dmSetDraft) return;
+      dmSetDraft = dmSetDraft.map((s, i) => {
+        const get = f => document.getElementById(`set-${i}-${f}`);
+        if (!get('name')) return s;
+        return { id: s.id, name: str(get('name').value), icon: str(get('icon').value), items: [0, 1, 2].map(k => get('item' + k).value),
+          effect_type: get('type').value, effect_value: parseFloat(get('value').value) || 0, effect_tone: get('tone').value };
+      });
+    }
+    function setAdd() { setRead(); dmSetDraft.push({ id: 's' + Date.now().toString(36), name: '', icon: 'linked-rings', items: ['', '', ''], effect_type: 'xp_word', effect_value: 1, effect_tone: '' }); renderDM(); }
+    function setRemove(i) { setRead(); dmSetDraft.splice(i, 1); renderDM(); }
+    async function saveSets(reset = false) {
+      if (!configGuard()) return;
+      let list = [];
+      if (!reset) {
+        setRead();
+        for (const s of dmSetDraft) {
+          const items = s.items.filter(Boolean);
+          if (!s.name) { showToast('Hay un conjunto sin nombre'); return; }
+          if (items.length < 2 || new Set(items).size !== items.length) { showToast(`«${s.name}» necesita al menos dos piezas distintas`); return; }
+          if (!/^[a-z0-9-]+$/.test(s.icon)) { showToast(`Revisa el icono de «${s.name}»`); return; }
+          if (EFFECTS[s.effect_type] && EFFECTS[s.effect_type].tone && !s.effect_tone) { showToast(`«${s.name}» necesita una atmósfera`); return; }
+        }
+        list = dmSetDraft.map(s => ({ ...s, items: s.items.filter(Boolean), effect_tone: EFFECTS[s.effect_type] && EFFECTS[s.effect_type].tone ? s.effect_tone : '' }));
+        if (!list.length) { showToast('Para quitarlos todos, deja al menos uno o vuelve a los de partida'); return; }
+      }
+      const current = configRows.sets;
+      const lines = impactLines(() => { configRows.sets = list; }, () => { configRows.sets = current; });
+      if (!confirm('Con estos conjuntos:\n\n' + lines.join('\n') + '\n\n¿Guardar?')) return;
+      try { await saveConfig('sets', list); dmSetDraft = null; renderGlossary(); renderDM(); showToast('Conjuntos guardados'); } catch (e) { showToast(e.message); }
+    }
+
+    // ----- Colecciones -----
+    function dmCollectionsBlock() {
+      if (!configReady) return '';
+      if (!dmCollDraft) dmCollDraft = collections().map(c => ({ ...c, items: [...c.items] }));
+      const gear = Object.values(itemsById).filter(it => it.kind === 'gear').sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity) || a.name.localeCompare(b.name, 'es'));
+      const saved = Array.isArray(configRows.collections) && configRows.collections.length;
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Colecciones</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">Cada colección es una lista de objetos; quien los haya tenido todos alguna vez puede reclamar el premio. ${saved ? 'Ahora mismo mandan las que has guardado.' : 'Ahora mismo son las de partida, que se rellenan solas con los objetos nuevos que crees; al guardar aquí pasan a ser fijas.'}</p>
+          <div class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
+            ${dmCollDraft.map((c, i) => `<details class="py-3"${dmOpen.has('k' + i) ? ' open' : ''} ontoggle="dmToggle('k${i}', this.open)">
+              <summary class="cursor-pointer"><i class="gi gi-${esc(c.icon)} text-paper-accent dark:text-night-accent"></i> <span class="word-title text-xl">${esc(c.name || 'Sin nombre')}</span> <span class="text-xs text-paper-muted dark:text-night-muted">${c.items.length} objetos</span></summary>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 items-end">
+                <div><label for="coll-${i}-name" class="text-xs">Nombre</label><input type="text" id="coll-${i}-name" maxlength="60" value="${esc(c.name)}" class="${DM_FIELD}" /></div>
+                <div><label for="coll-${i}-icon" class="text-xs">Icono</label><input type="text" id="coll-${i}-icon" value="${esc(c.icon)}" class="${DM_FIELD}" /></div>
+                <div><label for="coll-${i}-gold" class="text-xs">Premio en oro</label><input type="number" id="coll-${i}-gold" min="0" step="10" value="${c.gold}" class="${DM_FIELD}" /></div>
+                <div><label for="coll-${i}-epi" class="text-xs">Epíteto de premio</label><select id="coll-${i}-epi" class="${DM_FIELD}"><option value="">Ninguno</option>${EPITHETS.map(e => `<option value="${esc(e.id)}"${e.id === c.epithet ? ' selected' : ''}>${esc(epithetForms(e))}</option>`).join('')}</select></div>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1 mt-3 text-sm">
+                ${gear.map(it => `<label class="flex items-center gap-2 not-italic" style="font-style:normal"><input type="checkbox" id="coll-${i}-it-${esc(it.id)}"${c.items.includes(it.id) ? ' checked' : ''} /> ${esc(it.name)} <span class="text-xs" style="color:${(RARITY[it.rarity] || RARITY['común']).color}">${esc(it.rarity)}</span></label>`).join('')}
+              </div>
+              <div class="flex justify-end mt-2"><button onclick="collRemove(${i})" class="${DM_SMALL}">Quitar colección</button></div>
+            </details>`).join('')}
+          </div>
+          <div class="flex flex-wrap justify-between gap-2 mt-3">
+            <button onclick="collAdd()" class="${DM_SMALL}">Añadir colección</button>
+            <span class="flex flex-wrap gap-2"><button onclick="saveCollections(true)" class="${DM_SMALL}">Volver a las de partida</button><button onclick="saveCollections()" class="${DM_GOLD}">Guardar colecciones</button></span>
+          </div>
+        </div>`;
+    }
+    function collRead() {
+      if (!dmCollDraft) return;
+      const gear = Object.values(itemsById).filter(it => it.kind === 'gear');
+      dmCollDraft = dmCollDraft.map((c, i) => {
+        const get = f => document.getElementById(`coll-${i}-${f}`);
+        if (!get('name')) return c;
+        return { id: c.id, name: str(get('name').value), icon: str(get('icon').value), gold: parseInt(get('gold').value, 10) || 0, epithet: get('epi').value,
+          items: gear.filter(it => { const box = document.getElementById(`coll-${i}-it-${it.id}`); return box ? box.checked : c.items.includes(it.id); }).map(it => it.id) };
+      });
+    }
+    function collAdd() { collRead(); dmCollDraft.push({ id: 'c' + Date.now().toString(36), name: 'Colección nueva', icon: 'book-cover', gold: 100, epithet: '', items: [] }); dmOpen.add('k' + (dmCollDraft.length - 1)); renderDM(); }
+    function collRemove(i) { collRead(); dmCollDraft.splice(i, 1); renderDM(); }
+    async function saveCollections(reset = false) {
+      if (!configGuard()) return;
+      let list = [];
+      if (!reset) {
+        collRead();
+        for (const c of dmCollDraft) {
+          if (!c.name) { showToast('Hay una colección sin nombre'); return; }
+          if (!c.items.length) { showToast(`«${c.name}» no tiene ningún objeto`); return; }
+          if (!/^[a-z0-9-]+$/.test(c.icon)) { showToast(`Revisa el icono de «${c.name}»`); return; }
+        }
+        list = dmCollDraft;
+        if (!list.length) { showToast('Deja al menos una colección, o vuelve a las de partida'); return; }
+      } else if (!confirm('¿Volver a las colecciones de partida?')) return;
+      try { await saveConfig('collections', list); dmCollDraft = null; renderGlossary(); renderDM(); showToast('Colecciones guardadas'); } catch (e) { showToast(e.message); }
+    }
+
     // ----- Epítetos -----
     function dmEpithetsBlock() {
       if (!configReady) return '';
@@ -4891,7 +5307,7 @@
       return `
         <div class="${DM_BOX}">
           <h2 class="title-outline text-3xl">Logros</h2>
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">Cada logro se consigue cuando un dato de la persona llega al mínimo. Puedes cambiarlos, quitarlos o añadir nuevos; no dan experiencia ni oro.</p>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">Cada logro se consigue cuando un dato de la persona llega al mínimo, y puede tener dos rangos más (plata y oro) con su propio mínimo, nombre y epíteto. Puedes cambiarlos, quitarlos o añadir nuevos; no dan experiencia ni oro.</p>
           <div class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
             ${dmAchDraft.map((a, i) => `<div class="py-3 grid grid-cols-2 sm:grid-cols-[7rem_1fr_1.2fr_4.5rem_auto] gap-2 items-end">
               <div><label for="ach-${i}-icon" class="text-xs">Icono</label><input type="text" id="ach-${i}-icon" value="${esc(a.icon)}" class="${DM_FIELD}" /></div>
@@ -4900,6 +5316,11 @@
               <div><label for="ach-${i}-min" class="text-xs">Mínimo</label><input type="number" id="ach-${i}-min" min="1" step="1" value="${a.min}" class="${DM_FIELD}" /></div>
               <button onclick="achRemove(${i})" class="${DM_SMALL}">Quitar</button>
               <div class="col-span-2 sm:col-span-3"><label for="ach-${i}-desc" class="text-xs">Descripción</label><input type="text" id="ach-${i}-desc" maxlength="140" value="${esc(a.desc)}" class="${DM_FIELD}" /></div>
+              ${[0, 1].map(k => { const r = (a.ranks || [])[k] || { min: '', name: '', epithet: '' }; return `<div class="col-span-2 sm:col-span-5 grid grid-cols-[4.5rem_1fr_1fr] gap-2 items-end">
+                <div><label for="ach-${i}-r${k}-min" class="text-xs">${k ? 'Oro' : 'Plata'}: mín.</label><input type="number" id="ach-${i}-r${k}-min" min="1" step="1" value="${esc(r.min)}" class="${DM_FIELD}" /></div>
+                <div><label for="ach-${i}-r${k}-name" class="text-xs">Nombre del rango</label><input type="text" id="ach-${i}-r${k}-name" maxlength="60" value="${esc(r.name)}" placeholder="(sin este rango)" class="${DM_FIELD}" /></div>
+                <div><label for="ach-${i}-r${k}-epi" class="text-xs">Epíteto</label><select id="ach-${i}-r${k}-epi" class="${DM_FIELD}"><option value="">Ninguno</option>${EPITHETS.map(e => `<option value="${esc(e.id)}"${e.id === r.epithet ? ' selected' : ''}>${esc(epithetForms(e))}</option>`).join('')}</select></div>
+              </div>`; }).join('')}
               <div class="col-span-2"><label for="ach-${i}-epi" class="text-xs">Epíteto que da</label><select id="ach-${i}-epi" class="${DM_FIELD}"><option value="">Ninguno</option>${EPITHETS.map(e => `<option value="${esc(e.id)}"${e.id === a.epithet ? ' selected' : ''}>${esc(epithetForms(e))}</option>`).join('')}</select></div>
             </div>`).join('')}
           </div>
@@ -4919,10 +5340,11 @@
       dmAchDraft = dmAchDraft.map((a, i) => {
         const get = f => document.getElementById(`ach-${i}-${f}`);
         if (!get('name')) return a;
-        return { icon: str(get('icon').value), name: str(get('name').value), desc: str(get('desc').value), stat: get('stat').value, min: parseInt(get('min').value, 10), epithet: get('epi') ? get('epi').value : (a.epithet || '') };
+        return { icon: str(get('icon').value), name: str(get('name').value), desc: str(get('desc').value), stat: get('stat').value, min: parseInt(get('min').value, 10), epithet: get('epi') ? get('epi').value : (a.epithet || ''),
+          ranks: [0, 1].map(k => ({ min: parseInt(get(`r${k}-min`) ? get(`r${k}-min`).value : '', 10), name: get(`r${k}-name`) ? str(get(`r${k}-name`).value) : '', epithet: get(`r${k}-epi`) ? get(`r${k}-epi`).value : '' })).filter(r => r.name) };
       });
     }
-    function achAdd() { achRead(); dmAchDraft.push({ icon: 'round-star', name: '', desc: '', stat: 'words', min: 1, epithet: '' }); renderDM(); }
+    function achAdd() { achRead(); dmAchDraft.push({ icon: 'round-star', name: '', desc: '', stat: 'words', min: 1, epithet: '', ranks: [] }); renderDM(); }
     function achRemove(index) { achRead(); dmAchDraft.splice(index, 1); renderDM(); }
 
     async function saveAchievements(reset = false) {
@@ -5017,7 +5439,7 @@
       configRows[key] = value;
       dmLog('Cambió ' + (CONFIG_LABELS[key] || key), key, before);
     }
-    const CONFIG_LABELS = { epithets: 'los epítetos', levels: 'los niveles', notice: 'el aviso al gremio', events: 'los eventos', rules: 'las reglas', classes: 'las clases y habilidades', titles: 'los títulos', achievements: 'los logros', featured: 'el objeto de la semana' };
+    const CONFIG_LABELS = { collections: 'las colecciones', sets: 'los conjuntos', epithets: 'los epítetos', levels: 'los niveles', notice: 'el aviso al gremio', events: 'los eventos', rules: 'las reglas', classes: 'las clases y habilidades', titles: 'los títulos', achievements: 'los logros', featured: 'el objeto de la semana' };
 
     // Apunta una acción del máster. Si fue un cambio de configuración guarda lo que había, para poder deshacerlo.
     async function dmLog(action, key = null, before = null) {
@@ -5039,6 +5461,8 @@
       applyAchievements(configRows.achievements);
       dmAchDraft = null;
       dmEpiDraft = null;
+      dmCollDraft = null;
+      dmSetDraft = null;
       dmEvDraft = null;
     }
 
@@ -5083,7 +5507,7 @@
     async function downloadBackup() {
       if (!configGuard()) return;
       const tables = ['profiles', 'words', 'tones', 'word_saves', 'word_likes', 'word_stats', 'review_sessions', 'dungeon_progress', 'bosses', 'game_items', 'user_items',
-        'equip_history', 'gold_ledger', 'chest_opens', 'chest_grants', 'consumable_uses', 'duels', 'trades', 'class_perks', 'game_config', 'allowed_emails', 'dm_log', 'user_attrs', 'user_epithets'];
+        'equip_history', 'gold_ledger', 'chest_opens', 'chest_grants', 'consumable_uses', 'duels', 'trades', 'class_perks', 'game_config', 'allowed_emails', 'dm_log', 'user_attrs', 'user_epithets', 'collection_log'];
       const btn = document.getElementById('btnBackup');
       if (btn) { btn.disabled = true; btn.textContent = 'Preparando...'; }
       const backup = { app: 'Lexium', created_at: new Date().toISOString(), tables: {}, errors: {} };
@@ -5251,6 +5675,7 @@
       const { data, error } = await sb.from('user_items').insert({ user_id: userId, item_id: it.id, source: 'máster' }).select().single();
       if (error) { showToast('No se pudo dar el objeto: ' + error.message); return; }
       userItems.push(data);
+      await logCollected(userId, it.id);
       renderGlossary();
       renderDM();
       dmLog(`Dio «${it.name}» a ${authorName(userId)}`);
