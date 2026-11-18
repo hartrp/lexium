@@ -1386,7 +1386,7 @@
     // Todo se calcula a partir de lo que ya hay guardado (palabras, marcas y entrenamientos),
     // así que no hay puntos que se puedan descuadrar. Para ajustar el juego basta con tocar estas tablas.
     // levelBase marca la curva de niveles; levelDamage es el % de daño extra a los jefes por cada nivel por encima del primero
-    const XP = { word: 10, source: 5, used: 5, round: 5, hit: 1, roundsPerDay: 3, like: 2, save: 4, levelBase: 50, levelDamage: 5 };
+    const XP = { word: 10, source: 5, used: 5, round: 5, hit: 1, roundsPerDay: 3, like: 2, save: 0, levelBase: 50, levelDamage: 5 };
     // Multiplicador del daño ante la debilidad y ante la resistencia de un jefe
     const COMBAT = { weak: 2, strong: 0.5 };
     // Bonificación de cada clase, en % extra (la del pícaro es experiencia fija por palabra ajena guardada)
@@ -1394,7 +1394,7 @@
     const ATTR = { perLevel: 1, fuerza: 2, inteligencia: 0.5, sabiduria: 0.2, destreza: 5, constitucion: 1, carismaOro: 3, carismaTienda: 1 };
     // Probabilidad (%) de que un cofre de prestigio traiga además un epíteto
     const EPI = { prestigeChance: 35 };
-    const CLS = { mago: { word: 50 }, hechicero: { hit: 50, perfect: 100 }, bardo: { source: 50, used: 50 }, barbaro: { round: 50 }, paladin: { step: 10, max: 50 }, picaro: { save: 10 } };
+    const CLS = { mago: { word: 50 }, hechicero: { hit: 50, perfect: 100 }, bardo: { source: 50, used: 50 }, barbaro: { round: 50 }, paladin: { step: 10, max: 50 }, picaro: { save: 5 } };
 
     // La mazmorra: jefes encadenados, sin plazo. Toda la experiencia que gana el grupo es daño al jefe actual.
     // Al caer, cada persona recibe la recompensa y aparece el siguiente.
@@ -1404,7 +1404,7 @@
       none: { label: 'Sin efecto', text: () => 'Sin efecto.' },
       xp_word: { label: 'Experiencia extra por palabra apuntada', text: v => `+${v} de experiencia por cada palabra apuntada.` },
       xp_source: { label: 'Experiencia extra por cita con obra y autoría', text: v => `+${v} de experiencia por cada cita con obra y autoría.` },
-      xp_save: { label: 'Experiencia extra por palabra ajena guardada', text: v => `+${v} de experiencia por cada palabra ajena guardada.` },
+      xp_save: { label: 'Experiencia extra por usar una palabra ajena', text: v => `+${v} de experiencia por cada palabra ajena que usas en tus textos.` },
       xp_used: { label: 'Experiencia extra por palabra usada', text: v => `+${v} de experiencia por cada palabra marcada como usada.` },
       xp_hit: { label: 'Experiencia extra por acierto al entrenar', text: v => `+${v} de experiencia por cada acierto al entrenar.` },
       xp_like: { label: 'Experiencia extra por me gusta recibido', text: v => `+${v} de experiencia por cada me gusta recibido.` },
@@ -1459,7 +1459,7 @@
     const rf = (path, label, opts = {}) => ({ path, label, min: 0, step: 1, int: true, ...opts });
     const RULES = [
       { title: 'Experiencia', fields: [
-        rf('XP.word', 'Por palabra apuntada'), rf('XP.source', 'Extra si la cita lleva obra y autoría'), rf('XP.save', 'Por palabra ajena guardada'),
+        rf('XP.word', 'Por palabra apuntada'), rf('XP.source', 'Extra si la cita lleva obra y autoría'), rf('XP.save', 'Por guardar una palabra ajena (0 = nada)'),
         rf('XP.used', 'Por palabra usada en un texto'), rf('XP.like', 'Por me gusta recibido'), rf('XP.round', 'Por entrenamiento'), rf('XP.hit', 'Por acierto al entrenar'),
         rf('XP.levelBase', 'Curva de niveles: el nivel 2 pide el doble de este valor', { min: 1 }), rf('XP.levelDamage', 'Daño extra a los jefes por nivel (%)') ] },
       { title: 'Entrenamientos', fields: [
@@ -1470,7 +1470,7 @@
       { title: 'Clases', note: 'La bonificación de base de cada clase. Los nombres y las habilidades se cambian en la pestaña Clases.', fields: [
         rf('CLS.mago.word', 'Mago: % extra por palabra apuntada'), rf('CLS.hechicero.hit', 'Hechicero: % extra por acierto'), rf('CLS.hechicero.perfect', 'Hechicero: % extra si acierta todas'),
         rf('CLS.bardo.source', 'Bardo: % extra por cita con obra y autoría'), rf('CLS.bardo.used', 'Bardo: % extra por palabra usada'), rf('CLS.barbaro.round', 'Bárbaro: % extra por entrenamiento'),
-        rf('CLS.paladin.step', 'Paladín: % extra por día seguido'), rf('CLS.paladin.max', 'Paladín: tope de ese % extra'), rf('CLS.picaro.save', 'Pícaro: experiencia por palabra ajena guardada') ] },
+        rf('CLS.paladin.step', 'Paladín: % extra por día seguido'), rf('CLS.paladin.max', 'Paladín: tope de ese % extra'), rf('CLS.picaro.save', 'Pícaro: experiencia extra por usar una palabra ajena') ] },
       { title: 'Atributos', note: 'Lo que da cada punto. Conviene que sean valores pequeños: se suman a la clase, las habilidades y el equipo.', fields: [
         rf('ATTR.perLevel', 'Puntos por cada nivel subido', { max: 5 }), rf('ATTR.fuerza', 'Fuerza: % de daño a los jefes', { step: 0.5, int: false }),
         rf('ATTR.inteligencia', 'Inteligencia: experiencia por palabra apuntada', { step: 0.1, int: false }), rf('ATTR.sabiduria', 'Sabiduría: experiencia por acierto', { step: 0.1, int: false }),
@@ -1973,7 +1973,7 @@
         bardo: () => `Un ${c.source} % más por las citas con obra y autoría y un ${c.used} % más por las palabras ya usadas.`,
         barbaro: () => `Un ${c.round} % más por cada entrenamiento completado, acierte o no.`,
         paladin: () => `Un ${c.step} % más por cada día seguido de actividad, hasta un ${c.max} %.`,
-        picaro: () => `Gana ${c.save} de experiencia, en lugar de ${XP.save}, por cada palabra ajena que guarda en su grimorio.`
+        picaro: () => `Gana ${c.save} de experiencia más por cada palabra de otra persona que usa en sus textos.`
       }[key] || (() => ''))();
     }
 
@@ -2127,8 +2127,8 @@
       // Palabras de otras personas guardadas en su grimorio
       mySaves.forEach(s => {
         const w = byId[s.word_id];
-        addDay(s.created_at, (cls === 'picaro' ? CLS.picaro.save : XP.save) + fx('xp_save', Date.parse(s.created_at) || 0), [w.tone, w.tone2]);
-        if (s.is_used) { used++; undated += usedPoints; }
+        addDay(s.created_at, XP.save, [w.tone, w.tone2]); // guardar cuenta como actividad del día
+        if (s.is_used) { used++; undated += usedPoints + fx('xp_save', null) + (cls === 'picaro' ? CLS.picaro.save : 0); }
       });
 
       const roundsByDay = {};
@@ -2558,7 +2558,7 @@
               <span><strong class="font-medium">${esc(a.name)}</strong><span class="block text-xs text-paper-muted dark:text-night-muted">${esc(a.desc)}</span></span>
             </li>`).join('')}
           </ul>
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save} por cada palabra ajena que guardas en tu grimorio, ${XP.used} por palabra ya usada, ${XP.round} por entrenamiento más ${XP.hit} por acierto (hasta ${XP.roundsPerDay} al día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${XP.levelDamage} % de daño a los jefes.</p>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save ? XP.save + ' por cada palabra ajena que guardas en tu grimorio, ' : ''}${XP.used} por palabra ya usada (tuya o guardada), ${XP.round} por entrenamiento más ${XP.hit} por acierto (hasta ${XP.roundsPerDay} al día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${XP.levelDamage} % de daño a los jefes.</p>
         </div>`;
 
       const cards = `<div class="grid ${Object.keys(profiles).length === 1 ? 'grid-cols-1' : 'grid-cols-2'} ${{ 1: '', 2: '', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4' }[cardCols(Object.keys(profiles).length)] || ''} gap-2 sm:gap-3 items-stretch">${members}</div>`;
@@ -3423,7 +3423,7 @@
           'Cada palabra que apuntas queda a tu nombre y la ve todo el gremio. Solo hay una ficha por palabra: si alguien ya la tiene, la guardas en tu grimorio en lugar de repetirla.',
           'Guardar una palabra ajena la añade a tu grimorio para entrenarla y marcarla. La estrella de favorita solo la destaca para ti.' ]),
         section('Experiencia y niveles', [
-          `Ganas ${XP.word} por palabra apuntada, ${XP.source} más si la cita lleva obra y autoría, ${XP.save} por palabra ajena guardada, ${XP.used} por palabra que marcas como usada en un texto y ${XP.like} por cada me gusta que recibes.`,
+          `Ganas ${XP.word} por palabra apuntada, ${XP.source} más si la cita lleva obra y autoría, ${XP.used} por palabra que marcas como usada en un texto (tuya o guardada de otra persona)${XP.save ? ', ' + XP.save + ' por palabra ajena guardada' : ''} y ${XP.like} por cada me gusta que recibes.`,
           `El nivel 2 pide ${levelFloor(2)} de experiencia, el 3 pide ${levelFloor(3)}, el 4 pide ${levelFloor(4)}, y así${LEVELS.max ? ' hasta el ' + LEVELS.max + ', que es el máximo' : ''}. Los títulos llegan con el nivel: ${TITLES.map(t => `${esc(t.name)} en el ${t.level}`).join(', ')}.` ]),
         section('Entrenamiento', [
           `Lees la definición y escribes la palabra. Son ${TRAIN.words} palabras por entrenamiento y puedes hacer ${XP.roundsPerDay} al día. ${TRAIN.free === 1 ? 'El primero es gratis' : 'Los ' + TRAIN.free + ' primeros son gratis'}; los demás gastan un pergamino de entrenamiento.`,
