@@ -5803,7 +5803,7 @@
       renderReview();
     }
 
-    function setTrainScope(value) { trainScope = ['mine', 'all', 'fav', 'unused'].includes(value) ? value : 'all'; }
+    function setTrainScope(value) { trainScope = ['mine', 'all', 'fav', 'unused', 'failed'].includes(value) ? value : 'all'; renderReview(); }
 
     // Peso de una palabra al elegir las del entrenamiento: las nuevas y las que más fallo salen más
     function trainWeight(word) {
@@ -5832,6 +5832,8 @@
 
     function trainingPool(scope) {
       let pool = glossary.filter(w => str(w.definition));
+      // Las que he fallado alguna vez, de cualquier grimorio (el sorteo ya da más peso a las que más fallo)
+      if (scope === 'failed') return pool.filter(w => wordStats[w.id] && wordStats[w.id].fails > 0);
       if (scope !== 'all') pool = pool.filter(w => myMarks(w).inMine);
       if (scope === 'fav') pool = pool.filter(w => myMarks(w).fav);
       if (scope === 'unused') pool = pool.filter(w => !myMarks(w).used);
@@ -5883,8 +5885,10 @@
         ['all', `Todos los grimorios: ${GOLD.hitAll} de oro por acierto y ${GOLD.perfect} más si aciertas todas`],
         ['mine', `Solo mi grimorio: ${GOLD.hitMine} de oro por acierto`],
         ['fav', `Solo mis favoritas: ${GOLD.hitMine} de oro por acierto`],
-        ['unused', `Las que aún no he usado: ${GOLD.hitMine} de oro por acierto`]
+        ['unused', `Las que aún no he usado: ${GOLD.hitMine} de oro por acierto`],
+        ['failed', `Las que he fallado: ${GOLD.hitMine} de oro por acierto`]
       ];
+      const failedCount = trainingPool('failed').length;
       return `
           <h2 class="title-outline text-4xl">Entrenamiento</h2>
           <p class="word-title text-5xl mt-6 text-paper-accent dark:text-night-accent">${me.trainToday} de ${me.trainMax}</p>
@@ -5894,8 +5898,9 @@
           <div class="max-w-sm mx-auto mt-6 text-left">
             <label for="reviewScope" class="text-xs font-medium text-paper-muted dark:text-night-muted">Qué palabras entran</label>
             <select id="reviewScope" onchange="setTrainScope(this.value)" class="w-full mt-1 px-3 py-2.5 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm">
-              ${options.map(([v, l]) => `<option value="${v}"${v === trainScope ? ' selected' : ''}>${l}</option>`).join('')}
+              ${options.map(([v, l]) => `<option value="${v}"${v === trainScope ? ' selected' : ''}${v === 'failed' && !failedCount ? ' disabled' : ''}>${l}${v === 'failed' ? (failedCount ? ` (${failedCount})` : ' (aún no has fallado ninguna)') : ''}</option>`).join('')}
             </select>
+            ${trainScope === 'failed' ? `<p class="text-xs text-paper-muted dark:text-night-muted mt-2">Entran las palabras que has fallado alguna vez desde el 16 de noviembre, de cualquier grimorio. Salen más las que más fallas.${failedCount < TRAIN.words ? ` Ahora mismo son ${failedCount}, así que el entrenamiento será más corto.` : ''}</p>` : ''}
           </div>
           <div class="flex flex-wrap justify-center gap-3 mt-6">
             ${paid && !tickets
