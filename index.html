@@ -207,6 +207,15 @@
                  font: 600 9.5px/15px 'EB Garamond', Georgia, serif; letter-spacing: 0; text-align: center; }
     @media (max-width: 639px) { header nav .nav-badge { top: 4px; right: calc(50% - 22px); } }
     #btnNotifs { position: relative; }
+    /* Fichas del gremio: retrato grande, el nombre manda y lo demás en «Ver más» */
+    .member-card .rank-icon { width: 4.2rem; height: 4.2rem; font-size: 1.9rem; margin-bottom: 0.55rem; }
+    .member-card .rank-icon.portrait { width: 5rem; height: 5rem; }
+    @media (max-width: 639px) { .member-card .rank-icon { width: 3.6rem; height: 3.6rem; font-size: 1.6rem; } .member-card .rank-icon.portrait { width: 4.4rem; height: 4.4rem; } }
+    .member-more > summary { list-style: none; }
+    .member-more > summary::-webkit-details-marker { display: none; }
+    .member-more > summary::after { content: ' ▾'; }
+    .member-more[open] > summary::after { content: ' ▴'; }
+    @media (max-width: 639px) { .member-more dl { grid-template-columns: 1fr auto; column-gap: 0.5rem; font-size: 0.8rem; } }
     #btnNotifs .nav-badge { top: -4px; right: -4px; }
     /* Instalada como app, la cabecera deja sitio a la barra de estado del teléfono */
     header { padding-top: env(safe-area-inset-top); }
@@ -262,7 +271,7 @@
           <h1 class="title-outline text-3xl sm:text-4xl">Lexium</h1>
           <div class="flex items-center gap-2 mt-0.5">
             <span id="syncStatusDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
-            <span id="syncStatusText" class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted">Sin conectar</span>
+            <span id="syncStatusText" class="hidden sm:inline text-sm italic text-paper-muted dark:text-night-muted">Sin conectar</span>
           </div>
         </div>
       </div>
@@ -561,7 +570,15 @@
           </div>
         </div>
       </div>
-      <div id="dmItemGearWrap" class="grid grid-cols-3 gap-3">
+      <div id="dmItemGearWrap" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div>
+          <label for="dmItemOrigin" class="text-xs font-medium text-paper-muted dark:text-night-muted">Dónde sale</label>
+          <select id="dmItemOrigin" class="w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm">
+            <option value="any">Cualquier cofre</option>
+            <option value="prestige">Solo en cofres de prestigio</option>
+            <option value="none">En ningún cofre</option>
+          </select>
+        </div>
         <div>
           <label for="dmItemDrop" class="text-xs font-medium text-paper-muted dark:text-night-muted">Frecuencia en cofres</label>
           <input type="number" id="dmItemDrop" min="0" step="0.5" class="w-full mt-1 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm" />
@@ -995,6 +1012,9 @@
     let reviewLog = [];       // resultado de cada palabra del entrenamiento en curso
     let attrRows = {};        // puntos de atributo repartidos: user_id -> { fuerza: 2, ... }
     let attrsReady = false;   // true cuando la base de datos ya guarda atributos
+    let userEpithets = [];    // epítetos ganados en cofres o dados por el máster: { id, user_id, epithet, source, created_at }
+    let epiReady = false;     // true cuando la base de datos ya guarda epítetos
+    let dmEpiDraft = null;    // epítetos en edición, antes de guardar
     let contentReady = false; // true cuando la base de datos ya tiene las tablas de jefes y objetos
     let contentFromDb = false; // true cuando los jefes que se muestran vienen de la base de datos
     let saves = [];          // palabras ajenas guardadas en el grimorio de cada persona: { word_id, user_id, is_favorite, is_used }
@@ -1238,7 +1258,7 @@
       if (currentUser) {
         dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
         const me = guild[currentUser.id];
-        txt.textContent = authorName(currentUser.id) + (me ? ', ' + rankLine(me, true) + '. ' + me.gold + ' de oro' : '');
+        txt.textContent = displayName(currentUser.id);
       } else {
         dot.className = 'w-2 h-2 rounded-full bg-amber-500';
         txt.textContent = 'Sin conectar';
@@ -1248,7 +1268,7 @@
     // ---------- CARGA DE DATOS ----------
     async function reloadFromCloud(notify = false) {
       if (!currentUser) return;
-      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes, cgRes, duRes, pkRes, trRes, cfRes, aeRes, wsRes, logRes, atRes] = await Promise.all([
+      const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes, cgRes, duRes, pkRes, trRes, cfRes, aeRes, wsRes, logRes, atRes, epRes] = await Promise.all([
         sb.from('profiles').select('*'),
         sb.from('words').select('*').order('created_at', { ascending: false }),
         sb.from('tones').select('*').order('created_at', { ascending: true }),
@@ -1271,7 +1291,8 @@
         sb.from('allowed_emails').select('*'),
         sb.from('word_stats').select('*').eq('user_id', currentUser.id),
         sb.from('dm_log').select('*').order('created_at', { ascending: false }).limit(60),
-        sb.from('user_attrs').select('*')
+        sb.from('user_attrs').select('*'),
+        sb.from('user_epithets').select('*').order('created_at', { ascending: true })
       ]);
       if (pRes.error || wRes.error) {
         showToast('No se pudo cargar el grimorio: ' + (pRes.error || wRes.error).message);
@@ -1314,6 +1335,8 @@
       (statsReady ? wsRes.data : []).forEach(r => { wordStats[r.word_id] = { hits: r.hits, fails: r.fails }; });
       dmLogRows = logRes.error ? [] : logRes.data;
       attrsReady = !atRes.error;
+      epiReady = !epRes.error;
+      userEpithets = epiReady ? epRes.data : [];
       attrRows = {};
       (attrsReady ? atRes.data : []).forEach(r => { attrRows[r.user_id] = r.points && typeof r.points === 'object' ? r.points : {}; });
       perkRows = perksReady ? pkRes.data : [];
@@ -1355,7 +1378,7 @@
       });
       if (tab === 'review') renderReview();
       if (tab === 'guild') renderGuild();
-      if (tab === 'bag') renderBag();
+      if (tab === 'bag') { renderBag(); markEpithetsSeen(); }
       if (tab === 'dm') renderDM();
     }
 
@@ -1369,6 +1392,8 @@
     // Bonificación de cada clase, en % extra (la del pícaro es experiencia fija por palabra ajena guardada)
     // Atributos: puntos que da cada nivel a partir del 2 y lo que vale cada punto
     const ATTR = { perLevel: 1, fuerza: 2, inteligencia: 0.5, sabiduria: 0.2, destreza: 5, constitucion: 1, carismaOro: 3, carismaTienda: 1 };
+    // Probabilidad (%) de que un cofre de prestigio traiga además un epíteto
+    const EPI = { prestigeChance: 35 };
     const CLS = { mago: { word: 50 }, hechicero: { hit: 50, perfect: 100 }, bardo: { source: 50, used: 50 }, barbaro: { round: 50 }, paladin: { step: 10, max: 50 }, picaro: { save: 10 } };
 
     // La mazmorra: jefes encadenados, sin plazo. Toda la experiencia que gana el grupo es daño al jefe actual.
@@ -1430,7 +1455,7 @@
     const WEEK = { start: '2026-11-16', gold: 50 };
 
     // ----- Reglas que el máster puede cambiar desde su panel (lo demás sigue en el código) -----
-    const RULE_ROOTS = { XP, GOLD, TRAIN, LIFE, DUEL, WEEK, COMBAT, CHESTS, RARITY, CLS, ATTR };
+    const RULE_ROOTS = { XP, GOLD, TRAIN, LIFE, DUEL, WEEK, COMBAT, CHESTS, RARITY, CLS, ATTR, EPI };
     const rf = (path, label, opts = {}) => ({ path, label, min: 0, step: 1, int: true, ...opts });
     const RULES = [
       { title: 'Experiencia', fields: [
@@ -1461,7 +1486,7 @@
       { title: 'Cofres', note: 'Las probabilidades son pesos: 60, 30, 9 y 1 equivalen a 60 %, 30 %, 9 % y 1 %.', fields:
         ['level', 'boss', 'prestige'].flatMap(t => [
           ...['común', 'raro', 'épico', 'legendario'].map(r => rf(`CHESTS.${t}.weights.${r}`, `${CHESTS[t].label}: peso de ${r}`)),
-          rf(`CHESTS.${t}.sale`, `${CHESTS[t].label}: oro al venderlo sin abrir`) ]) },
+          rf(`CHESTS.${t}.sale`, `${CHESTS[t].label}: oro al venderlo sin abrir`) ]).concat([rf('EPI.prestigeChance', 'Cofre de prestigio: % de que traiga además un epíteto', { max: 100 })]) },
       { title: 'Venta de botín', fields: ['común', 'raro', 'épico', 'legendario'].map(r => rf(`RARITY.${r}.sale`, `Oro por vender un objeto ${r}`)) }
     ];
     const RULE_LIST = RULES.flatMap(g => g.fields);
@@ -1604,7 +1629,8 @@
           rarity: RARITY[it.rarity] ? it.rarity : 'común', slot: SLOTS[it.slot] ? it.slot : '',
           effect_type: EFFECTS[it.effect_type] ? it.effect_type : 'none', effect_value: Number(it.effect_value) || 0, effect_tone: str(it.effect_tone),
           price: Math.max(0, Number(it.price) || 0), for_sale: Boolean(it.for_sale),
-          drop: it.drop_weight == null ? 1 : Math.max(0, Number(it.drop_weight) || 0)
+          drop: it.drop_weight == null ? 1 : Math.max(0, Number(it.drop_weight) || 0),
+          origin: ['any', 'prestige', 'none'].includes(it.chest_origin) ? it.chest_origin : 'any'
         };
       });
       contentFromDb = Boolean(bossRows && bossRows.length);
@@ -1681,6 +1707,96 @@
       { name: 'Oráculo', level: 10, icon: 'all-seeing-eye' }
     ];
 
+    // ----- Epítetos: títulos de honor que se muestran junto al nombre («Marina, la Verduga») -----
+    // Cada uno tiene tres formas (m, f, n) y un origen: logro, cofre (de prestigio) o máster
+    const epi = (id, m, f, n, origin) => ({ id, m, f: f || m, n: n || m, origin });
+    const EPITHET_DEFAULTS = [
+      epi('bibliotecario', 'Bibliotecario', 'Bibliotecaria', 'Bibliotecarie', 'logro'),
+      epi('erudito', 'Erudito', 'Erudita', 'Erudite', 'logro'),
+      epi('pluma-viva', 'Pluma Viva', '', '', 'logro'),
+      epi('infalible', 'Infalible', '', '', 'logro'),
+      epi('veterano', 'Veterano', 'Veterana', 'Veterane', 'logro'),
+      epi('insomne', 'Insomne', '', '', 'logro'),
+      epi('artifice', 'Artífice', '', '', 'logro'),
+      epi('ladron', 'Ladrón de Palabras', 'Ladrona de Palabras', 'Ladrone de Palabras', 'logro'),
+      epi('bienamado', 'Bienamado', 'Bienamada', 'Bienamade', 'logro'),
+      epi('trotamundos', 'Trotamundos', '', '', 'logro'),
+      epi('primera-espada', 'Primera Espada', '', '', 'logro'),
+      epi('matadragones', 'Matadragones', '', '', 'logro'),
+      epi('verdugo', 'Verdugo', 'Verduga', 'Verdugue', 'logro'),
+      epi('saqueador', 'Saqueador', 'Saqueadora', 'Saqueadore', 'logro'),
+      epi('duelista', 'Duelista', '', '', 'logro'),
+      epi('favorito', 'Favorito del Gremio', 'Favorita del Gremio', 'Favorite del Gremio', 'logro'),
+      epi('coronado', 'Coronado de Laurel', 'Coronada de Laurel', 'Coronade de Laurel', 'cofre'),
+      epi('inmarcesible', 'Inmarcesible', '', '', 'cofre'),
+      epi('voz-abismo', 'Voz del Abismo', '', '', 'cofre'),
+      epi('guardian', 'Guardián del Umbral', 'Guardiana del Umbral', 'Guardiane del Umbral', 'cofre'),
+      epi('tejedor', 'Tejedor de Ecos', 'Tejedora de Ecos', 'Tejedore de Ecos', 'cofre'),
+      epi('prohibido', 'Que Leyó lo Prohibido', '', '', 'cofre'),
+      epi('elegido', 'Elegido del Máster', 'Elegida del Máster', 'Elegide del Máster', 'máster'),
+      epi('bufon', 'Bufón de la Corte', 'Bufona de la Corte', 'Bufone de la Corte', 'máster')
+    ];
+    // Qué epíteto da cada logro de partida (por su nombre)
+    const ACH_EPITHETS = {
+      'Tomo legendario': 'bibliotecario', 'Saber arcano': 'erudito', 'Conjuro lanzado': 'pluma-viva', 'Veinte natural': 'infalible',
+      'Entrenamiento de combate': 'veterano', 'Guardia de siete noches': 'insomne', 'Artífice de mundos': 'artifice', 'Juego de manos': 'ladron',
+      'Inspiración bárdica': 'bienamado', 'Multiclase': 'trotamundos', 'Primera sangre': 'primera-espada', 'Matadragones': 'matadragones',
+      'Golpe de gracia': 'verdugo', 'Saqueo de mazmorra': 'saqueador', 'Duelo al alba': 'duelista', 'Favor del gremio': 'favorito'
+    };
+    const EPI_ORIGINS = { logro: 'Con un logro', cofre: 'En los cofres de prestigio', 'máster': 'Solo lo da el máster' };
+    let EPITHETS = EPITHET_DEFAULTS.map(e => ({ ...e }));
+    function cleanEpithet(e) {
+      if (!e || typeof e !== 'object' || !str(e.m) || !/^[a-z0-9-]+$/.test(str(e.id))) return null;
+      return { id: str(e.id).slice(0, 40), m: str(e.m).slice(0, 40), f: str(e.f).slice(0, 40) || str(e.m).slice(0, 40), n: str(e.n).slice(0, 40) || str(e.m).slice(0, 40), origin: EPI_ORIGINS[e.origin] ? e.origin : 'máster' };
+    }
+    function applyEpithets(list) {
+      const clean = Array.isArray(list) ? list.map(cleanEpithet).filter(Boolean) : [];
+      // Una lista vacía (o nada guardado) vuelve a los de partida
+      EPITHETS = clean.length ? clean : EPITHET_DEFAULTS.map(e => ({ ...e }));
+    }
+    const epithetById = id => EPITHETS.find(e => e.id === id) || null;
+    const formOf = userId => { const f = (profiles[userId] || {}).class_form; return ['m', 'f', 'n'].includes(f) ? f : 'n'; };
+    // «la Verduga», con el artículo y la forma de esa persona
+    function epithetText(id, userId) {
+      const e = epithetById(id);
+      if (!e) return '';
+      const f = formOf(userId);
+      return { m: 'el', f: 'la', n: 'le' }[f] + ' ' + e[f];
+    }
+    // Las tres formas, para el panel y para quien aún no lo tiene
+    const epithetForms = e => [...new Set([e.m, e.f, e.n])].join(' / ');
+    // Epítetos que tiene una persona: los de sus logros y los ganados en cofres o regalados
+    function epithetsOwned(userId) {
+      const s = guild[userId];
+      const out = [];
+      if (s && s.achievements) ACHIEVEMENTS.forEach((a, i) => { if (s.achievements[i] && a.epithet && epithetById(a.epithet) && !out.some(o => o.id === a.epithet)) out.push({ id: a.epithet, source: 'logro', label: 'por el logro «' + a.name + '»' }); });
+      userEpithets.filter(r => r.user_id === userId && epithetById(r.epithet)).forEach(r => {
+        if (!out.some(o => o.id === r.epithet)) out.push({ id: r.epithet, source: r.source, label: r.source === 'cofre' ? 'de un cofre de prestigio' : 'regalo del máster', row: r });
+      });
+      return out;
+    }
+    function equippedEpithet(userId) {
+      const id = (profiles[userId] || {}).epithet;
+      return id && epithetsOwned(userId).some(o => o.id === id) ? id : '';
+    }
+    // «Marina, la Verduga», o solo el nombre si no lleva epíteto
+    function displayName(userId) {
+      const id = equippedEpithet(userId);
+      return authorName(userId) + (id ? ', ' + epithetText(id, userId) : '');
+    }
+    // Epítetos ganados que la persona aún no ha visto en su zurrón
+    function newEpithets() {
+      if (!currentUser || !epiReady) return [];
+      let seen = [];
+      try { seen = JSON.parse(localStorage.getItem('lexium-epi-' + currentUser.id) || '[]'); } catch (e) {}
+      return epithetsOwned(currentUser.id).filter(o => !seen.includes(o.id));
+    }
+    function markEpithetsSeen() {
+      if (!currentUser) return;
+      try { localStorage.setItem('lexium-epi-' + currentUser.id, JSON.stringify(epithetsOwned(currentUser.id).map(o => o.id))); } catch (e) {}
+      updateBadges();
+    }
+
     // Lo que puede medir un logro: se cumple cuando ese dato llega al mínimo indicado
     const ACH_STATS = {
       words: 'Palabras apuntadas', tonesUsed: 'Atmósferas distintas con palabras', sourced: 'Citas con obra y autoría', used: 'Palabras usadas en textos',
@@ -1713,17 +1829,20 @@
       ach('sword-clash', 'Duelo al alba', 'Gana tu primer duelo', 'duelsWon', 1),
       ach('podium', 'Favor del gremio', 'Gana una clasificación semanal', 'weeksWon', 1)
     ];
-    let ACHIEVEMENTS = ACH_DEFAULTS.map(a => ({ ...a }));
+    let ACHIEVEMENTS = [];
+    ACHIEVEMENTS = ACH_DEFAULTS.map(cleanAchievement);
     function achieved(a, stats) { return (Number(stats[a.stat]) || 0) >= a.min; }
     function cleanAchievement(a) {
       if (!a || typeof a !== 'object' || !ACH_STATS[a.stat] || !str(a.name)) return null;
       const min = Number(a.min);
       if (!isFinite(min) || min < 1) return null;
-      return { icon: /^[a-z0-9-]+$/.test(str(a.icon)) ? str(a.icon) : 'round-star', name: str(a.name).slice(0, 60), desc: str(a.desc).slice(0, 140), stat: a.stat, min: Math.round(min) };
+      const name = str(a.name).slice(0, 60);
+      return { icon: /^[a-z0-9-]+$/.test(str(a.icon)) ? str(a.icon) : 'round-star', name, desc: str(a.desc).slice(0, 140), stat: a.stat, min: Math.round(min),
+        epithet: a.epithet === undefined ? (ACH_EPITHETS[name] || '') : str(a.epithet) };
     }
     function applyAchievements(list) {
       const clean = Array.isArray(list) ? list.map(cleanAchievement).filter(Boolean) : [];
-      ACHIEVEMENTS = clean.length ? clean : ACH_DEFAULTS.map(a => ({ ...a }));
+      ACHIEVEMENTS = clean.length ? clean : ACH_DEFAULTS.map(cleanAchievement);
     }
 
     const EVENT_EFFECTS = () => Object.keys(EFFECTS).filter(k => !['none', 'lockpick', 'poison', 'potion', 'duel', 'train_ticket'].includes(k));
@@ -1775,10 +1894,11 @@
     }
     function pendingCounts() {
       const me = currentUser ? guild[currentUser.id] : null;
-      if (!me) return { bag: 0, guild: 0, attrs: 0, train: 0 };
+      if (!me) return { bag: 0, guild: 0, attrs: 0, train: 0, epithets: 0 };
       const offers = trades.filter(t => t.to_id === currentUser.id && tradeAlive(t)).length;
       const myDuels = duels.filter(d => !d.declined && ((d.challenger_id === currentUser.id && !d.challenger_done_at) || (d.opponent_id === currentUser.id && !d.opponent_done_at))).length;
-      return { bag: me.chests.length + offers, guild: myDuels, attrs: attrsReady && me.attrBudget > me.attrSpent ? 1 : 0,
+      const epis = newEpithets().length;
+      return { epithets: epis, bag: me.chests.length + offers + epis, guild: myDuels, attrs: attrsReady && me.attrBudget > me.attrSpent ? 1 : 0,
         train: me.trainToday < Math.min(TRAIN.free, me.trainMax) ? 1 : 0, chests: me.chests.length, offers, duels: myDuels };
     }
     function updateBadges() {
@@ -1798,6 +1918,7 @@
       const row = (icon, text, tab, label) => `<li class="flex items-center gap-3 py-2.5"><i class="gi gi-${icon} text-xl text-paper-accent dark:text-night-accent"></i><span class="flex-1 min-w-0 text-sm">${text}</span><button onclick="notifGo('${tab}')" class="${go}">${label}</button></li>`;
       const left = me.attrBudget - me.attrSpent;
       const pending = [
+        c.epithets ? row('laurel-crown', c.epithets === 1 ? `Has ganado un epíteto: «${esc(epithetText(newEpithets()[0].id, currentUser.id))}».` : `Has ganado ${c.epithets} epítetos nuevos.`, 'bag', 'Ir al zurrón') : '',
         c.chests ? row('locked-chest', c.chests === 1 ? 'Tienes un cofre por abrir.' : `Tienes ${c.chests} cofres por abrir.`, 'bag', 'Ir al zurrón') : '',
         c.offers ? row('swap-bag', c.offers === 1 ? 'Te han hecho una oferta de intercambio.' : `Te han hecho ${c.offers} ofertas de intercambio.`, 'bag', 'Ir al zurrón') : '',
         c.duels ? row('sword-clash', c.duels === 1 ? 'Tienes un duelo por jugar.' : `Tienes ${c.duels} duelos por jugar.`, 'guild', 'Ir al gremio') : '',
@@ -2327,6 +2448,7 @@
           <div class="shrink-0">${portrait(p, s)}</div>
           <div class="flex-1 min-w-[12rem]">
             <p class="word-title text-2xl sm:text-3xl text-paper-accent dark:text-night-accent truncate">${esc(p.display_name)}</p>
+            ${equippedEpithet(p.id) ? `<p class="quote text-sm">${esc(epithetText(equippedEpithet(p.id), p.id))}</p>` : ''}
             <p class="text-sm text-paper-muted dark:text-night-muted">${esc(who.charAt(0).toUpperCase() + who.slice(1))}</p>
             <div class="mt-3 h-px bg-paper-border dark:bg-night-border">
               <div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div>
@@ -2342,7 +2464,7 @@
     }
 
     // Columnas para que nadie quede solo en la última fila: 4 personas en 2 × 2 (fichas) o en una fila (prestigio)
-    function cardCols(n) { return n <= 3 ? Math.max(1, n) : n === 4 ? 2 : 3; }
+    function cardCols(n) { return n <= 4 ? Math.max(1, n) : 3; }
     function rowCols(n) { return n <= 4 ? Math.max(1, n) : n % 4 === 0 || n % 4 === 3 ? 4 : 3; }
 
     function renderGuild() {
@@ -2386,14 +2508,19 @@
         const tones = Object.entries(s.byTone).sort((a, b) => b[1] - a[1]).slice(0, 6);
         const earned = s.achievements.filter(Boolean).length;
         return `
-        <div class="frame bg-paper-card dark:bg-night-card border ${me ? 'border-paper-accent/60 dark:border-night-accent/50' : 'border-paper-border dark:border-night-border'} p-5">
+        <div class="frame member-card bg-paper-card dark:bg-night-card border ${me ? 'border-paper-accent/60 dark:border-night-accent/50' : 'border-paper-border dark:border-night-border'} p-3 sm:p-5">
           <div class="text-center">
             ${portrait(p, s)}
-            <p class="word-title text-2xl text-paper-accent dark:text-night-accent">${esc(s.title.name)}</p>
-            <p class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted mt-1.5">${esc(p.display_name)}${me ? ' (tú)' : ''}, ${esc((s.className || 'sin clase').toLowerCase())} de nivel ${s.level}</p>
-            <div class="mt-3 h-px bg-paper-border dark:bg-night-border"><div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div></div>
-            <p class="quote text-xs mt-2">${xpLine(s)}</p>
+            <p class="word-title text-2xl sm:text-3xl text-paper-accent dark:text-night-accent leading-tight break-words">${esc(p.display_name)}</p>
+            ${equippedEpithet(p.id) ? `<p class="quote text-sm leading-tight mt-0.5">${esc(epithetText(equippedEpithet(p.id), p.id))}</p>` : ''}
+            <p class="text-xs text-paper-muted dark:text-night-muted mt-1.5 leading-snug">${esc(s.className || 'Sin clase')} · ${esc(s.title.name)}<br>nivel ${s.level}</p>
+            <div class="mt-2.5 h-px bg-paper-border dark:bg-night-border"><div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div></div>
             ${heartsRow(s)}
+          </div>
+          <details class="member-more mt-3"${dmOpen.has('m' + p.id) ? ' open' : ''} ontoggle="dmToggle('m${esc(p.id)}', this.open)">
+          <summary class="cursor-pointer text-center text-xs text-paper-muted dark:text-night-muted">Ver más</summary>
+          <div class="text-center">
+            <p class="quote text-xs mt-2">${xpLine(s)}</p>
             ${gearRow(p.id)}
             ${perkLine(p.id, s.cls)}
             ${attrLine(s)}
@@ -2407,8 +2534,9 @@
           </ul>` : ''}
           <div class="rule mt-4"><span class="quote text-xs">Logros · ${earned} de ${ACHIEVEMENTS.length}</span></div>
           <div class="flex flex-wrap justify-center gap-1.5 mt-3">
-            ${ACHIEVEMENTS.map((a, i) => `<span title="${esc(a.name + ': ' + a.desc)}" class="w-8 h-8 flex items-center justify-center border text-base ${s.achievements[i] ? 'border-paper-accent dark:border-night-accent text-paper-accent dark:text-night-accent' : 'border-paper-border dark:border-night-border text-paper-muted dark:text-night-muted opacity-40'}"><i class="gi gi-${a.icon}"></i></span>`).join('')}
+            ${ACHIEVEMENTS.map((a, i) => `<span title="${esc(a.name + ': ' + a.desc)}" class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center border text-base ${s.achievements[i] ? 'border-paper-accent dark:border-night-accent text-paper-accent dark:text-night-accent' : 'border-paper-border dark:border-night-border text-paper-muted dark:text-night-muted opacity-40'}"><i class="gi gi-${a.icon}"></i></span>`).join('')}
           </div>
+          </details>
         </div>`;
       }).join('');
 
@@ -2425,7 +2553,7 @@
           <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save} por cada palabra ajena que guardas en tu grimorio, ${XP.used} por palabra ya usada, ${XP.round} por entrenamiento más ${XP.hit} por acierto (hasta ${XP.roundsPerDay} al día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${XP.levelDamage} % de daño a los jefes.</p>
         </div>`;
 
-      panel.innerHTML = helpLink() + dungeonPanel() + weeklyBlock() + duelsBlock() + chronicleBlock() + chooser + attrsBlock() + `<div class="grid grid-cols-1 ${{ 1: '', 2: 'sm:grid-cols-2', 3: 'lg:grid-cols-3' }[cardCols(Object.keys(profiles).length)]} gap-3">${members}</div>` + legend;
+      panel.innerHTML = helpLink() + dungeonPanel() + weeklyBlock() + duelsBlock() + chronicleBlock() + chooser + attrsBlock() + `<div class="grid ${Object.keys(profiles).length === 1 ? 'grid-cols-1' : 'grid-cols-2'} ${{ 1: '', 2: '', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4' }[cardCols(Object.keys(profiles).length)] || ''} gap-2 sm:gap-3 items-start">${members}</div>` + legend;
     }
 
     async function updateMyProfile(changes, okMessage) {
@@ -3235,6 +3363,7 @@
       chestOpens.forEach(c => { const it = itemsById[c.item_id]; if (it && !c.sold) add(c.created_at, 'open-treasure-chest', `${authorName(c.user_id)} abrió un cofre y encontró «${it.name}».`); });
       reviewSessions.forEach(s => { if (s.total >= TRAIN.words && s.hits === s.total) add(s.created_at, 'round-star', `${authorName(s.user_id)} acertó las ${s.total} palabras de un entrenamiento.`); });
       itemUses.forEach(u => { if (u.effect_type === 'potion' && u.target_id && u.target_id !== u.user_id) add(u.used_at, 'health-potion', `${authorName(u.user_id)} dio una poción a ${authorName(u.target_id)}.`); });
+      userEpithets.forEach(r => { if (epithetById(r.epithet)) add(r.created_at, 'laurel-crown', r.source === 'cofre' ? `${authorName(r.user_id)} encontró en un cofre de prestigio el epíteto «${epithetText(r.epithet, r.user_id)}».` : `El máster nombró a ${authorName(r.user_id)} «${epithetText(r.epithet, r.user_id)}».`); });
       trades.forEach(t => { if (t.status === 'accepted') add(t.created_at, 'swap-bag', `${authorName(t.from_id)} y ${authorName(t.to_id)} cerraron un intercambio.`); });
       Object.entries(weekWinners).forEach(([k, ids]) => add(new Date(k + 'T00:00:00').getTime() + 7 * 86400000, 'podium', `${ids.map(authorName).join(' y ')} ganó la clasificación de la semana.`));
       return events.sort((a, b) => b.at - a.at).slice(0, limit);
@@ -3289,6 +3418,8 @@
         section('Clases y habilidades', [
           Object.keys(CLASSES).map(k => `<strong class="font-medium">${esc(CLASSES[k].names.n)}</strong>: ${esc(classBonus(k).replace(/\.$/, ''))}`).join('. ') + '.',
           `En los niveles ${PERK_LEVELS.map(perkUnlock).join(', ')} eliges una de dos habilidades de tu clase. Clase y habilidades se pueden cambiar cuando quieras.` ]),
+        section('Epítetos', [
+          'Un epíteto es un título de honor que se muestra junto a tu nombre. Se ganan con algunos logros, en los cofres de prestigio o porque te lo da el máster, y se elige cuál llevar en el zurrón, en Equipo.' ]),
         section('Atributos', [
           `Cada nivel a partir del 2 da ${ATTR.perLevel === 1 ? 'un punto' : ATTR.perLevel + ' puntos'} para repartir, y se pueden recolocar. Cada punto da: ` + ATTRS.map(a => `<strong class="font-medium">${a.name}</strong>, ${esc(attrText(a, 1).replace(/\.$/, '').toLowerCase())}`).join('; ') + '.' ]),
         section('Vida', [
@@ -3362,7 +3493,7 @@
           <div class="grid gap-2 mt-4 text-center" style="grid-template-columns:repeat(${rowCols(people.length)},minmax(0,1fr))">
             ${people.map(p => `<div><i class="gi gi-laurel-crown text-2xl text-paper-accent dark:text-night-accent"></i>
               <p class="word-title text-2xl">${guild[p.id].prestige}</p>
-              <p class="label-caps text-[9px] text-paper-muted dark:text-night-muted truncate">${esc(p.display_name)}</p></div>`).join('')}
+              <p class="text-xs leading-tight text-paper-muted dark:text-night-muted break-words">${esc(p.display_name)}</p></div>`).join('')}
           </div>
           ${open ? `<ul class="mt-4 divide-y divide-paper-border/60 dark:divide-night-border/60">${open}</ul>` : ''}
           ${done ? `<div class="rule mt-4"><span class="quote text-xs">Últimos duelos</span></div><ul class="mt-2">${done}</ul>` : ''}
@@ -3589,6 +3720,7 @@
         <div class="${section}">
           <div class="rule"><span class="quote text-xs">Equipo</span></div>
           <div class="grid grid-cols-3 gap-2 mt-4">${slots}</div>
+          ${epiReady ? epithetChooser() : ''}
           <div class="rule mt-6"><span class="quote text-xs">En el zurrón</span></div>
           ${spare.length || Object.keys(consumables).length ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-4">
             ${spare.map(u => { const it = itemsById[u.item_id]; return itemCard(it,
@@ -3891,6 +4023,33 @@
       showToast(`Habilidad elegida: ${PERKS[me.cls][level][choice === 'b' ? 1 : 0].name}`);
     }
 
+    // Elegir qué epíteto se lleva junto al nombre
+    function epithetChooser() {
+      const owned = epithetsOwned(currentUser.id);
+      const current = equippedEpithet(currentUser.id);
+      const fresh = newEpithets().map(o => o.id);
+      const locked = ACHIEVEMENTS.filter(a => a.epithet && epithetById(a.epithet) && !owned.some(o => o.id === a.epithet));
+      const small = 'px-2.5 py-1 rounded-md text-[10px] border border-paper-border dark:border-night-border';
+      const smallGold = 'px-2.5 py-1 rounded-md text-[10px] bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg';
+      return `
+          <div class="rule mt-6"><span class="quote text-xs">Epíteto</span></div>
+          <p class="text-sm text-paper-muted dark:text-night-muted mt-3 text-center">Se muestra junto a tu nombre: <span class="text-paper-ink dark:text-night-ink">${esc(displayName(currentUser.id))}</span>.</p>
+          ${owned.length ? `<ul class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">${owned.map(o => `<li class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
+              <span class="flex-1 min-w-0"><span class="word-title text-xl ${o.id === current ? 'text-paper-accent dark:text-night-accent' : ''}">${esc(epithetText(o.id, currentUser.id))}</span>${fresh.includes(o.id) ? ' <span class="text-xs text-paper-accent dark:text-night-accent">nuevo</span>' : ''}
+                <span class="block text-xs text-paper-muted dark:text-night-muted">${esc(o.label)}</span></span>
+              ${o.id === current ? `<button onclick="equipEpithet('')" class="${small}">Quitar</button>` : `<button onclick="equipEpithet('${esc(o.id)}')" class="${smallGold}">Llevar</button>`}
+            </li>`).join('')}</ul>` : '<p class="quote text-sm text-center mt-3">Aún no tienes ninguno.</p>'}
+          ${locked.length ? `<details class="mt-3"><summary class="cursor-pointer text-xs text-paper-muted dark:text-night-muted">Por ganar (${locked.length})</summary>
+            <ul class="mt-2 space-y-1 text-sm text-paper-muted dark:text-night-muted">${locked.map(a => `<li>${esc(epithetForms(epithetById(a.epithet)))}: ${esc(a.desc.charAt(0).toLowerCase() + a.desc.slice(1))}.</li>`).join('')}
+              <li>Y otros que solo salen en los cofres de prestigio.</li></ul></details>` : ''}`;
+    }
+
+    async function equipEpithet(id) {
+      if (!currentUser) return;
+      if (id && !epithetsOwned(currentUser.id).some(o => o.id === id)) return;
+      await updateMyProfile({ epithet: id || null }, () => id ? 'Ahora eres ' + displayName(currentUser.id) : 'Epíteto quitado');
+    }
+
     function economyGuard() {
       if (!currentUser) return false;
       if (!economyReady) { showToast('Falta ejecutar el último schema.sql en Supabase'); return false; }
@@ -3999,7 +4158,8 @@
     // la frecuencia de cada objeto. Si no hay objetos de una rareza, su parte pasa a la anterior y luego hacia arriba.
     function lootOdds(tier, luck = 0) {
       const order = ['común', 'raro', 'épico', 'legendario'];
-      const pool = Object.values(itemsById).filter(it => it.kind === 'gear' && it.drop > 0);
+      // El cofre de prestigio solo da sus objetos exclusivos; los demás cofres, los de «cualquier cofre»
+      const pool = Object.values(itemsById).filter(it => it.kind === 'gear' && it.drop > 0 && it.origin === (tier === 'prestige' ? 'prestige' : 'any'));
       const weight = {};
       order.forEach(r => { weight[r] = (Number(CHESTS[tier].weights[r]) || 0) * luckWeight(r, luck); });
       const sum = order.reduce((a, r) => a + weight[r], 0);
@@ -4057,12 +4217,22 @@
         } else {
           await spendGold(GOLD.noLoot, 'Cofre: ' + chest.name);
         }
+        let title = null;
+        if (chest.tier === 'prestige' && epiReady && Math.random() * 100 < EPI.prestigeChance) {
+          const have = epithetsOwned(currentUser.id).map(o => o.id);
+          const options = EPITHETS.filter(e => e.origin === 'cofre' && !have.includes(e.id));
+          if (options.length) {
+            const pickE = options[Math.floor(Math.random() * options.length)];
+            const res = await sb.from('user_epithets').insert({ epithet: pickE.id, source: 'cofre' }).select().single();
+            if (!res.error) { userEpithets.push(res.data); title = pickE.id; }
+          }
+        }
         renderGlossary();
-        showLoot(chest, item);
+        showLoot(chest, item, title);
       } catch (e) { showToast(e.message); renderGlossary(); }
     }
 
-    function showLoot(chest, item) {
+    function showLoot(chest, item, title = null) {
       const r = item ? (RARITY[item.rarity] || RARITY['común']) : null;
       document.getElementById('lootBody').innerHTML = item ? `
           <p class="label-caps text-[10px] text-paper-muted dark:text-night-muted">${esc(chest.name)}</p>
@@ -4074,9 +4244,14 @@
           <div class="mt-5"><i class="gi gi-two-coins text-7xl text-paper-accent dark:text-night-accent"></i></div>
           <h3 class="word-title text-4xl mt-4">${GOLD.noLoot} de oro</h3>
           <p class="quote text-base mt-3">Dentro solo había monedas.</p>`;
+      if (title) document.getElementById('lootBody').innerHTML += `
+          <div class="rule mt-6"><span class="quote text-xs">Y además, un epíteto</span></div>
+          <p class="word-title text-3xl mt-3 text-paper-accent dark:text-night-accent">${esc(displayNameWith(currentUser.id, title))}</p>
+          <p class="text-sm text-paper-muted dark:text-night-muted mt-2">Lo puedes llevar desde el zurrón, en Equipo.</p>`;
       document.getElementById('lootModal').classList.remove('hidden');
       document.getElementById('lootModal').classList.add('flex');
     }
+    const displayNameWith = (userId, id) => authorName(userId) + ', ' + epithetText(id, userId);
 
     function closeLoot() {
       document.getElementById('lootModal').classList.add('hidden');
@@ -4210,7 +4385,7 @@
         jugadoras: ['Jugadoras', () => dmNoticeBlock() + dmPlayersBlock() + dmGuildBlock()],
         reglas: ['Reglas', () => dmLevelsBlock() + dmEventsBlock() + dmRulesBlock()],
         clases: ['Clases', () => dmClassesBlock() + dmTitlesBlock()],
-        logros: ['Logros', () => dmAchievementsBlock()],
+        logros: ['Logros y epítetos', () => dmEpithetsBlock() + dmAchievementsBlock()],
         registro: ['Registro', () => dmLogBlock()]
       };
       if (!sections[dmTab]) dmTab = 'mazmorra';
@@ -4504,6 +4679,66 @@
       } catch (e) { showToast(e.message); }
     }
 
+    // ----- Epítetos -----
+    function dmEpithetsBlock() {
+      if (!configReady) return '';
+      if (!dmEpiDraft) dmEpiDraft = EPITHETS.map(e => ({ ...e }));
+      const givenBy = id => ACHIEVEMENTS.filter(a => a.epithet === id).map(a => a.name).join(', ');
+      return `
+        <div class="${DM_BOX}">
+          <h2 class="title-outline text-3xl">Epítetos</h2>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">Títulos de honor que se muestran junto al nombre: «Marina, la Verduga». Cada uno en sus tres formas; el artículo (el, la, le) se pone solo según la forma que eligió cada persona. Los de logro se asignan abajo, en cada logro; los de cofre salen en los cofres de prestigio; los de máster los das tú desde Jugadoras.</p>
+          <div class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
+            ${dmEpiDraft.map((e, i) => `<div class="py-2.5 grid grid-cols-2 sm:grid-cols-[1fr_1fr_1fr_11rem_auto] gap-2 items-end">
+              <div><label for="epi-${i}-m" class="text-xs">Forma en -o</label><input type="text" id="epi-${i}-m" maxlength="40" value="${esc(e.m)}" class="${DM_FIELD}" /></div>
+              <div><label for="epi-${i}-f" class="text-xs">En -a</label><input type="text" id="epi-${i}-f" maxlength="40" value="${esc(e.f)}" class="${DM_FIELD}" /></div>
+              <div><label for="epi-${i}-n" class="text-xs">En -e</label><input type="text" id="epi-${i}-n" maxlength="40" value="${esc(e.n)}" class="${DM_FIELD}" /></div>
+              <div><label for="epi-${i}-origin" class="text-xs">Cómo se gana</label><select id="epi-${i}-origin" class="${DM_FIELD}">${Object.entries(EPI_ORIGINS).map(([k, l]) => `<option value="${k}"${k === e.origin ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+              <button onclick="epiRemove(${i})" class="${DM_SMALL}">Quitar</button>
+              ${e.origin === 'logro' ? `<p class="col-span-2 sm:col-span-5 text-xs text-paper-muted dark:text-night-muted">${givenBy(e.id) ? 'Lo da: ' + esc(givenBy(e.id)) : 'Ningún logro lo da todavía: asígnalo abajo.'}</p>` : ''}
+            </div>`).join('')}
+          </div>
+          <div class="flex flex-wrap justify-between gap-2 mt-3">
+            <button onclick="epiAdd()" class="${DM_SMALL}">Añadir epíteto</button>
+            <span class="flex flex-wrap gap-2">
+              <button onclick="saveEpithets(true)" class="${DM_SMALL}">Volver a los de partida</button>
+              <button onclick="saveEpithets()" class="${DM_GOLD}">Guardar epítetos</button>
+            </span>
+          </div>
+        </div>`;
+    }
+    function epiRead() {
+      if (!dmEpiDraft) return;
+      dmEpiDraft = dmEpiDraft.map((e, i) => {
+        const get = f => document.getElementById(`epi-${i}-${f}`);
+        if (!get('m')) return e;
+        return { id: e.id, m: str(get('m').value), f: str(get('f').value), n: str(get('n').value), origin: get('origin').value };
+      });
+    }
+    function epiAdd() {
+      epiRead();
+      dmEpiDraft.push({ id: 'e' + Date.now().toString(36), m: '', f: '', n: '', origin: 'cofre' });
+      renderDM();
+    }
+    function epiRemove(index) { epiRead(); dmEpiDraft.splice(index, 1); renderDM(); }
+    async function saveEpithets(reset = false) {
+      if (!configGuard()) return;
+      let list = [];
+      if (!reset) {
+        epiRead();
+        if (dmEpiDraft.some(e => !e.m)) { showToast('Cada epíteto necesita al menos su forma en -o'); return; }
+        list = dmEpiDraft.map(cleanEpithet).filter(Boolean);
+      } else if (!confirm('¿Volver a los epítetos de partida? Se pierden los que hayas creado o cambiado.')) return;
+      try {
+        await saveConfig('epithets', reset ? [] : list);
+        applyEpithets(reset ? [] : list);
+        dmEpiDraft = null;
+        renderGlossary();
+        renderDM();
+        showToast('Epítetos guardados');
+      } catch (e) { showToast(e.message); }
+    }
+
     // ----- Logros -----
     function dmAchievementsBlock() {
       if (!configReady) return '';
@@ -4519,7 +4754,8 @@
               <div><label for="ach-${i}-stat" class="text-xs">Qué cuenta</label><select id="ach-${i}-stat" class="${DM_FIELD}">${Object.entries(ACH_STATS).map(([k, l]) => `<option value="${k}"${k === a.stat ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
               <div><label for="ach-${i}-min" class="text-xs">Mínimo</label><input type="number" id="ach-${i}-min" min="1" step="1" value="${a.min}" class="${DM_FIELD}" /></div>
               <button onclick="achRemove(${i})" class="${DM_SMALL}">Quitar</button>
-              <div class="col-span-2 sm:col-span-5"><label for="ach-${i}-desc" class="text-xs">Descripción</label><input type="text" id="ach-${i}-desc" maxlength="140" value="${esc(a.desc)}" class="${DM_FIELD}" /></div>
+              <div class="col-span-2 sm:col-span-3"><label for="ach-${i}-desc" class="text-xs">Descripción</label><input type="text" id="ach-${i}-desc" maxlength="140" value="${esc(a.desc)}" class="${DM_FIELD}" /></div>
+              <div class="col-span-2"><label for="ach-${i}-epi" class="text-xs">Epíteto que da</label><select id="ach-${i}-epi" class="${DM_FIELD}"><option value="">Ninguno</option>${EPITHETS.map(e => `<option value="${esc(e.id)}"${e.id === a.epithet ? ' selected' : ''}>${esc(epithetForms(e))}</option>`).join('')}</select></div>
             </div>`).join('')}
           </div>
           <div class="flex flex-wrap justify-between gap-2 mt-4">
@@ -4538,10 +4774,10 @@
       dmAchDraft = dmAchDraft.map((a, i) => {
         const get = f => document.getElementById(`ach-${i}-${f}`);
         if (!get('name')) return a;
-        return { icon: str(get('icon').value), name: str(get('name').value), desc: str(get('desc').value), stat: get('stat').value, min: parseInt(get('min').value, 10) };
+        return { icon: str(get('icon').value), name: str(get('name').value), desc: str(get('desc').value), stat: get('stat').value, min: parseInt(get('min').value, 10), epithet: get('epi') ? get('epi').value : (a.epithet || '') };
       });
     }
-    function achAdd() { achRead(); dmAchDraft.push({ icon: 'round-star', name: '', desc: '', stat: 'words', min: 1 }); renderDM(); }
+    function achAdd() { achRead(); dmAchDraft.push({ icon: 'round-star', name: '', desc: '', stat: 'words', min: 1, epithet: '' }); renderDM(); }
     function achRemove(index) { achRead(); dmAchDraft.splice(index, 1); renderDM(); }
 
     async function saveAchievements(reset = false) {
@@ -4572,7 +4808,7 @@
       return `
         <div class="${DM_BOX}">
           <h2 class="title-outline text-3xl">Botín de los cofres</h2>
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">La probabilidad de cada objeto sale de dos cosas: el peso de su rareza en ese cofre (Reglas → Cofres) y su frecuencia (en la ficha del objeto: 1 es lo normal, 2 sale el doble, 0 no sale de ningún cofre). El botín propio de un jefe se pone en la ficha del monstruo.</p>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">El cofre de prestigio solo da los objetos marcados como exclusivos suyos, y además puede traer un epíteto. La probabilidad de cada objeto sale de dos cosas: el peso de su rareza en ese cofre (Reglas → Cofres) y su frecuencia (en la ficha del objeto: 1 es lo normal, 2 sale el doble, 0 no sale de ningún cofre). El botín propio de un jefe se pone en la ficha del monstruo.</p>
           <div class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
             ${['level', 'boss', 'prestige'].map(t => { const odds = [...lootOdds(t)].sort((a, b) => b[1] - a[1]); return `<details class="py-3"${dmOpen.has('l' + t) ? ' open' : ''} ontoggle="dmToggle('l${t}', this.open)">
               <summary class="cursor-pointer"><span class="word-title text-xl">${CHESTS[t].label}</span> <span class="text-xs text-paper-muted dark:text-night-muted">${odds.length} objetos posibles</span></summary>
@@ -4636,7 +4872,7 @@
       configRows[key] = value;
       dmLog('Cambió ' + (CONFIG_LABELS[key] || key), key, before);
     }
-    const CONFIG_LABELS = { levels: 'los niveles', notice: 'el aviso al gremio', events: 'los eventos', rules: 'las reglas', classes: 'las clases y habilidades', titles: 'los títulos', achievements: 'los logros', featured: 'el objeto de la semana' };
+    const CONFIG_LABELS = { epithets: 'los epítetos', levels: 'los niveles', notice: 'el aviso al gremio', events: 'los eventos', rules: 'las reglas', classes: 'las clases y habilidades', titles: 'los títulos', achievements: 'los logros', featured: 'el objeto de la semana' };
 
     // Apunta una acción del máster. Si fue un cambio de configuración guarda lo que había, para poder deshacerlo.
     async function dmLog(action, key = null, before = null) {
@@ -4654,7 +4890,10 @@
       featured = configRows.featured && typeof configRows.featured === 'object' ? configRows.featured : { mode: 'off' };
       applyEvents(configRows.events);
       applyLevels(configRows.levels);
+      applyEpithets(configRows.epithets);
+      applyAchievements(configRows.achievements);
       dmAchDraft = null;
+      dmEpiDraft = null;
       dmEvDraft = null;
     }
 
@@ -4699,7 +4938,7 @@
     async function downloadBackup() {
       if (!configGuard()) return;
       const tables = ['profiles', 'words', 'tones', 'word_saves', 'word_likes', 'word_stats', 'review_sessions', 'dungeon_progress', 'bosses', 'game_items', 'user_items',
-        'equip_history', 'gold_ledger', 'chest_opens', 'chest_grants', 'consumable_uses', 'duels', 'trades', 'class_perks', 'game_config', 'allowed_emails', 'dm_log'];
+        'equip_history', 'gold_ledger', 'chest_opens', 'chest_grants', 'consumable_uses', 'duels', 'trades', 'class_perks', 'game_config', 'allowed_emails', 'dm_log', 'user_attrs', 'user_epithets'];
       const btn = document.getElementById('btnBackup');
       if (btn) { btn.disabled = true; btn.textContent = 'Preparando...'; }
       const backup = { app: 'Lexium', created_at: new Date().toISOString(), tables: {}, errors: {} };
@@ -4847,6 +5086,14 @@
                   <button onclick="adminHeal('${esc(p.id)}')" class="${DM_SMALL}">Restaurar corazones</button>
                   <button onclick="adminToggleAI('${esc(p.id)}')" class="${DM_SMALL}">${p.ai_enabled ? 'Quitar acceso a la IA' : 'Dar acceso a la IA'}</button>
                 </div>
+                ${epiReady ? `<div>
+                  <p class="text-xs text-paper-muted dark:text-night-muted">Epítetos</p>
+                  <ul class="mt-1">${epithetsOwned(p.id).map(o => `<li class="flex items-center gap-2 py-1 text-sm"><span class="flex-1 min-w-0 truncate">${esc(epithetText(o.id, p.id))} <span class="text-xs text-paper-muted dark:text-night-muted">${esc(o.label)}</span></span>${o.row ? `<button onclick="adminRemoveEpithet('${esc(o.row.id)}')" class="${DM_SMALL}">Quitar</button>` : ''}</li>`).join('') || '<li class="text-sm">Ninguno.</li>'}</ul>
+                  <div class="flex gap-2 mt-2">
+                    <select id="adm-epi-${esc(p.id)}" class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm">${EPITHETS.filter(e => !epithetsOwned(p.id).some(o => o.id === e.id)).map(e => `<option value="${esc(e.id)}">${esc(epithetText(e.id, p.id))}</option>`).join('')}</select>
+                    <button onclick="adminGiveEpithet('${esc(p.id)}')" class="${DM_SMALL}">Dar epíteto</button>
+                  </div>` : ''}
+                </div>
               </div>
             </details>`; }).join('')}
           </div>
@@ -4873,6 +5120,31 @@
       if (error) { showToast('No se pudo quitar: ' + error.message); return; }
       dmLog(`Quitó «${itemsById[u.item_id].name}» a ${authorName(u.user_id)}`);
       userItems = userItems.filter(x => x.id !== u.id);
+      renderGlossary();
+      renderDM();
+    }
+
+    async function adminGiveEpithet(userId) {
+      const sel = document.getElementById('adm-epi-' + userId);
+      const id = sel ? sel.value : '';
+      if (!configGuard() || !epiReady || !profiles[userId] || !epithetById(id)) return;
+      const { data, error } = await sb.from('user_epithets').insert({ user_id: userId, epithet: id, source: 'máster' }).select().single();
+      if (error) { showToast('No se pudo dar el epíteto: ' + error.message); return; }
+      userEpithets.push(data);
+      dmLog(`Nombró a ${authorName(userId)} «${epithetText(id, userId)}»`);
+      renderGlossary();
+      renderDM();
+      showToast(`${authorName(userId)} ya puede llevar «${epithetText(id, userId)}»`);
+    }
+
+    async function adminRemoveEpithet(rowId) {
+      const r = userEpithets.find(x => x.id === rowId);
+      if (!configGuard() || !r) return;
+      if (!confirm(`¿Quitar el epíteto «${epithetText(r.epithet, r.user_id)}» a ${authorName(r.user_id)}?`)) return;
+      const { error } = await sb.from('user_epithets').delete().eq('id', r.id);
+      if (error) { showToast('No se pudo quitar: ' + error.message); return; }
+      userEpithets = userEpithets.filter(x => x.id !== r.id);
+      dmLog(`Quitó el epíteto «${epithetText(r.epithet, r.user_id)}» a ${authorName(r.user_id)}`);
       renderGlossary();
       renderDM();
     }
@@ -5131,6 +5403,7 @@
       document.getElementById('dmItemRarity').value = it ? it.rarity : 'común';
       document.getElementById('dmItemSlot').value = it && it.slot ? it.slot : 'pluma';
       document.getElementById('dmItemDrop').value = it ? it.drop : 1;
+      document.getElementById('dmItemOrigin').value = it ? it.origin : 'any';
       document.getElementById('dmItemType').value = it ? it.effect_type : 'xp_word';
       document.getElementById('dmItemValue').value = it ? it.effect_value : 1;
       document.getElementById('dmItemTone').value = it && TONES.includes(it.effect_tone) ? it.effect_tone : '';
@@ -5188,7 +5461,8 @@
           kind, name, icon, image_url: image, rarity: kind === 'gear' ? val('dmItemRarity') : '', slot: kind === 'gear' ? val('dmItemSlot') : '',
           effect_type: type, effect_value: parseFloat(val('dmItemValue')) || 0, effect_tone: EFFECTS[type].tone ? val('dmItemTone') : '',
           price, for_sale: document.getElementById('dmItemSale').checked,
-          drop_weight: kind === 'gear' && parseFloat(val('dmItemDrop')) >= 0 ? parseFloat(val('dmItemDrop')) : 1
+          drop_weight: kind === 'gear' && parseFloat(val('dmItemDrop')) >= 0 ? parseFloat(val('dmItemDrop')) : 1,
+          chest_origin: kind === 'gear' ? val('dmItemOrigin') : 'any'
         };
         const res = existing
           ? await sb.from('game_items').update(row).eq('id', existing.id)
