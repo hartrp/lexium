@@ -1444,7 +1444,7 @@
     CHESTS.level.sale = 10; CHESTS.boss.sale = 25; // oro por vender un cofre sin abrir
     CHESTS.prestige = { label: 'Cofre de prestigio', icon: 'open-treasure-chest', free: true, sale: 40, weights: { 'común': 0, 'raro': 30, 'épico': 45, 'legendario': 25 } };
     // round y hit valen solo para los entrenamientos anteriores al cambio de reglas (los que no guardan el modo)
-    const GOLD = { round: 3, hit: 1, used: 5, day: 2, noLoot: 30, hitMine: 1, hitAll: 2, perfect: 5 };
+    const GOLD = { round: 3, hit: 1, used: 5, day: 2, noLoot: 30, hitMine: 1, hitAll: 2, perfect: 5, classChange: 100 };
     // Entrenamiento: palabras por sesión y cuántos al día son gratis (el máximo diario es XP.roundsPerDay)
     const TRAIN = { words: 10, free: 1 };
     // Vida: tres corazones; se pierde uno por cada decana (10 días) sin actividad. Empieza a contar en esta fecha.
@@ -1466,7 +1466,7 @@
         rf('XP.roundsPerDay', 'Máximo al día', { min: 1, max: 20 }), rf('TRAIN.free', 'Cuántos son gratis cada día', { max: 20 }), rf('TRAIN.words', 'Palabras por entrenamiento', { min: 1, max: 30 }) ] },
       { title: 'Oro', fields: [
         rf('GOLD.hitMine', 'Por acierto, solo mi grimorio'), rf('GOLD.hitAll', 'Por acierto, todos los grimorios'), rf('GOLD.perfect', 'Extra por acertarlas todas'),
-        rf('GOLD.used', 'Por palabra usada en un texto'), rf('GOLD.day', 'Por día con actividad'), rf('GOLD.noLoot', 'Cofre que no trae objeto'), rf('WEEK.gold', 'Premio de la clasificación semanal') ] },
+        rf('GOLD.classChange', 'Lo que cuesta cambiar de clase'), rf('GOLD.used', 'Por palabra usada en un texto'), rf('GOLD.day', 'Por día con actividad'), rf('GOLD.noLoot', 'Cofre que no trae objeto'), rf('WEEK.gold', 'Premio de la clasificación semanal') ] },
       { title: 'Clases', note: 'La bonificación de base de cada clase. Los nombres y las habilidades se cambian en la pestaña Clases.', fields: [
         rf('CLS.mago.word', 'Mago: % extra por palabra apuntada'), rf('CLS.hechicero.hit', 'Hechicero: % extra por acierto'), rf('CLS.hechicero.perfect', 'Hechicero: % extra si acierta todas'),
         rf('CLS.bardo.source', 'Bardo: % extra por cita con obra y autoría'), rf('CLS.bardo.used', 'Bardo: % extra por palabra usada'), rf('CLS.barbaro.round', 'Bárbaro: % extra por entrenamiento'),
@@ -2477,18 +2477,26 @@
       const chooser = `
         <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
           <div class="rule"><span class="quote text-xs">${myProfile.class ? 'Tu clase' : 'Elige tu clase'}</span></div>
+          ${myProfile.class && !classPicking ? `
+          <div class="flex flex-wrap items-center gap-3 mt-4 p-3 border border-paper-accent dark:border-night-accent">
+            <i class="gi gi-${CLASSES[myProfile.class].icon} text-3xl text-paper-accent dark:text-night-accent"></i>
+            <span class="flex-1 min-w-[12rem]"><span class="word-title text-2xl block leading-tight">${esc(CLASSES[myProfile.class].names[form])}</span>
+              <span class="block text-xs text-paper-muted dark:text-night-muted leading-snug">${esc(classBonus(myProfile.class))}</span></span>
+            <button type="button" onclick="requestClassChange()" class="px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border">Cambiar de clase${GOLD.classChange > 0 ? ` (${GOLD.classChange} de oro)` : ''}</button>
+          </div>` : `
+          ${myProfile.class ? `<p class="text-sm text-paper-muted dark:text-night-muted mt-3">Elige tu nueva clase${GOLD.classChange > 0 ? `: el cambio cuesta ${GOLD.classChange} de oro y te pediré confirmación` : ''}. <button type="button" onclick="requestClassChange(false)" class="plain underline">Cancelar</button></p>` : ''}
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-4">
             ${Object.entries(CLASSES).map(([key, c]) => `
             <button type="button" onclick="chooseClass('${key}')" class="plain text-left p-3 border ${myProfile.class === key ? 'border-paper-accent dark:border-night-accent' : 'border-paper-border dark:border-night-border'}">
               <span class="flex items-center gap-2"><i class="gi gi-${c.icon} text-xl text-paper-accent dark:text-night-accent"></i><span class="word-title text-xl">${esc(c.names[form])}</span></span>
               <span class="block text-xs text-paper-muted dark:text-night-muted mt-1 leading-snug">${esc(classBonus(key))}</span>
             </button>`).join('')}
-          </div>
+          </div>`}
           <div class="flex flex-wrap items-center gap-2 mt-4">
             <span class="label-caps text-[9.5px] text-paper-muted dark:text-night-muted">Cómo se nombra</span>
             ${['m', 'f', 'n'].map(f => `<button type="button" onclick="setClassForm('${f}')" class="px-2.5 py-1 rounded-md text-[10px] border ${form === f ? 'border-paper-accent dark:border-night-accent text-paper-accent dark:text-night-accent' : 'border-paper-border dark:border-night-border text-paper-muted dark:text-night-muted'}">${esc(sample.names[f])}</button>`).join('')}
           </div>
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-3">Puedes cambiar de clase cuando quieras: la experiencia se recalcula con la bonificación de la nueva.</p>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-3">${myProfile.class ? 'La forma del nombre se puede cambiar gratis.' : 'La primera clase es gratis. Después, cambiarla cuesta ' + GOLD.classChange + ' de oro.'}</p>
           ${perksBlock(myProfile.class, guild[currentUser.id].level)}
         </div>`;
 
@@ -2508,8 +2516,8 @@
         const tones = Object.entries(s.byTone).sort((a, b) => b[1] - a[1]).slice(0, 6);
         const earned = s.achievements.filter(Boolean).length;
         return `
-        <div class="frame member-card bg-paper-card dark:bg-night-card border ${me ? 'border-paper-accent/60 dark:border-night-accent/50' : 'border-paper-border dark:border-night-border'} p-3 sm:p-5">
-          <div class="text-center">
+        <div class="frame member-card flex flex-col bg-paper-card dark:bg-night-card border ${me ? 'border-paper-accent/60 dark:border-night-accent/50' : 'border-paper-border dark:border-night-border'} p-3 sm:p-5">
+          <div class="text-center flex-1">
             ${portrait(p, s)}
             <p class="word-title text-2xl sm:text-3xl text-paper-accent dark:text-night-accent leading-tight break-words">${esc(p.display_name)}</p>
             ${equippedEpithet(p.id) ? `<p class="quote text-sm leading-tight mt-0.5">${esc(epithetText(equippedEpithet(p.id), p.id))}</p>` : ''}
@@ -2517,7 +2525,7 @@
             <div class="mt-2.5 h-px bg-paper-border dark:bg-night-border"><div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div></div>
             ${heartsRow(s)}
           </div>
-          <details class="member-more mt-3"${dmOpen.has('m' + p.id) ? ' open' : ''} ontoggle="dmToggle('m${esc(p.id)}', this.open)">
+          <details class="member-more mt-auto pt-3"${dmOpen.has('m' + p.id) ? ' open' : ''} ontoggle="dmToggle('m${esc(p.id)}', this.open)">
           <summary class="cursor-pointer text-center text-xs text-paper-muted dark:text-night-muted">Ver más</summary>
           <div class="text-center">
             <p class="quote text-xs mt-2">${xpLine(s)}</p>
@@ -2553,7 +2561,8 @@
           <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save} por cada palabra ajena que guardas en tu grimorio, ${XP.used} por palabra ya usada, ${XP.round} por entrenamiento más ${XP.hit} por acierto (hasta ${XP.roundsPerDay} al día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${XP.levelDamage} % de daño a los jefes.</p>
         </div>`;
 
-      panel.innerHTML = helpLink() + dungeonPanel() + weeklyBlock() + duelsBlock() + chronicleBlock() + chooser + attrsBlock() + `<div class="grid ${Object.keys(profiles).length === 1 ? 'grid-cols-1' : 'grid-cols-2'} ${{ 1: '', 2: '', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4' }[cardCols(Object.keys(profiles).length)] || ''} gap-2 sm:gap-3 items-start">${members}</div>` + legend;
+      const cards = `<div class="grid ${Object.keys(profiles).length === 1 ? 'grid-cols-1' : 'grid-cols-2'} ${{ 1: '', 2: '', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4' }[cardCols(Object.keys(profiles).length)] || ''} gap-2 sm:gap-3 items-stretch">${members}</div>`;
+      panel.innerHTML = helpLink() + dungeonPanel() + weeklyBlock() + cards + duelsBlock() + chronicleBlock() + chooser + attrsBlock() + legend;
     }
 
     async function updateMyProfile(changes, okMessage) {
@@ -2566,9 +2575,24 @@
       showToast(okMessage(data));
     }
 
-    function chooseClass(key) {
-      if (!CLASSES[key]) return;
-      updateMyProfile({ class: key }, p => `Ahora eres ${className(p)}`);
+    let classPicking = false; // true cuando se ha pedido un cambio de clase y se muestran las demás
+    function requestClassChange(open = true) { classPicking = open; renderGuild(); }
+
+    async function chooseClass(key) {
+      if (!CLASSES[key] || !currentUser) return;
+      const p = profiles[currentUser.id] || {};
+      if (p.class === key) return;
+      if (p.class) {
+        const me = guild[currentUser.id];
+        const cost = GOLD.classChange;
+        if (!economyReady) { showToast('Falta ejecutar el último schema.sql en Supabase'); return; }
+        if (cost > 0 && me.gold < cost) { showToast(`Cambiar de clase cuesta ${cost} de oro y tienes ${me.gold}`); return; }
+        const next = CLASSES[key].names[formOf(currentUser.id)];
+        if (!confirm(`¿Cambiar de ${className(p)} a ${next}${cost > 0 ? ` por ${cost} de oro` : ''}?\n\nLa experiencia se recalcula con la bonificación de la nueva clase. Tus habilidades de ${className(p)} se guardan por si vuelves.`)) return;
+        try { if (cost > 0) await spendGold(-cost, 'Cambio de clase'); } catch (e) { showToast(e.message); return; }
+      }
+      classPicking = false;
+      await updateMyProfile({ class: key }, pr => `Ahora eres ${className(pr)}`);
     }
 
     function setClassForm(form) {
