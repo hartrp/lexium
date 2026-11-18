@@ -2341,6 +2341,10 @@
         </div>`;
     }
 
+    // Columnas para que nadie quede solo en la última fila: 4 personas en 2 × 2 (fichas) o en una fila (prestigio)
+    function cardCols(n) { return n <= 3 ? Math.max(1, n) : n === 4 ? 2 : 3; }
+    function rowCols(n) { return n <= 4 ? Math.max(1, n) : n % 4 === 0 || n % 4 === 3 ? 4 : 3; }
+
     function renderGuild() {
       const panel = document.getElementById('guildPanel');
       if (!currentUser || !guild[currentUser.id]) { panel.innerHTML = ''; return; }
@@ -2421,7 +2425,7 @@
           <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save} por cada palabra ajena que guardas en tu grimorio, ${XP.used} por palabra ya usada, ${XP.round} por entrenamiento más ${XP.hit} por acierto (hasta ${XP.roundsPerDay} al día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${XP.levelDamage} % de daño a los jefes.</p>
         </div>`;
 
-      panel.innerHTML = helpLink() + dungeonPanel() + weeklyBlock() + duelsBlock() + chronicleBlock() + chooser + attrsBlock() + `<div class="grid grid-cols-1 lg:grid-cols-3 gap-3">${members}</div>` + legend;
+      panel.innerHTML = helpLink() + dungeonPanel() + weeklyBlock() + duelsBlock() + chronicleBlock() + chooser + attrsBlock() + `<div class="grid grid-cols-1 ${{ 1: '', 2: 'sm:grid-cols-2', 3: 'lg:grid-cols-3' }[cardCols(Object.keys(profiles).length)]} gap-3">${members}</div>` + legend;
     }
 
     async function updateMyProfile(changes, okMessage) {
@@ -3355,7 +3359,7 @@
       return `
         <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
           <div class="rule"><span class="quote text-xs">Duelos y prestigio</span></div>
-          <div class="grid grid-cols-3 gap-2 mt-4 text-center">
+          <div class="grid gap-2 mt-4 text-center" style="grid-template-columns:repeat(${rowCols(people.length)},minmax(0,1fr))">
             ${people.map(p => `<div><i class="gi gi-laurel-crown text-2xl text-paper-accent dark:text-night-accent"></i>
               <p class="word-title text-2xl">${guild[p.id].prestige}</p>
               <p class="label-caps text-[9px] text-paper-muted dark:text-night-muted truncate">${esc(p.display_name)}</p></div>`).join('')}
