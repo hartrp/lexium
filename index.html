@@ -172,7 +172,7 @@
 
     /* Impresión o PDF: solo las fichas del grimorio, en tinta sobre blanco */
     @media print {
-      header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-bag, #view-guild, #view-dm, #dmBossModal, #dmItemModal, #lootModal, #tradeModal, #helpModal, #welcomeModal, #notifModal, .no-print, .ribbon-wrap { display: none !important; }
+      header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-character, #view-bag, #view-guild, #view-dm, #dmBossModal, #dmItemModal, #lootModal, #tradeModal, #helpModal, #welcomeModal, #notifModal, .no-print, .ribbon-wrap { display: none !important; }
       html { font-size: 12px; }
       body::before { display: none !important; }
       body, #view-glossary article { background: #fff !important; background-image: none !important; color: #000 !important; }
@@ -207,6 +207,30 @@
                  font: 600 9.5px/15px 'EB Garamond', Georgia, serif; letter-spacing: 0; text-align: center; }
     @media (max-width: 639px) { header nav .nav-badge { top: 4px; right: calc(50% - 22px); } }
     #btnNotifs { position: relative; }
+    /* Retrato: el aura es la rareza del mejor objeto puesto; el marco crece con el nivel; la corona, con el prestigio */
+    .rank-icon { position: relative; }
+    .rank-icon.aura-2 { border-color: #5F8FC9; color: #8DB3E2; box-shadow: 0 0 14px rgba(95, 143, 201, 0.45); }
+    .rank-icon.aura-3 { border-color: #A070D0; color: #C29BEA; box-shadow: 0 0 16px rgba(160, 112, 208, 0.5); }
+    .rank-icon.aura-4 { border-color: #D9A441; color: #E8C877; box-shadow: 0 0 18px rgba(217, 164, 65, 0.55); animation: aura-glow 4.5s ease-in-out infinite; }
+    @keyframes aura-glow { 0%, 100% { box-shadow: 0 0 10px rgba(217, 164, 65, 0.35); } 50% { box-shadow: 0 0 26px rgba(217, 164, 65, 0.75); } }
+    .rank-icon.frame-2 { border-width: 2px; }
+    .rank-icon.frame-3 { border-width: 4px; border-style: double; }
+    .rank-icon.frame-4 { border-width: 4px; border-style: double; outline: 1px solid currentColor; outline-offset: 3px; }
+    .portrait-crown { position: absolute; top: -0.95em; left: 50%; transform: translateX(-50%); color: #E8C877; font-size: 0.8em; line-height: 1; z-index: 2; }
+    .rank-icon.portrait-xl { width: 8rem; height: 8rem; font-size: 3.6rem; margin-bottom: 0; }
+    .rank-icon.portrait-xl .portrait-crown { font-size: 0.55em; top: -0.85em; }
+    @media (max-width: 639px) { .rank-icon.portrait-xl { width: 6.5rem; height: 6.5rem; font-size: 3rem; } }
+    /* Muñeco de equipo: pluma a un lado, capa al otro y el amuleto debajo */
+    .char-doll { display: grid; grid-template-columns: 1fr auto 1fr; grid-template-areas: "pluma hero capa" ". amuleto ."; align-items: center; justify-items: center; gap: 0.9rem 1rem; padding-top: 0.8rem; }
+    .char-slot { width: 5.6rem; min-height: 5.6rem; padding: 0.5rem 0.35rem; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+                 border: 1px dashed var(--line); background: var(--deep); color: inherit; }
+    .char-slot[style*="border-color"] { border-style: solid; }
+    .char-slot.aura-2 { box-shadow: 0 0 12px rgba(95, 143, 201, 0.4); }
+    .char-slot.aura-3 { box-shadow: 0 0 14px rgba(160, 112, 208, 0.45); }
+    .char-slot.aura-4 { box-shadow: 0 0 16px rgba(217, 164, 65, 0.5); animation: aura-glow 4.5s ease-in-out infinite; }
+    .char-slot.is-open { outline: 1px solid var(--gold); outline-offset: 3px; }
+    @media (max-width: 639px) { .char-slot { width: 4.8rem; min-height: 4.8rem; } .char-doll { gap: 0.7rem 0.5rem; } }
+    @media (prefers-reduced-motion: reduce) { .rank-icon.aura-4, .char-slot.aura-4 { animation: none; } }
     /* Fichas del gremio: retrato grande, el nombre manda y lo demás en «Ver más» */
     .member-card .rank-icon { width: 4.2rem; height: 4.2rem; font-size: 1.9rem; margin-bottom: 0.55rem; }
     .member-card .rank-icon.portrait { width: 5rem; height: 5rem; }
@@ -309,6 +333,9 @@
       <button onclick="switchTab('review')" id="tab-review" class="py-2.5 border-b-2 border-transparent text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink whitespace-nowrap transition flex items-center gap-1.5">
         <i class="gi gi-target-dummy"></i><span>Entren<span class="tab-long">amient</span>o</span>
       </button>
+      <button onclick="switchTab('character')" id="tab-character" class="py-2.5 border-b-2 border-transparent text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink whitespace-nowrap transition flex items-center gap-1.5">
+        <i class="gi gi-visored-helm"></i><span>Personaje</span>
+      </button>
       <button onclick="switchTab('bag')" id="tab-bag" class="py-2.5 border-b-2 border-transparent text-paper-muted dark:text-night-muted hover:text-paper-ink dark:hover:text-night-ink whitespace-nowrap transition flex items-center gap-1.5">
         <i class="gi gi-swap-bag"></i><span>Zurrón</span>
       </button>
@@ -389,6 +416,10 @@
 
     <section id="view-review" class="hidden space-y-5 max-w-2xl mx-auto">
       <div id="reviewCard" class="frame rounded-3xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-8 text-center min-h-[320px]"></div>
+    </section>
+
+    <section id="view-character" class="hidden">
+      <div id="characterPanel" class="space-y-5"></div>
     </section>
 
     <section id="view-bag" class="hidden">
@@ -1365,7 +1396,7 @@
     }
 
     function switchTab(tab) {
-      ['glossary', 'reverse', 'review', 'bag', 'guild', 'dm'].forEach(t => {
+      ['glossary', 'reverse', 'review', 'character', 'bag', 'guild', 'dm'].forEach(t => {
         if (t === 'dm') document.getElementById('btnDM').classList.toggle('hidden', !isDM());
         if (t === 'dm' && !isDM()) { document.getElementById('view-dm').classList.add('hidden'); document.getElementById('tab-dm').className = 'hidden'; return; }
         document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab);
@@ -1378,7 +1409,8 @@
       });
       if (tab === 'review') renderReview();
       if (tab === 'guild') renderGuild();
-      if (tab === 'bag') { renderBag(); markEpithetsSeen(); }
+      if (tab === 'bag') renderBag();
+      if (tab === 'character') { renderCharacter(); markEpithetsSeen(); }
       if (tab === 'dm') renderDM();
     }
 
@@ -1898,13 +1930,14 @@
       const offers = trades.filter(t => t.to_id === currentUser.id && tradeAlive(t)).length;
       const myDuels = duels.filter(d => !d.declined && ((d.challenger_id === currentUser.id && !d.challenger_done_at) || (d.opponent_id === currentUser.id && !d.opponent_done_at))).length;
       const epis = newEpithets().length;
-      return { epithets: epis, bag: me.chests.length + offers + epis, guild: myDuels, attrs: attrsReady && me.attrBudget > me.attrSpent ? 1 : 0,
+      return { epithets: epis, bag: me.chests.length + offers, guild: myDuels, attrs: attrsReady && me.attrBudget > me.attrSpent ? 1 : 0,
         train: me.trainToday < Math.min(TRAIN.free, me.trainMax) ? 1 : 0, chests: me.chests.length, offers, duels: myDuels };
     }
     function updateBadges() {
       const c = pendingCounts();
       setBadge('tab-bag', c.bag);
-      setBadge('tab-guild', c.guild + c.attrs);
+      setBadge('tab-guild', c.guild);
+      setBadge('tab-character', c.attrs + c.epithets);
       setBadge('tab-review', c.train);
       setBadge('btnNotifs', c.bag + c.guild + c.attrs + c.train);
     }
@@ -1918,11 +1951,11 @@
       const row = (icon, text, tab, label) => `<li class="flex items-center gap-3 py-2.5"><i class="gi gi-${icon} text-xl text-paper-accent dark:text-night-accent"></i><span class="flex-1 min-w-0 text-sm">${text}</span><button onclick="notifGo('${tab}')" class="${go}">${label}</button></li>`;
       const left = me.attrBudget - me.attrSpent;
       const pending = [
-        c.epithets ? row('laurel-crown', c.epithets === 1 ? `Has ganado un epíteto: «${esc(epithetText(newEpithets()[0].id, currentUser.id))}».` : `Has ganado ${c.epithets} epítetos nuevos.`, 'bag', 'Ir al zurrón') : '',
+        c.epithets ? row('laurel-crown', c.epithets === 1 ? `Has ganado un epíteto: «${esc(epithetText(newEpithets()[0].id, currentUser.id))}».` : `Has ganado ${c.epithets} epítetos nuevos.`, 'character', 'Ir a tu personaje') : '',
         c.chests ? row('locked-chest', c.chests === 1 ? 'Tienes un cofre por abrir.' : `Tienes ${c.chests} cofres por abrir.`, 'bag', 'Ir al zurrón') : '',
         c.offers ? row('swap-bag', c.offers === 1 ? 'Te han hecho una oferta de intercambio.' : `Te han hecho ${c.offers} ofertas de intercambio.`, 'bag', 'Ir al zurrón') : '',
         c.duels ? row('sword-clash', c.duels === 1 ? 'Tienes un duelo por jugar.' : `Tienes ${c.duels} duelos por jugar.`, 'guild', 'Ir al gremio') : '',
-        c.attrs ? row('biceps', left === 1 ? 'Te queda un punto de atributo por repartir.' : `Te quedan ${left} puntos de atributo por repartir.`, 'guild', 'Ir al gremio') : '',
+        c.attrs ? row('biceps', left === 1 ? 'Te queda un punto de atributo por repartir.' : `Te quedan ${left} puntos de atributo por repartir.`, 'character', 'Ir a tu personaje') : '',
         c.train ? row('target-dummy', me.trainToday === 0 ? 'Hoy todavía no has entrenado: el primero es gratis.' : 'Aún te queda un entrenamiento gratis hoy.', 'review', 'Entrenar') : ''
       ].join('');
       const news = chronicle(10);
@@ -1959,7 +1992,7 @@
       try { localStorage.setItem('lexium-welcome-' + currentUser.id, '1'); } catch (e) {}
       document.getElementById('welcomeModal').classList.add('hidden');
       document.getElementById('welcomeModal').classList.remove('flex');
-      if (next === 'class') switchTab('guild');
+      if (next === 'class') switchTab('character');
       if (next === 'word') openAddModal();
       if (next === 'help') openHelp();
     }
@@ -2424,12 +2457,14 @@
     }
 
     // Medallón del personaje: su foto con el icono de clase en una esquina, o solo el icono
-    function portrait(p, stats) {
+    function portrait(p, stats, big = false) {
       const src = safeImage(p.avatar_url);
       const label = esc(stats.className || 'Sin clase');
+      const look = ` aura-${auraTier(p.id)} frame-${frameTier(stats)}${big ? ' portrait-xl' : ''}`;
+      const crown = (stats.prestige || 0) >= DUEL.chestEvery ? '<span class="portrait-crown" title="Prestigio"><i class="gi gi-laurel-crown"></i></span>' : '';
       return src
-        ? `<div class="rank-icon portrait" title="${label}"><img src="${esc(src)}" alt="" onload="if(this.naturalWidth<=160)this.style.imageRendering='pixelated'"><span class="portrait-badge"><i class="gi gi-${emblem(stats)}"></i></span></div>`
-        : `<div class="rank-icon" title="${label}"><i class="gi gi-${emblem(stats)}"></i></div>`;
+        ? `<div class="rank-icon portrait${look}" title="${label}">${crown}<img src="${esc(src)}" alt="" onload="if(this.naturalWidth<=160)this.style.imageRendering='pixelated'"><span class="portrait-badge"><i class="gi gi-${emblem(stats)}"></i></span></div>`
+        : `<div class="rank-icon${look}" title="${label}">${crown}<i class="gi gi-${emblem(stats)}"></i></div>`;
     }
 
     // Icono del medallón: el de la clase si la tiene, o el del título
@@ -2444,7 +2479,7 @@
       if (!p || !s) { panel.innerHTML = ''; return; }
       const who = rankLine(s, true);
       panel.innerHTML = bannerHtml() + `
-        <div class="frame rank-card bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border px-4 py-4 sm:px-6 sm:py-5 flex flex-wrap items-center gap-x-5 gap-y-3">
+        <div onclick="switchTab('character')" title="Ver tu personaje" class="frame rank-card cursor-pointer bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border px-4 py-4 sm:px-6 sm:py-5 flex flex-wrap items-center gap-x-5 gap-y-3">
           <div class="shrink-0">${portrait(p, s)}</div>
           <div class="flex-1 min-w-[12rem]">
             <p class="word-title text-2xl sm:text-3xl text-paper-accent dark:text-night-accent truncate">${esc(p.display_name)}</p>
@@ -2467,14 +2502,27 @@
     function cardCols(n) { return n <= 4 ? Math.max(1, n) : 3; }
     function rowCols(n) { return n <= 4 ? Math.max(1, n) : n % 4 === 0 || n % 4 === 3 ? 4 : 3; }
 
-    function renderGuild() {
-      const panel = document.getElementById('guildPanel');
-      if (!currentUser || !guild[currentUser.id]) { panel.innerHTML = ''; return; }
+    // ---------- PERSONAJE ----------
+    let charSlot = null; // hueco del muñeco que se ha pulsado
+    const SLOT_ICONS = { pluma: 'quill', amuleto: 'gem-pendant', capa: 'cape' };
+    const RARITY_ORDER = ['común', 'raro', 'épico', 'legendario'];
+
+    // Aura: la rareza del mejor objeto que lleva puesto (0 si nada; 2 raro, 3 épico, 4 legendario)
+    function auraTier(userId) {
+      return userItems.filter(u => u.user_id === userId && u.equipped && itemsById[u.item_id])
+        .reduce((best, u) => Math.max(best, RARITY_ORDER.indexOf(itemsById[u.item_id].rarity) + 1), 0);
+    }
+    // Marco: se enriquece al llegar a los niveles en que se abren las habilidades
+    function frameTier(stats) {
+      const lv = stats.level || 1;
+      return lv >= perkUnlock(7) ? 4 : lv >= perkUnlock(5) ? 3 : lv >= perkUnlock(3) ? 2 : 1;
+    }
+
+    function classChooser() {
       const myProfile = profiles[currentUser.id] || {};
       const form = ['m', 'f', 'n'].includes(myProfile.class_form) ? myProfile.class_form : 'n';
       const sample = CLASSES[myProfile.class] || CLASSES.mago;
-
-      const chooser = `
+      return `
         <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
           <div class="rule"><span class="quote text-xs">${myProfile.class ? 'Tu clase' : 'Elige tu clase'}</span></div>
           ${myProfile.class && !classPicking ? `
@@ -2499,6 +2547,93 @@
           <p class="text-xs text-paper-muted dark:text-night-muted mt-3">${myProfile.class ? 'La forma del nombre se puede cambiar gratis.' : 'La primera clase es gratis. Después, cambiarla cuesta ' + GOLD.classChange + ' de oro.'}</p>
           ${perksBlock(myProfile.class, guild[currentUser.id].level)}
         </div>`;
+    }
+
+    function achievementsLegend() {
+      const mine = guild[currentUser.id];
+      return `
+        <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
+          <div class="rule"><span class="quote text-xs">Tus logros</span></div>
+          <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 mt-4 text-sm">
+            ${ACHIEVEMENTS.map((a, i) => `<li class="flex items-start gap-2.5 ${mine.achievements[i] ? '' : 'opacity-50'}">
+              <i class="gi gi-${a.icon} text-lg mt-0.5 ${mine.achievements[i] ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}"></i>
+              <span><strong class="font-medium">${esc(a.name)}</strong><span class="block text-xs text-paper-muted dark:text-night-muted">${esc(a.desc)}</span></span>
+            </li>`).join('')}
+          </ul>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save ? XP.save + ' por cada palabra ajena que guardas en tu grimorio, ' : ''}${XP.used} por palabra ya usada (tuya o guardada), ${XP.round} por entrenamiento más ${XP.hit} por acierto (hasta ${XP.roundsPerDay} al día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${XP.levelDamage} % de daño a los jefes.</p>
+        </div>`;
+    }
+
+    function slotBox(key) {
+      const u = myItems().find(x => x.equipped && itemsById[x.item_id].slot === key);
+      const it = u ? itemsById[u.item_id] : null;
+      const tier = it ? RARITY_ORDER.indexOf(it.rarity) + 1 : 0;
+      const color = it ? (RARITY[it.rarity] || RARITY['común']).color : '';
+      return `<button type="button" onclick="pickSlot('${key}')" class="plain char-slot aura-${tier} ${charSlot === key ? 'is-open' : ''}" style="${it ? 'border-color:' + color : ''}" title="${esc(SLOTS[key] + (it ? ': ' + it.name : ': vacío'))}">
+          ${it ? art(it.image, it.icon, 'w-12 h-12 sm:w-14 sm:h-14', 'text-4xl', color) : `<i class="gi gi-${SLOT_ICONS[key]} text-3xl opacity-30"></i>`}
+          <span class="block text-[11px] mt-1 leading-tight">${it ? esc(it.name) : SLOTS[key]}</span>
+        </button>`;
+    }
+
+    function pickSlot(key) { charSlot = charSlot === key ? null : key; renderCharacter(); }
+
+    // Lo que se puede hacer con el hueco pulsado: ver lo que lleva o elegir qué ponerse
+    function slotPanel() {
+      if (!charSlot) return '';
+      const small = 'px-2.5 py-1 rounded-md text-[10px] border border-paper-border dark:border-night-border';
+      const smallGold = 'px-2.5 py-1 rounded-md text-[10px] bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg';
+      const worn = myItems().find(x => x.equipped && itemsById[x.item_id].slot === charSlot);
+      const spare = myItems().filter(x => !x.equipped && itemsById[x.item_id].slot === charSlot);
+      return `
+          <div class="rule mt-6"><span class="quote text-xs">${SLOTS[charSlot]}</span></div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-4">
+            ${worn ? itemCard(itemsById[worn.item_id], `<span class="text-xs text-paper-accent dark:text-night-accent w-full">Lo llevas puesto</span><button onclick="unequipItem('${esc(worn.id)}')" class="${small}">Quitar</button>`) : ''}
+            ${spare.map(u => itemCard(itemsById[u.item_id], `<button onclick="equipItem('${esc(u.id)}')" class="${smallGold}">${worn ? 'Cambiar por este' : 'Ponérmelo'}</button>`)).join('')}
+          </div>
+          ${!worn && !spare.length ? `<p class="quote text-sm text-center mt-3">No tienes nada para este hueco. Los objetos salen de los cofres.</p>` : ''}`;
+    }
+
+    function renderCharacter() {
+      const panel = document.getElementById('characterPanel');
+      const p = currentUser ? profiles[currentUser.id] : null;
+      const s = p ? guild[p.id] : null;
+      if (!p || !s) { panel.innerHTML = ''; return; }
+      const box = 'frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5';
+      const epithet = equippedEpithet(p.id);
+      const hero = `
+        <div class="${box}">
+          <div class="char-doll">
+            <div class="char-slot-wrap" style="grid-area:pluma">${slotBox('pluma')}</div>
+            <div class="text-center" style="grid-area:hero">${portrait(p, s, true)}</div>
+            <div class="char-slot-wrap" style="grid-area:capa">${slotBox('capa')}</div>
+            <div class="char-slot-wrap" style="grid-area:amuleto">${slotBox('amuleto')}</div>
+          </div>
+          <div class="text-center mt-4">
+            <p class="word-title text-4xl text-paper-accent dark:text-night-accent leading-tight break-words">${esc(p.display_name)}</p>
+            ${epithet ? `<p class="quote text-lg leading-tight">${esc(epithetText(epithet, p.id))}</p>` : ''}
+            <p class="text-sm text-paper-muted dark:text-night-muted mt-1">${esc(s.className || 'Sin clase')} · ${esc(s.title.name)} · nivel ${s.level}</p>
+            <div class="max-w-sm mx-auto mt-3 h-px bg-paper-border dark:bg-night-border"><div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div></div>
+            <p class="quote text-xs mt-2">${xpLine(s)}</p>
+            <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mt-2 text-sm text-paper-muted dark:text-night-muted">
+              ${heartsRow(s, '')}<span>${s.gold} de oro</span><span>${s.prestige} de prestigio</span>
+            </div>
+            ${perkLine(p.id, s.cls)}
+          </div>
+          <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-4">Pulsa un hueco para ver o cambiar lo que llevas. El brillo del retrato es el de tu mejor objeto puesto, y su marco se enriquece al subir de nivel.</p>
+          ${slotPanel()}
+        </div>`;
+      const epi = epiReady ? `<div class="${box}">${epithetChooser().replace('<div class="rule mt-6">', '<div class="rule">')}</div>` : '';
+      panel.innerHTML = hero + epi + attrsBlock() + classChooser() + achievementsLegend();
+    }
+
+    function renderGuild() {
+      const panel = document.getElementById('guildPanel');
+      if (!currentUser || !guild[currentUser.id]) { panel.innerHTML = ''; return; }
+      const myProfile = profiles[currentUser.id] || {};
+      const form = ['m', 'f', 'n'].includes(myProfile.class_form) ? myProfile.class_form : 'n';
+      const sample = CLASSES[myProfile.class] || CLASSES.mago;
+
+      // La clase, los atributos y los logros propios están en la pestaña Personaje
 
       const people = Object.values(profiles).sort((a, b) => (guild[b.id]?.xp || 0) - (guild[a.id]?.xp || 0));
       const pct = (a, b) => b ? Math.round((a / b) * 100) + ' %' : '—';
@@ -2548,21 +2683,8 @@
         </div>`;
       }).join('');
 
-      const mine = guild[currentUser.id];
-      const legend = `
-        <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
-          <div class="rule"><span class="quote text-xs">Tus logros</span></div>
-          <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 mt-4 text-sm">
-            ${ACHIEVEMENTS.map((a, i) => `<li class="flex items-start gap-2.5 ${mine.achievements[i] ? '' : 'opacity-50'}">
-              <i class="gi gi-${a.icon} text-lg mt-0.5 ${mine.achievements[i] ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}"></i>
-              <span><strong class="font-medium">${esc(a.name)}</strong><span class="block text-xs text-paper-muted dark:text-night-muted">${esc(a.desc)}</span></span>
-            </li>`).join('')}
-          </ul>
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-4">Experiencia: ${XP.word} por palabra apuntada, +${XP.source} si la cita lleva obra y autoría, ${XP.save ? XP.save + ' por cada palabra ajena que guardas en tu grimorio, ' : ''}${XP.used} por palabra ya usada (tuya o guardada), ${XP.round} por entrenamiento más ${XP.hit} por acierto (hasta ${XP.roundsPerDay} al día), ${XP.like} por cada me gusta que recibe una palabra tuya, y la recompensa de cada jefe derrotado. Cada nivel por encima del primero suma un ${XP.levelDamage} % de daño a los jefes.</p>
-        </div>`;
-
       const cards = `<div class="grid ${Object.keys(profiles).length === 1 ? 'grid-cols-1' : 'grid-cols-2'} ${{ 1: '', 2: '', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4' }[cardCols(Object.keys(profiles).length)] || ''} gap-2 sm:gap-3 items-stretch">${members}</div>`;
-      panel.innerHTML = helpLink() + dungeonPanel() + weeklyBlock() + cards + duelsBlock() + chronicleBlock() + chooser + attrsBlock() + legend;
+      panel.innerHTML = helpLink() + dungeonPanel() + weeklyBlock() + cards + duelsBlock() + chronicleBlock();
     }
 
     async function updateMyProfile(changes, okMessage) {
@@ -2576,7 +2698,7 @@
     }
 
     let classPicking = false; // true cuando se ha pedido un cambio de clase y se muestran las demás
-    function requestClassChange(open = true) { classPicking = open; renderGuild(); }
+    function requestClassChange(open = true) { classPicking = open; renderCharacter(); }
 
     async function chooseClass(key) {
       if (!CLASSES[key] || !currentUser) return;
@@ -2652,6 +2774,7 @@
       renderDungeonStrip();
       renderGuild();
       renderBag();
+      renderCharacter();
       updateStatus();
       renderDaily();
       const query = (document.getElementById('glossarySearch')?.value || '').toLowerCase().trim();
@@ -3443,7 +3566,7 @@
           Object.keys(CLASSES).map(k => `<strong class="font-medium">${esc(CLASSES[k].names.n)}</strong>: ${esc(classBonus(k).replace(/\.$/, ''))}`).join('. ') + '.',
           `En los niveles ${PERK_LEVELS.map(perkUnlock).join(', ')} eliges una de dos habilidades de tu clase. Clase y habilidades se pueden cambiar cuando quieras.` ]),
         section('Epítetos', [
-          'Un epíteto es un título de honor que se muestra junto a tu nombre. Se ganan con algunos logros, en los cofres de prestigio o porque te lo da el máster, y se elige cuál llevar en el zurrón, en Equipo.' ]),
+          'Un epíteto es un título de honor que se muestra junto a tu nombre. Se ganan con algunos logros, en los cofres de prestigio o porque te lo da el máster, y se elige cuál llevar en Personaje.' ]),
         section('Atributos', [
           `Cada nivel a partir del 2 da ${ATTR.perLevel === 1 ? 'un punto' : ATTR.perLevel + ' puntos'} para repartir, y se pueden recolocar. Cada punto da: ` + ATTRS.map(a => `<strong class="font-medium">${a.name}</strong>, ${esc(attrText(a, 1).replace(/\.$/, '').toLowerCase())}`).join('; ') + '.' ]),
         section('Vida', [
@@ -3742,10 +3865,8 @@
       const sale = it => saleValue(it, me);
       const inventory = `
         <div class="${section}">
-          <div class="rule"><span class="quote text-xs">Equipo</span></div>
-          <div class="grid grid-cols-3 gap-2 mt-4">${slots}</div>
-          ${epiReady ? epithetChooser() : ''}
-          <div class="rule mt-6"><span class="quote text-xs">En el zurrón</span></div>
+          <div class="rule"><span class="quote text-xs">En el zurrón</span></div>
+          <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-3">Lo que llevas puesto y tu epíteto están en <button type="button" onclick="switchTab('character')" class="plain underline">tu personaje</button>.</p>
           ${spare.length || Object.keys(consumables).length ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-4">
             ${spare.map(u => { const it = itemsById[u.item_id]; return itemCard(it,
               (it.slot ? `<button onclick="equipItem('${esc(u.id)}')" class="${smallGold}">Equipar</button>` : '') +
@@ -4271,7 +4392,7 @@
       if (title) document.getElementById('lootBody').innerHTML += `
           <div class="rule mt-6"><span class="quote text-xs">Y además, un epíteto</span></div>
           <p class="word-title text-3xl mt-3 text-paper-accent dark:text-night-accent">${esc(displayNameWith(currentUser.id, title))}</p>
-          <p class="text-sm text-paper-muted dark:text-night-muted mt-2">Lo puedes llevar desde el zurrón, en Equipo.</p>`;
+          <p class="text-sm text-paper-muted dark:text-night-muted mt-2">Lo puedes llevar desde tu Personaje.</p>`;
       document.getElementById('lootModal').classList.remove('hidden');
       document.getElementById('lootModal').classList.add('flex');
     }
