@@ -478,6 +478,40 @@
     .ab-val { font-family: 'LexiumDisplay', 'Grenze Gotisch', serif; font-size: 3rem; line-height: 1; margin-top: 0.2rem; }
     .ab-mod { position: absolute !important; bottom: 0.55rem; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 0.7rem; padding: 0.05rem 0.5rem; border: 1px solid var(--gold); background: var(--sheet); }
     .ab-plus { margin-top: 0.45rem; width: 2rem; height: 2rem; border: 1px solid var(--gold); color: var(--gold); font-size: 1.1rem; line-height: 1; }
+    /* Propuesta D: menos amarillo, retrato grande, libro con lista de capítulos */
+    .dark .sec-head, .dark .rule > span.quote { color: #EDE5D0; }
+    .sec-head, .rule > span.quote { color: var(--ink, inherit); }
+    .char-epi { font-family: 'Fondamento', cursive; font-style: italic; font-size: 1rem; color: #6B5E4B; }
+    .dark .char-epi { color: #CFC6B4; }
+    .char-doll { grid-template-columns: auto auto auto !important; justify-content: center; align-items: stretch !important; gap: 0.5rem 0.9rem !important; }
+    .char-doll > div[style*="grid-area:s"] { display: flex; align-items: center; }
+    .big-portrait { position: relative; width: 12.5rem; height: 16.5rem; display: flex; align-items: center; justify-content: center; overflow: hidden;
+      border: 1px solid rgba(201, 162, 75, 0.45); box-shadow: inset 0 0 0 1px #000, 0 0 0 4px var(--cell), 0 0 0 5px rgba(201, 162, 75, 0.22);
+      background: radial-gradient(circle at 50% 35%, #24304C, #0B0F1A 75%); color: #6A7898; font-size: 5.5rem; }
+    :root:not(.dark) .big-portrait { background: radial-gradient(circle at 50% 35%, #F3EAD3, #D9C9A3 80%); color: #8A7A5A; }
+    .big-portrait img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .big-portrait::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 62%, rgba(6, 8, 15, 0.85)); pointer-events: none; }
+    .big-portrait-cls { position: absolute; left: 0.5rem; bottom: 0.45rem; z-index: 1; font-family: 'EB Garamond', Georgia, serif; font-size: 0.8rem; color: #CFC6B4; }
+    @media (min-width: 640px) { .big-portrait { width: 15rem; height: 20rem; } }
+    .medals-up { margin-top: -2.1rem !important; position: relative; z-index: 2; align-items: flex-end !important; }
+    .medals-up .medal-mini { padding-bottom: 0.3rem; }
+    .dark .medal-v, .dark .medal-mini .medal-v { color: #EDE5D0; }
+    .ab-card { background: rgba(201, 162, 75, 0.55) !important; }
+    .dark .ab-abbr { color: #CFC6B4 !important; }
+    .ab-mod { border-color: rgba(201, 162, 75, 0.38) !important; }
+    .dark .ab-mod { color: #CFC6B4; }
+    .ab-plus { border-color: #C9A24B; color: #C9A24B; }
+    .tome-left { overflow-y: auto; scrollbar-width: thin; padding: 5% 6% 5% !important; }
+    .tome-title-sm { font-size: 1.7rem !important; }
+    .tome-tracks { width: 100%; }
+    .tome-track { display: flex; align-items: baseline; gap: 0.6rem; width: 100%; padding: 0.35rem 0; border-bottom: 1px solid rgba(73, 53, 38, 0.25); text-align: left; color: var(--ink); }
+    .tome-track.is-on { color: #2A1A0E; font-weight: 600; }
+    .tome-num { width: 2rem; font-family: 'MedievalSharp', cursive; color: var(--ink2); }
+    .tome-song { flex: 1; min-width: 0; font-family: 'Cormorant Garamond', serif; font-size: 1rem; line-height: 1.2; }
+    .tome-song small { display: block; font-size: 0.72rem; color: var(--ink2); font-weight: 500; }
+    .tome-len { font-family: 'Cormorant Garamond', serif; font-size: 0.85rem; color: var(--ink2); }
+    .tome-foot { margin-top: auto; padding-top: 0.7rem; text-align: center; font-family: 'Cormorant Garamond', serif; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink2); }
+    .tome .tome-title { text-shadow: none; }
     /* Duelos */
     .duel-face { display: inline-flex; flex: none; border: 1px solid rgba(201, 162, 75, 0.5); box-shadow: 0 0 0 2px var(--cell); }
     .duel-ranks { display: flex; justify-content: center; flex-wrap: wrap; gap: 1rem 1.4rem; }
@@ -1813,7 +1847,7 @@
     // Bonificación de cada clase, en % extra (la del pícaro es experiencia fija por palabra ajena guardada)
     // Atributos: puntos que da cada nivel a partir del 2 y lo que vale cada punto
     // Zurrón: casillas de partida y ampliaciones (cada una más cara que la anterior)
-    const BAG = { base: 30, step: 10, price: 500, priceUp: 250 };
+    const BAG = { base: 20, step: 10, price: 500, priceUp: 250 };
     const ATTR = { respec: 100, perLevel: 1, fuerza: 2, inteligencia: 0.5, sabiduria: 0.2, destreza: 5, constitucion: 1, carismaOro: 3, carismaTienda: 1 };
     // Probabilidad (%) de que un cofre de prestigio traiga además un epíteto
     const EPI = { prestigeChance: 35 };
@@ -1881,7 +1915,7 @@
     const LIFE = { start: '2026-11-16T00:00:00', days: 10, hearts: 3 };
     // Duelos: palabras por duelo y prestigio que dan; cada tanto prestigio, un cofre de prestigio
     // Duelos: quien reta pone un bote y quien acepta lo iguala al jugar; quien gana se lo lleva entero
-    const DUEL = { words: 10, win: 3, draw: 2, lose: 1, chestEvery: 10, maxStake: 200, expireDays: 7 };
+    const DUEL = { words: 10, win: 3, draw: 2, lose: 1, chestEvery: 10, minStake: 10, maxStake: 200, expireDays: 7 };
     // Clasificación semanal (de lunes a domingo): premio en oro desde la semana indicada
     const WEEK = { start: '2026-11-16', gold: 50 };
 
@@ -1914,7 +1948,7 @@
       { title: 'Duelos y prestigio', fields: [
         rf('DUEL.words', 'Palabras por duelo', { min: 1, max: 30 }), rf('DUEL.win', 'Prestigio por ganar'), rf('DUEL.draw', 'Prestigio por empatar'), rf('DUEL.lose', 'Prestigio por perder'),
         rf('DUEL.chestEvery', 'Prestigio para cada cofre de prestigio', { min: 1 }),
-        rf('DUEL.maxStake', 'Apuesta máxima de un duelo (oro)', { min: 0 }), rf('DUEL.expireDays', 'Días para aceptar un duelo antes de que caduque', { min: 1 }) ] },
+        rf('DUEL.minStake', 'Apuesta mínima de un duelo (oro)', { min: 1 }), rf('DUEL.maxStake', 'Apuesta máxima de un duelo (oro)', { min: 1 }), rf('DUEL.expireDays', 'Días para aceptar un duelo antes de que caduque', { min: 1 }) ] },
       { title: 'Cofres', note: 'Las probabilidades son pesos: 60, 30, 9 y 1 equivalen a 60 %, 30 %, 9 % y 1 %.', fields:
         ['level', 'boss', 'prestige', 'season'].flatMap(t => [
           ...['común', 'raro', 'épico', 'legendario'].map(r => rf(`CHESTS.${t}.weights.${r}`, `${CHESTS[t].label}: peso de ${r}`)),
@@ -2984,6 +3018,16 @@
       return `<span class="portrait-laurel" title="Laurel de ${LAUREL_NAMES[tier]}: ${prestige} de prestigio"><svg viewBox="0 0 100 100" aria-hidden="true">${out}</svg></span>`;
     }
 
+    // Retrato grande de la ficha: rectangular, con la foto o el emblema de la clase
+    function bigPortrait(p, stats) {
+      const src = safeImage(p.avatar_url);
+      const sf = equippedFrame(p.id);
+      return `<div class="big-portrait${sf ? ' sf sf-' + sf : ''}" title="${esc(stats.className || 'Sin clase')}">
+          ${src ? `<img src="${esc(src)}" alt="Retrato de ${esc(p.display_name)}" onload="if(this.naturalWidth<=160)this.style.imageRendering='pixelated'">` : `<i class="gi gi-${emblem(stats)}"></i>`}
+          <span class="big-portrait-cls">${esc(stats.className || 'Sin clase')}</span>
+        </div>`;
+    }
+
     // Icono del medallón: el de la clase si la tiene, o el del título
     function emblem(stats) { return stats.cls ? CLASSES[stats.cls].icon : stats.title.icon; }
 
@@ -3987,35 +4031,28 @@
             <div class="plate-art"><span class="plate-ghost">${art(it.image, it.icon, 'w-10 h-10', 'text-4xl', '#5A4A30')}</span></div>
             <p class="plate-name">¿?</p><p class="plate-note">${esc(it.rarity)} · ${esc(itemHint(it))}</p></div>`;
       };
-      const left = 2 * idx + 1;
       return `
         <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5 tome">
           ${flourish('Libro de colección')}
-          <div class="tome-tabs" role="tablist" aria-label="Capítulos">${list.map((x, i) => `<button type="button" onclick="setBookCh('${esc(x.id)}')" class="plain tome-tab${x.id === c.id ? ' is-on' : ''}${collClaimed(currentUser.id, x) ? ' is-done' : ''}" title="${esc(x.name)}" aria-label="Capítulo ${ROMAN(i + 1)}: ${esc(x.name)}" aria-pressed="${x.id === c.id}">${ROMAN(i + 1)}</button>`).join('')}</div>
           <div class="tome-book">
             <div class="tome-pages">
               <section class="tome-page tome-left${turn ? ' fade' : ''}">
-                <p class="tome-run">Libro de colección</p><p class="tome-run" style="letter-spacing:.08em;text-transform:none;font-weight:500">${got} de ${all.length} sellados en total</p>
-                <p class="tome-kicker">Capítulo ${ROMAN(idx + 1)}${c.season ? ' · de temporada' : ''}</p>
+                <p class="tome-run">Capítulo ${ROMAN(idx + 1)}${c.season ? ' · de temporada' : ''}</p>
                 <h3 class="tome-title">${esc(c.name)}</h3>
-                <p class="tome-text">Cada objeto queda sellado en estas páginas la primera vez que lo consigues, aunque luego lo vendas o lo cambies.</p>
-                <div class="tome-progress"><span style="width:${Math.round(n / c.items.length * 100)}%"></span></div>
-                <p class="tome-text"><strong>${n}</strong> de ${c.items.length} sellados</p>
-                <p class="tome-orn">❦</p>
-                ${reward ? `<p class="tome-text">${claimed ? 'Capítulo completado. Ganaste ' + reward + '.' : 'Al sellar el capítulo entero: ' + reward + '.'}</p>` : ''}
-                ${done && !claimed && reward ? `<p class="text-center mt-3"><button onclick="claimCollection('${esc(c.id)}')" class="plain tome-claim">Reclamar el premio</button></p>` : ''}
-                <p class="tome-folio">— ${ROMAN(left).toLowerCase()} —</p>
-              </section>
-              <section class="tome-page tome-right${turn ? ' fade' : ''}">
+                <p class="tome-orn">✦</p>
                 <div class="plates">${c.items.map(plate).join('')}</div>
-                <p class="tome-folio">— ${ROMAN(left + 1).toLowerCase()} —</p>
+                <p class="tome-text"><strong>${n}</strong> de ${c.items.length} sellados${reward ? ` · ${claimed ? 'ganaste' : 'premio:'} ${reward}` : ''}</p>
+                ${done && !claimed && reward ? `<p class="mt-2"><button onclick="claimCollection('${esc(c.id)}')" class="plain tome-claim">Reclamar el premio</button></p>` : ''}
+              </section>
+              <section class="tome-page tome-right">
+                <p class="tome-run">Libro de colección · ${got} de ${all.length} sellados</p>
+                <h3 class="tome-title tome-title-sm">Capítulos</h3>
+                <p class="tome-orn">✦</p>
+                <div class="tome-tracks">${list.map((x, i) => { const k = x.items.filter(id => sealed.has(id)).length; return `<button type="button" onclick="setBookCh('${esc(x.id)}')" class="plain tome-track${x.id === c.id ? ' is-on' : ''}" aria-pressed="${x.id === c.id}">
+                    <span class="tome-num">${ROMAN(i + 1)}.</span><span class="tome-song">${esc(x.name)}${x.season ? '<small>de temporada</small>' : ''}</span><span class="tome-len">${collClaimed(currentUser.id, x) ? '✦' : k + ' / ' + x.items.length}</span></button>`; }).join('')}</div>
+                <p class="tome-foot">Pulsa un capítulo para abrirlo · ✦</p>
               </section>
             </div>
-          </div>
-          <div class="tome-nav">
-            <button type="button" onclick="bookStep(-1)" class="plain"${idx ? '' : ' disabled'}>‹ Anterior</button>
-            <span>Capítulo ${ROMAN(idx + 1)} de ${ROMAN(list.length)}</span>
-            <button type="button" onclick="bookStep(1)" class="plain"${idx < list.length - 1 ? '' : ' disabled'}>Siguiente ›</button>
           </div>
         </div>`;
     }
@@ -4223,21 +4260,21 @@
       const row = (k, v) => `<div class="stat-row"><dt>${k}</dt><dd>${v}</dd></div>`;
       const hero = `
         <div class="${box}">
-          <div class="char-head"><span class="word-title text-3xl leading-none">${esc(p.display_name)}</span>${epithet ? `<span class="quote text-base">${esc(epithetText(epithet, p.id))}</span>` : ''}</div>
+          <div class="char-head"><span class="word-title text-3xl leading-none">${esc(p.display_name)}</span>${epithet ? `<span class="char-epi">${esc(epithetText(epithet, p.id))}</span>` : ''}</div>
           <div class="sheet-level mt-2"><span>Nivel ${s.level}</span><span class="xp-bar"><span style="width:${s.progress}%"></span></span><span class="opacity-70">XP</span></div>
           <p class="text-xs text-paper-muted dark:text-night-muted mt-1">${xpLine(s)}</p>
           <div class="char-doll mt-4">
             <div style="grid-area:s1">${slotBox('pluma')}</div>
             <div style="grid-area:s2">${slotBox('anillo')}</div>
             <div style="grid-area:s3">${slotBox('marcapaginas')}</div>
-            <div class="text-center" style="grid-area:hero">${portrait(p, s, true)}</div>
+            <div style="grid-area:hero">${bigPortrait(p, s)}</div>
             <div style="grid-area:s4">${slotBox('amuleto')}</div>
             <div style="grid-area:s5">${slotBox('capa')}</div>
             <div style="grid-area:s6">${slotBox('tintero')}</div>
           </div>
-          <div class="medals mt-3">
+          <div class="medals medals-up">
             <div class="medal-mini">${heartsRow(s, 'justify-center') || '—'}<span class="medal-l">Vida</span></div>
-            <div class="medal-shield lt-${tier}" title="${tier ? 'Laurel de ' + LAUREL_NAMES[tier] : 'Sin laurel todavía'}"><span class="medal-l">Prestigio</span><span class="medal-v">${s.prestige}</span><span class="medal-t">${tier ? 'laurel de ' + LAUREL_NAMES[tier] : 'sin laurel'}</span></div>
+            <div class="medal-shield lt-${tier}" title="${tier ? 'Laurel de ' + LAUREL_NAMES[tier] : 'Sin laurel todavía'}"><span class="medal-l">Prestigio</span><span class="medal-v">${s.prestige}</span></div>
             <div class="medal-mini"><span class="medal-v">${s.gold}</span><span class="medal-l">Oro</span></div>
           </div>
           ${flourish('Ficha')}
@@ -4245,7 +4282,6 @@
             ${row('Clase', esc(s.className || 'Sin clase'))}
             ${row('Título', esc(s.title.name))}
             ${row('Epíteto', epithet ? esc(epithetText(epithet, p.id)) : '<span class="opacity-60">Ninguno</span>')}
-            ${row('Laurel', tier ? `De ${LAUREL_NAMES[tier]}${nextLaurel ? ` <span class="opacity-60">(${LAUREL_NAMES[tier + 1]} a los ${nextLaurel})</span>` : ''}` : `<span class="opacity-60">A los ${E} de prestigio</span>`)}
             ${perks.length ? row('Habilidades', esc(perks.join(', '))) : ''}
           </dl>
           <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-4">Pulsa un hueco para ver o cambiar lo que llevas. Los huecos nuevos se abren al subir de nivel.</p>
@@ -5267,7 +5303,7 @@
           `Tienes ${LIFE.hearts} corazones. Cada ${LIFE.days} días sin apuntar, guardar ni entrenar pierdes uno; un entrenamiento devuelve uno y una poción te cubre una de esas rachas.`,
           'Sin corazones quedas en reposo: conservas todo, pero lo que hagas no daña al jefe ni cuenta en la clasificación hasta que completes un entrenamiento o alguien te dé una poción.' ]),
         section('Duelos, prestigio y clasificación', [
-          `Desde el Gremio retas a alguien y eliges cuánto oro apostar (hasta ${DUEL.maxStake}, o nada). Quien recibe el reto iguala la apuesta al jugar, o lo rechaza sin perder nada. Son ${DUEL.words} palabras, las mismas para las dos personas: gana quien acierta más y, si hay empate, quien tarda menos. Quien gana se lleva el bote; en empate cada parte recupera lo suyo, y si no se juega en ${DUEL.expireDays} días el duelo caduca y se devuelve el oro. Ganar da además ${DUEL.win} de prestigio, empatar ${DUEL.draw} y perder ${DUEL.lose}; cada ${DUEL.chestEvery} de prestigio hay un cofre de prestigio, que se abre sin ganzúa.`,
+          `Desde el Gremio retas a alguien y eliges cuánto oro apostar (de ${DUEL.minStake} a ${DUEL.maxStake}). Quien recibe el reto iguala la apuesta al jugar, o lo rechaza sin perder nada. Son ${DUEL.words} palabras, las mismas para las dos personas: gana quien acierta más y, si hay empate, quien tarda menos. Quien gana se lleva el bote; en empate cada parte recupera lo suyo, y si no se juega en ${DUEL.expireDays} días el duelo caduca y se devuelve el oro. Ganar da además ${DUEL.win} de prestigio, empatar ${DUEL.draw} y perder ${DUEL.lose}; cada ${DUEL.chestEvery} de prestigio hay un cofre de prestigio, que se abre sin ganzúa.`,
           `Cada semana, de lunes a domingo, quien más experiencia hace gana ${WEEK.gold} de oro.` ])
       ].join('');
     }
@@ -5399,7 +5435,7 @@
       } catch (e) { showToast(e.message); }
     }
 
-    let duelRival = null, duelStake = 0;
+    let duelRival = null, duelStake = 0; // los duelos siempre llevan apuesta
     function pickDuelRival(id) { duelRival = id; renderGuild(); }
     function pickDuelStake(v) { duelStake = v; renderGuild(); }
     function challengeForm() {
@@ -5408,13 +5444,14 @@
       if (!me || !others.length) return '';
       if (!others.some(p => p.id === duelRival)) duelRival = others[0].id;
       const cap = Math.min(DUEL.maxStake, me.gold);
-      const stakes = [...new Set([0, 10, 25, 50, 100, 200, DUEL.maxStake])].filter(v => v <= DUEL.maxStake).sort((a, b) => a - b);
-      if (duelStake > cap) duelStake = 0;
+      const stakes = [...new Set([DUEL.minStake, 10, 25, 50, 100, 200, DUEL.maxStake])].filter(v => v >= DUEL.minStake && v <= DUEL.maxStake).sort((a, b) => a - b);
+      if (!stakes.includes(duelStake) || duelStake > cap) duelStake = stakes.find(v => v <= cap) || 0;
       return `<div class="duel-new">
           <p class="sec-head" style="margin-top:0">Lanzar un reto</p>
           <div class="duel-pick">${others.map(p => `<button type="button" onclick="pickDuelRival('${esc(p.id)}')" class="plain duel-pick-p${p.id === duelRival ? ' is-on' : ''}" aria-pressed="${p.id === duelRival}">${duelFace(p.id, 'w-12 h-12')}<span>${esc(p.display_name)}</span></button>`).join('')}</div>
-          <div class="duel-stakes">${stakes.map(v => `<button type="button" onclick="pickDuelStake(${v})" class="plain duel-stake${v === duelStake ? ' is-on' : ''}"${v > cap ? ' disabled' : ''}>${v ? v + ' <i class="gi gi-two-coins"></i>' : 'Sin apuesta'}</button>`).join('')}</div>
-          <p class="text-center mt-3"><button onclick="challengeFromForm()" class="px-5 py-2 rounded-xl text-sm bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg"><i class="gi gi-crossed-swords"></i> Retar a ${esc(authorName(duelRival))}${duelStake ? ` por ${duelStake} de oro` : ''}</button></p>
+          <div class="duel-stakes">${stakes.map(v => `<button type="button" onclick="pickDuelStake(${v})" class="plain duel-stake${v === duelStake ? ' is-on' : ''}"${v > cap ? ' disabled' : ''}>${v} <i class="gi gi-two-coins"></i></button>`).join('')}</div>
+          ${duelStake ? `<p class="text-center mt-3"><button onclick="challengeFromForm()" class="px-5 py-2 rounded-xl text-sm bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg"><i class="gi gi-crossed-swords"></i> Retar a ${esc(authorName(duelRival))} por ${duelStake} de oro</button></p>`
+            : `<p class="text-sm text-center text-paper-muted dark:text-night-muted mt-3">Para retar hace falta apostar al menos ${DUEL.minStake} de oro.</p>`}
         </div>`;
     }
     function challengeFromForm() { if (duelRival) challenge(duelRival, duelStake); }
@@ -5423,6 +5460,7 @@
       if (!lifeGuard() || !currentUser) return;
       if (!profiles[opponentId] || opponentId === currentUser.id) return;
       stake = Math.max(0, Math.round(Number(stake) || 0));
+      if (stake < DUEL.minStake) { showToast(`Los duelos llevan apuesta: al menos ${DUEL.minStake} de oro`); return; }
       if (stake > DUEL.maxStake) { showToast(`La apuesta máxima es de ${DUEL.maxStake} de oro`); return; }
       if (stake > guild[currentUser.id].gold) { showToast('No tienes tanto oro para el bote'); return; }
       const pool = glossary.filter(w => str(w.definition));
@@ -5430,7 +5468,7 @@
       const busy = duels.some(d => duelResult(d) === 'pending' &&
         [d.challenger_id, d.opponent_id].includes(currentUser.id) && [d.challenger_id, d.opponent_id].includes(opponentId));
       if (busy) { showToast(`Ya tienes un duelo pendiente con ${authorName(opponentId)}`); return; }
-      const terms = stake ? `Pones ${stake} de oro en el bote; si acepta, lo iguala y quien gane se lleva ${stake * 2}. Si lo rechaza o caduca, recuperas tu oro.` : 'Es un duelo sin apuesta: solo se juega el prestigio.';
+      const terms = `Pones ${stake} de oro en el bote; si acepta, lo iguala y quien gane se lleva ${stake * 2}. Si lo rechaza o caduca, recuperas tu oro.`;
       if (!confirm(`¿Retar a ${authorName(opponentId)}? ${terms} Juegas tu parte ahora: ${DUEL.words} palabras seguidas, con el tiempo contando.`)) return;
       for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -5858,7 +5896,7 @@
               <div class="ab-card" title="${esc(a.name + '. Cada punto: ' + attrText(a, 1))}">
                 <span class="ab-abbr">${a.name.slice(0, 3).toUpperCase().replace('Á', 'A')}</span>
                 <span class="ab-val">${n}</span>
-                <span class="ab-mod">${n ? esc(attrShort(a, n)) : '—'}</span>
+                ${n ? `<span class="ab-mod">${esc(attrShort(a, n))}</span>` : ''}
               </div>
               ${left > 0 ? `<button type="button" onclick="setAttr('${a.key}', 1)" class="plain ab-plus" aria-label="Poner un punto en ${a.name}">+</button>` : ''}
             </div>`; }).join('')}
