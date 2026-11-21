@@ -581,18 +581,28 @@
     .tome-seal { border-color: #C9A24B !important; color: var(--ink) !important; background: transparent !important; box-shadow: none !important; }
     .tome-seal.is-done { background: rgba(201, 162, 75, 0.22) !important; }
     .tome-seal.is-on { background: #C9A24B !important; border-color: #C9A24B !important; color: #2A1A0E !important; box-shadow: none !important; }
-    .tome .wax-seal { background: #C9A24B !important; color: #2A1A0E; box-shadow: none !important; transform: none; }
     .tome-claim { background: #C9A24B !important; border: 1px solid #C9A24B !important; color: #2A1A0E !important; box-shadow: none !important; }
     .tome .plate.is-sealed, .tome .plate.is-sealed.r-3 { border: 1px solid rgba(73, 53, 38, 0.55) !important; background: rgba(255, 250, 235, 0.3) !important; }
     .tome .plate-art .gi, .tome .plate-art i { text-shadow: 0 0 1px rgba(60, 40, 10, 0.55); }
-    .frame.tome { background: #1C130C !important; border-color: #8A6A22 !important; box-shadow: inset 0 0 0 1px #000, inset 0 0 0 4px #1C130C, inset 0 0 0 5px rgba(201, 162, 75, 0.35) !important; }
-    :root:not(.dark) .frame.tome { background: #3A2A1A !important; }
-    .frame.tome > .sec-head { color: #C9A24B !important; }
     /* Retratos de duelos: columnas iguales y nombre en dos líneas como mucho */
     .duel-pick, .duel-ranks { align-items: flex-start !important; gap: 0.9rem 0.6rem !important; }
     .duel-pick-p, .duel-rank { width: 5.6rem; min-width: 0 !important; }
     .duel-pick-p > span:last-child, .duel-rank-n { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; width: 100%; text-align: center; line-height: 1.15; overflow-wrap: anywhere; }
     .duel-pick-p.is-on .duel-face { border-color: #C9A24B !important; box-shadow: 0 0 0 2px var(--cell), 0 0 0 3px #C9A24B !important; }
+    /* Libro: tapas del libro en marrón oscuro (sin el tono rojizo) */
+    .tome-book { background: none !important; isolation: isolate; }
+    .tome-book::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--book) center / 100% 100% no-repeat; filter: hue-rotate(14deg) saturate(0.7) brightness(0.85); }
+    @media (max-width: 767px) {
+      .tome-book::before { display: none; }
+      .tome-page { background: none !important; isolation: isolate; }
+      .tome-page::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--book) no-repeat; background-size: 200% 100%; filter: hue-rotate(14deg) saturate(0.7) brightness(0.85); }
+      .tome-left::before { background-position: left center; }
+      .tome-right::before { background-position: right center; }
+    }
+    /* Marca de sellado: esquina dorada discreta arriba a la derecha */
+    .tome .plate { position: relative; }
+    .tome .wax-seal { top: 0 !important; right: 0 !important; bottom: auto !important; left: auto !important; width: 1.15rem !important; height: 1.15rem !important; border-radius: 0 !important; background: #C9A24B !important; clip-path: polygon(0 0, 100% 0, 100% 100%); transform: none !important; box-shadow: none !important; display: block !important; font-size: 0 !important; opacity: 0.9; }
+    .tome .wax-seal::after { content: '✦'; position: absolute; top: 0.05rem; right: 0.12rem; font-size: 0.45rem; line-height: 1; color: #2A1A0E; }
     /* Duelos */
     .duel-face { display: inline-flex; flex: none; border: 1px solid rgba(201, 162, 75, 0.5); box-shadow: 0 0 0 2px var(--cell); }
     .duel-ranks { display: flex; justify-content: center; flex-wrap: wrap; gap: 1rem 1.4rem; }
