@@ -225,9 +225,8 @@
     .char-slot { width: 5.6rem; min-height: 5.6rem; padding: 0.5rem 0.35rem; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
                  border: 1px dashed var(--line); background: var(--deep); color: inherit; }
     .char-slot[style*="border-color"] { border-style: solid; }
-    .char-slot.aura-2 { box-shadow: 0 0 12px rgba(95, 143, 201, 0.4); }
-    .char-slot.aura-3 { box-shadow: 0 0 14px rgba(160, 112, 208, 0.45); }
-    .char-slot.aura-4 { box-shadow: 0 0 16px rgba(217, 164, 65, 0.5); animation: aura-glow 4.5s ease-in-out infinite; }
+    .char-slot.aura-2, .char-slot.aura-3, .char-slot.aura-4 { border-width: 2px; box-shadow: inset 0 0 0 2px var(--cell), inset 0 0 0 3px var(--rc); }
+    .char-slot.aura-2 { --rc: #5F8FC9; } .char-slot.aura-3 { --rc: #A070D0; } .char-slot.aura-4 { --rc: #D9A441; }
     .char-slot.is-open { outline: 1px solid var(--gold); outline-offset: 3px; }
     @media (max-width: 639px) { .char-slot { width: 4.8rem; min-height: 4.8rem; } .char-doll { gap: 0.7rem 0.5rem; } }
     /* Colecciones: lo que falta sale en silueta */
@@ -256,7 +255,7 @@
     @media (min-width: 1024px) { .plates { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
     .plate { position: relative; padding: 0.35rem; border: 1px solid var(--r); background: var(--cell); }
     .plate.is-missing { border: 1px dashed var(--line); }
-    .plate.is-sealed.r-3 { border: 1.5px solid transparent; background: linear-gradient(var(--cell), var(--cell)) padding-box, var(--leaf) border-box; box-shadow: 0 0 12px rgba(217, 164, 65, 0.35); }
+    .plate.is-sealed.r-3 { border: 2px solid transparent; background: linear-gradient(var(--cell), var(--cell)) padding-box, var(--leaf) border-box; }
     .plate-art { height: 4.4rem; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 45%, var(--glow), transparent 75%); }
     .plate-ghost { filter: brightness(0); opacity: 0.35; }
     .dark .plate-ghost { filter: brightness(0) invert(0.18); opacity: 0.6; }
@@ -271,13 +270,15 @@
     @media (min-width: 640px) { .bag-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
     @media (min-width: 1024px) { .bag-grid { grid-template-columns: repeat(10, minmax(0, 1fr)); } }
     .bag-cell { position: relative; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--r); background: var(--cell); cursor: pointer; }
-    .bag-cell .bag-in { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: radial-gradient(circle at 50% 42%, var(--glow), transparent 75%); }
-    .bag-cell.r-1 { box-shadow: 0 0 8px rgba(95, 143, 201, 0.35); }
-    .bag-cell.r-2 { box-shadow: 0 0 10px rgba(160, 112, 208, 0.45); }
-    .bag-cell.r-3 { border: 1.5px solid transparent; background: linear-gradient(var(--cell), var(--cell)) padding-box, var(--leaf) border-box; box-shadow: 0 0 12px rgba(217, 164, 65, 0.5); }
+    /* Casillas nítidas, sin brillos difuminados: doble filete del color de la rareza y un biselado */
+    .bag-cell .bag-in { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 45%, rgba(0, 0, 0, 0.22)); }
+    .bag-cell { border-width: 2px; box-shadow: inset 0 0 0 2px var(--cell), inset 0 0 0 3px var(--r); }
+    .bag-cell.r-0 { border-width: 1px; box-shadow: none; }
+    .bag-cell.r-3 { border: 2px solid transparent; background: linear-gradient(var(--cell), var(--cell)) padding-box, var(--leaf) border-box; box-shadow: inset 0 0 0 2px var(--cell), inset 0 0 0 3px #C9A24B; }
+    .bag-cell.is-eq::before { content: ''; position: absolute; left: 0; top: 0; width: 0; height: 0; border-top: 0.85rem solid var(--gold); border-right: 0.85rem solid transparent; z-index: 1; }
     .bag-cell.is-sel { outline: 2px solid var(--gold); outline-offset: 2px; }
-    .bag-cell.is-new::after { content: ''; position: absolute; inset: -3px; border: 1px solid var(--gold); animation: bag-new 1.8s ease-in-out infinite; pointer-events: none; }
-    @keyframes bag-new { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; box-shadow: 0 0 10px var(--gold); } }
+    .bag-cell.is-new::after { content: ''; position: absolute; inset: -4px; border: 1px dashed var(--gold); animation: bag-new 1.6s steps(2, end) infinite; pointer-events: none; }
+    @keyframes bag-new { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
     .bag-n { position: absolute; right: 3px; bottom: 1px; font-family: 'Cinzel', serif; font-size: 0.62rem; }
     .bag-plus { position: absolute; left: 0; top: 0; font-family: 'Cinzel', serif; font-size: 0.58rem; background: var(--gold); color: #0B0F1A; padding: 0 3px; }
     .bag-lock { position: absolute; right: 3px; top: 3px; color: var(--gold); }
@@ -286,6 +287,26 @@
     .bag-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 56; max-width: 34rem; margin: 0 auto; background: var(--sheet); border-top: 1px solid var(--gold);
       padding: 1.1rem 1.2rem calc(1.3rem + env(safe-area-inset-bottom)); box-shadow: 0 -14px 30px rgba(0, 0, 0, 0.45); max-height: 80vh; overflow-y: auto; animation: sheet-up 0.22s ease-out; }
     @keyframes sheet-up { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+    /* Hoja de personaje: campos con rótulo debajo, cajas de vida/oro/prestigio y atributos como en una hoja de D&D */
+    .sheet-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; max-width: 26rem; margin-left: auto; margin-right: auto; text-align: left; }
+    .sheet-field { display: flex; flex-direction: column; }
+    .sheet-v { font-size: 1.05rem; line-height: 1.2; padding-bottom: 0.15rem; border-bottom: 1px solid var(--line); }
+    .sheet-l, .vital-l, .ability-name { font-family: 'Cinzel', serif; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--silver); margin-top: 0.25rem; }
+    .vitals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.7rem; max-width: 26rem; margin-left: auto; margin-right: auto; }
+    .vital { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 4.4rem; padding: 0.5rem 0.3rem 0.7rem; border: 3px double var(--gold);
+      border-radius: 0.3rem 0.3rem 50% 50% / 0.3rem 0.3rem 26% 26%; background: var(--cell); }
+    .vital-v { font-size: 1.7rem; line-height: 1.1; }
+    .vital-v .flex { justify-content: center; }
+    .ability-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem 0.8rem; }
+    @media (min-width: 640px) { .ability-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+    .ability-wrap { display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .ability { position: relative; width: 100%; max-width: 6rem; aspect-ratio: 5 / 6; display: flex; flex-direction: column; align-items: center; padding-top: 0.45rem; background: var(--gold);
+      clip-path: polygon(14% 0, 86% 0, 100% 12%, 100% 88%, 86% 100%, 14% 100%, 0 88%, 0 12%); }
+    .ability::before { content: ''; position: absolute; inset: 1.5px; background: var(--cell); clip-path: inherit; z-index: 0; }
+    .ability > * { position: relative; z-index: 1; }
+    .ability-abbr { font-family: 'Cinzel', serif; font-size: 0.68rem; letter-spacing: 0.14em; color: var(--gold); }
+    .ability-score { font-family: 'LexiumDisplay', 'Grenze Gotisch', serif; font-size: 2.4rem; line-height: 1; margin-top: 0.15rem; }
+    .ability-mod { position: absolute !important; bottom: 0.45rem; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 0.66rem; padding: 0.05rem 0.5rem; border: 1px solid var(--gold); border-radius: 999px; background: var(--sheet); }
     /* Filtro dentro de mi grimorio */
     .grim-chip { padding: 0.3rem 0.8rem; border: 1px solid var(--line); font-size: 0.85rem; background: transparent; }
     .grim-chip.is-on { border-color: var(--gold); color: var(--gold); }
@@ -1697,7 +1718,7 @@
       { title: 'Forja', note: 'Fundir varias copias iguales de un objeto da una versión mejorada (+1, +2…).', fields: [
         rf('FORGE.copies', 'Copias que se funden', { min: 2, max: 10 }), rf('FORGE.bonus', '% de efecto extra por cada +', { min: 1 }),
         rf('FORGE.max', 'Mejora máxima (+)', { min: 1, max: 10 }), rf('FORGE.cost', 'Oro que cuesta forjar') ] },
-      { title: 'Huecos de equipo', note: 'Nivel en que se abre cada hueco nuevo. Lo que ya se lleva puesto en un hueco cerrado sigue contando.', fields: [
+      { title: 'Huecos de equipo', note: 'Nivel en que se abre cada hueco nuevo. Lo que ya se lleva equipado en un hueco cerrado sigue contando.', fields: [
         rf('SLOT_LEVELS.anillo', 'Nivel para el anillo', { min: 1 }), rf('SLOT_LEVELS.tintero', 'Nivel para el tintero', { min: 1 }), rf('SLOT_LEVELS.marcapaginas', 'Nivel para el marcapáginas', { min: 1 }) ] },
       { title: 'Venta de botín', fields: ['común', 'raro', 'épico', 'legendario'].map(r => rf(`RARITY.${r}.sale`, `Oro por vender un objeto ${r}`)) }
     ];
@@ -3056,10 +3077,10 @@
       const cell = g => {
         const u = g[0], it = uItem(u), r = RARITY[it.rarity] || RARITY['común'], tier = RARITY_ORDER.indexOf(it.rarity);
         const isNew = g.some(x => !seen.has(x.id)), locked = g.some(x => x.locked);
-        return `<button type="button" onclick="bagPick('${esc(u.id)}')" class="plain bag-cell r-${tier}${isNew ? ' is-new' : ''}${bagSel && g.some(x => x.id === bagSel) ? ' is-sel' : ''}" style="--r:${r.color}" title="${esc(it.name)}${isNew ? ' (nuevo)' : ''}">
+        return `<button type="button" onclick="bagPick('${esc(u.id)}')" class="plain bag-cell r-${tier}${u.equipped ? ' is-eq' : ''}${isNew ? ' is-new' : ''}${bagSel && g.some(x => x.id === bagSel) ? ' is-sel' : ''}" style="--r:${r.color}" title="${esc(it.name)}${isNew ? ' (nuevo)' : ''}">
             <span class="bag-in">${art(it.image, it.icon, 'w-9 h-9', 'text-3xl', r.color)}</span>
             ${g.length > 1 ? `<span class="bag-n">×${g.length}</span>` : ''}${it.plus ? `<span class="bag-plus">+${it.plus}</span>` : ''}
-            ${locked ? `<span class="bag-lock" title="Protegido">${LOCK_SVG}</span>` : ''}${u.equipped ? '<span class="bag-eq">puesto</span>' : ''}
+            ${locked ? `<span class="bag-lock" title="Protegido">${LOCK_SVG}</span>` : ''}${u.equipped ? '<span class="bag-eq">equipado</span>' : ''}
           </button>`;
       };
       // Comunes repetidas: se venden de golpe dejando una de cada
@@ -3083,11 +3104,11 @@
       let info = '';
       if (it.kind === 'gear') {
         const worn = myItems().find(x => x.equipped && x.id !== u.id && itemsById[x.item_id].slot === it.slot), w = uItem(worn);
-        if (u.equipped) info = 'Lo llevas puesto.';
+        if (u.equipped) info = 'Lo llevas equipado.';
         else if (!slotOpen(it.slot, me)) info = `El hueco de ${SLOTS[it.slot].toLowerCase()} se abre en el nivel ${SLOT_LEVELS[it.slot]}.`;
         else if (w && w.effect_type === it.effect_type && w.effect_tone === it.effect_tone) {
           const d = Math.round((it.effect_value - w.effect_value) * 100) / 100;
-          info = d === 0 ? `Igual que «${w.name}», que llevas puesto.` : `<span class="${d > 0 ? 'text-emerald-500' : 'text-red-400'}">${d > 0 ? '▲' : '▼'} ${Math.abs(d)} ${d > 0 ? 'más' : 'menos'}</span> que «${esc(w.name)}», que llevas puesto.`;
+          info = d === 0 ? `Igual que «${w.name}», que llevas equipado.` : `<span class="${d > 0 ? 'text-emerald-500' : 'text-red-400'}">${d > 0 ? '▲' : '▼'} ${Math.abs(d)} ${d > 0 ? 'más' : 'menos'}</span> que «${esc(w.name)}», que llevas equipado.`;
         } else if (w) info = `Ahora llevas «${esc(w.name)}»: ${esc(effectText(w))}`;
         else info = it.slot ? `El hueco de ${SLOTS[it.slot].toLowerCase()} está vacío.` : '';
         if (u.equipped) btns.push(`<button onclick="unequipItem('${esc(u.id)}')" class="${small}">Quitar</button>`);
@@ -3814,7 +3835,7 @@
           <div class="space-y-3 mt-3">
             ${list.map(s => { const on = s.items.every(id => worn.has(id)); return `<div class="set-row ${on ? 'is-on' : ''}">
               <p class="text-sm"><i class="gi gi-${s.icon} ${on ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}"></i> <span class="word-title text-lg">${esc(s.name)}</span>
-                <span class="text-xs ${on ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${on ? 'completo: ' : 'con las tres piezas puestas: '}${esc(effectText(s))}</span></p>
+                <span class="text-xs ${on ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${on ? 'completo: ' : 'con todas las piezas equipadas: '}${esc(effectText(s))}</span></p>
               <p class="text-xs text-paper-muted dark:text-night-muted mt-0.5">${s.items.map(id => `<span class="${worn.has(id) ? 'text-paper-accent dark:text-night-accent' : have.has(id) ? '' : 'opacity-50'}">${worn.has(id) ? '✓ ' : ''}${esc(have.has(id) ? itemsById[id].name : '???')}</span>`).join(' · ')}</p>
             </div>`; }).join('')}
           </div>`;
@@ -3910,7 +3931,7 @@
       return `
           <div class="rule mt-6"><span class="quote text-xs">${SLOTS[charSlot]}</span></div>
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-4">
-            ${worn ? itemCard(uItem(worn), `<span class="text-xs text-paper-accent dark:text-night-accent w-full">Lo llevas puesto</span><button onclick="unequipItem('${esc(worn.id)}')" class="${small}">Quitar</button>`) : ''}
+            ${worn ? itemCard(uItem(worn), `<span class="text-xs text-paper-accent dark:text-night-accent w-full">Lo llevas equipado</span><button onclick="unequipItem('${esc(worn.id)}')" class="${small}">Quitar</button>`) : ''}
             ${spare.map(u => itemCard(uItem(u), `<button onclick="equipItem('${esc(u.id)}')" class="${smallGold}">${worn ? 'Cambiar por este' : 'Ponérmelo'}</button>`)).join('')}
           </div>
           ${!worn && !spare.length ? `<p class="quote text-sm text-center mt-3">No tienes nada para este hueco. Los objetos salen de los cofres.</p>` : ''}`;
@@ -3937,11 +3958,16 @@
           <div class="text-center mt-4">
             <p class="word-title text-4xl text-paper-accent dark:text-night-accent leading-tight break-words"><span class="illum">${esc(p.display_name.charAt(0))}</span>${esc(p.display_name.slice(1))}</p>
             ${epithet ? `<p class="quote text-lg leading-tight">${esc(epithetText(epithet, p.id))}</p>` : ''}
-            <p class="text-sm text-paper-muted dark:text-night-muted mt-1">${esc(s.className || 'Sin clase')} · ${esc(s.title.name)} · nivel ${s.level}</p>
-            <div class="max-w-sm mx-auto mt-3 h-px bg-paper-border dark:bg-night-border"><div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div></div>
+            <div class="sheet-fields mt-4">
+              <div class="sheet-field"><span class="sheet-v">${esc(s.className || 'Sin clase')} ${s.level}</span><span class="sheet-l">Clase y nivel</span></div>
+              <div class="sheet-field"><span class="sheet-v">${esc(s.title.name)}</span><span class="sheet-l">Título</span></div>
+            </div>
+            <div class="max-w-sm mx-auto mt-4 h-px bg-paper-border dark:bg-night-border"><div class="h-px bg-paper-accent dark:bg-night-accent" style="width:${s.progress}%; box-shadow:0 0 6px var(--gold)"></div></div>
             <p class="quote text-xs mt-2">${xpLine(s)}</p>
-            <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mt-2 text-sm text-paper-muted dark:text-night-muted">
-              ${heartsRow(s, '')}<span>${s.gold} de oro</span><span>${s.prestige} de prestigio</span>
+            <div class="vitals mt-4">
+              <div class="vital"><span class="vital-v">${heartsRow(s, '')}</span><span class="vital-l">Vida</span></div>
+              <div class="vital"><span class="vital-v word-title">${s.gold}</span><span class="vital-l">Oro</span></div>
+              <div class="vital"><span class="vital-v word-title">${s.prestige}</span><span class="vital-l">Prestigio</span></div>
             </div>
             ${perkLine(p.id, s.cls)}
           </div>
@@ -3950,7 +3976,7 @@
           ${setsBlock()}
         </div>`;
       const epi = epiReady ? `<div class="${box}">${epithetChooser().replace('<div class="rule mt-6">', '<div class="rule">')}</div>` : '';
-      panel.innerHTML = hero + bookBlock() + epi + frameChooser() + attrsBlock() + classChooser() + achievementsLegend();
+      panel.innerHTML = hero + attrsBlock() + bookBlock() + epi + frameChooser() + classChooser() + achievementsLegend();
     }
 
     function renderGuild() {
@@ -4953,7 +4979,7 @@
           'En Personaje está tu libro de colección: cada objeto queda sellado la primera vez que lo consigues, aunque luego lo vendas o lo cambies. Al sellar un capítulo entero reclamas su premio: oro, un epíteto o un marco para tu retrato.',
           `Tienes seis huecos de equipo: pluma, amuleto y capa desde el principio; el anillo se abre en el nivel ${SLOT_LEVELS.anillo}, el tintero en el ${SLOT_LEVELS.tintero} y el marcapáginas en el ${SLOT_LEVELS.marcapaginas}. Llevar un conjunto completo da su bonificación y, la primera vez, su epíteto.`,
           `Con ${FORGE.copies} copias iguales de un objeto puedes forjar una versión mejorada (+1, hasta +${FORGE.max}) desde el zurrón: cada + suma un ${FORGE.bonus} % a su efecto${FORGE.cost ? ' y cuesta ' + FORGE.cost + ' de oro' : ''}.`,
-          'Algunos objetos forman conjuntos: si llevas puestas todas sus piezas a la vez, ganas una bonificación extra.' ]),
+          'Algunos objetos forman conjuntos: si llevas equipadas todas sus piezas a la vez, ganas una bonificación extra y, la primera vez, su epíteto.' ]),
         section('Temporadas y marcos', [
           'Algunas épocas del año son una temporada, con un jefe propio, un calendario de adviento u otros regalos y objetos que solo salen entonces. El jefe de temporada recibe lo que hagáis entre sus fechas, a la vez que el de la mazmorra; si cae, quien haya ayudado gana un cofre de temporada, que se abre sin ganzúa. Todo se ve en la pestaña Gremio mientras dura.',
           'Los marcos especiales cambian el borde de tu retrato. Se ganan en las temporadas, al completar algunas colecciones o porque te los da el máster, y se elige cuál llevar en Personaje.' ]),
@@ -5535,24 +5561,32 @@
       const btn = 'plain w-8 h-8 border border-paper-border dark:border-night-border text-lg leading-none';
       return `
         <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
-          <div class="rule"><span class="quote text-xs">Tus atributos</span></div>
+          <div class="rule"><span class="quote text-xs">Atributos</span></div>
           <p class="text-sm text-paper-muted dark:text-night-muted mt-3">Cada nivel a partir del 2 te da ${ATTR.perLevel === 1 ? 'un punto' : ATTR.perLevel + ' puntos'}. Tienes ${me.attrBudget} y has repartido ${me.attrSpent}.${left > 0 ? ` <strong class="font-medium text-paper-accent dark:text-night-accent">Te ${left === 1 ? 'queda uno' : 'quedan ' + left} por poner.</strong>` : ''}${over ? ' Tenías más puntos puestos de los que te tocan ahora; los últimos no cuentan.' : ''} Puedes recolocarlos cuando quieras.</p>
-          <ul class="mt-2 divide-y divide-paper-border/60 dark:divide-night-border/60">
-            ${ATTRS.map(a => { const n = me.attrs[a.key] || 0; return `<li class="flex items-center gap-3 py-3">
-              <i class="gi gi-${a.icon} text-3xl text-paper-accent dark:text-night-accent w-9 text-center shrink-0"></i>
-              <span class="flex-1 min-w-0">
-                <span class="word-title text-xl block leading-tight">${a.name}</span>
-                <span class="block text-sm leading-snug">${n ? esc(attrText(a, n)) : 'Sin puntos.'}</span>
-                <span class="block text-xs text-paper-muted dark:text-night-muted leading-snug">Cada punto: ${esc(attrText(a, 1))}</span>
+          <div class="ability-grid mt-4">
+            ${ATTRS.map(a => { const n = me.attrs[a.key] || 0; return `<div class="ability-wrap">
+              <div class="ability" title="${esc(a.name + '. Cada punto: ' + attrText(a, 1))}">
+                <span class="ability-abbr">${a.name.slice(0, 3).toUpperCase().replace('Á', 'A')}</span>
+                <span class="ability-score">${n}</span>
+                <span class="ability-mod">${n ? esc(attrShort(a, n)) : '—'}</span>
+              </div>
+              <span class="ability-name">${a.name}</span>
+              <span class="flex justify-center gap-1.5 mt-1.5">
+                <button type="button" onclick="setAttr('${a.key}', -1)"${n ? '' : ' disabled'} class="${btn}" title="Quitar un punto de ${a.name}" aria-label="Quitar un punto de ${a.name}">−</button>
+                <button type="button" onclick="setAttr('${a.key}', 1)"${left > 0 ? '' : ' disabled'} class="${btn}" title="Poner un punto en ${a.name}" aria-label="Poner un punto en ${a.name}">+</button>
               </span>
-              <button type="button" onclick="setAttr('${a.key}', -1)"${n ? '' : ' disabled'} class="${btn}" title="Quitar un punto">−</button>
-              <span class="word-title text-2xl w-6 text-center">${n}</span>
-              <button type="button" onclick="setAttr('${a.key}', 1)"${left > 0 ? '' : ' disabled'} class="${btn}" title="Poner un punto">+</button>
-            </li>`; }).join('')}
-          </ul>
+            </div>`; }).join('')}
+          </div>
+          <ul class="mt-4 space-y-1 text-xs text-paper-muted dark:text-night-muted">${ATTRS.map(a => `<li><strong class="font-medium">${a.name}:</strong> ${esc(attrText(a, 1))} por punto.</li>`).join('')}</ul>
         </div>`;
     }
 
+    // Resumen corto del efecto de un atributo, para el óvalo de la hoja
+    function attrShort(a, n) {
+      const SHORT = { damage_pct: v => `+${v} % daño`, xp_word: v => `+${v} xp/palabra`, xp_hit: v => `+${v} xp/acierto`, loot_luck: v => `+${v} % suerte`, heart_days: v => `+${v} días`, gold_pct: v => `+${v} % oro` };
+      const [t, v] = a.effects()[0];
+      return (SHORT[t] || (x => '+' + x))(round2(v * n));
+    }
     // Atributos con puntos de una persona, para su ficha del gremio
     function attrLine(s) {
       const set = ATTRS.filter(a => (s.attrs || {})[a.key] > 0);
