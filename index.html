@@ -311,11 +311,6 @@
     .frame { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12), inset 0 0 0 3px var(--cell, transparent), inset 0 0 0 4px rgba(138, 90, 18, 0.18); }
     .dark .frame { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.7), inset 0 0 0 3px #0B0F1A, inset 0 0 0 4px rgba(201, 162, 75, 0.22);
       background-image: radial-gradient(120% 70% at 50% 0%, rgba(201, 162, 75, 0.05), transparent 60%); }
-    /* Botones como placas de metal grabado */
-    .dark button[class*="dark:bg-night-accent"] { background: linear-gradient(180deg, #1C2438, #0B0F1A) !important; color: #E8C877 !important; border: 1px solid #8A6A2E;
-      box-shadow: inset 0 1px 0 rgba(255, 220, 150, 0.22), inset 0 -2px 0 rgba(0, 0, 0, 0.45); text-shadow: 0 1px 0 #000; }
-    .dark button[class*="dark:bg-night-accent"]:hover { background: linear-gradient(180deg, #26304A, #121829) !important; color: #F3DE9A !important; }
-    .dark button:not(.plain)[class*="border-night-border"] { background-image: linear-gradient(180deg, rgba(255, 240, 210, 0.04), rgba(0, 0, 0, 0.2)); }
     /* Ficha de objeto con la franja de su rareza, como un tooltip de juego */
     .bag-sheet { border-top: 3px solid var(--r, var(--gold)); background-image: linear-gradient(180deg, color-mix(in srgb, var(--r, #C9A24B) 16%, transparent), transparent 5rem); }
     /* Subida de nivel en la ventana de novedades */
@@ -416,9 +411,8 @@
     @media (prefers-reduced-motion: reduce) { .tome-page.fade { animation: none; } }
     /* ===== Propuesta C (Baldur's Gate, en azul noche) ===== */
     /* Paneles: degradado leve arriba, filete fino de bronce y esquinas apenas redondeadas */
-    .dark .frame { border-color: rgba(201, 162, 75, 0.38) !important; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.65);
+    .dark .frame { border-color: rgba(201, 162, 75, 0.38) !important; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.65);
       background-image: linear-gradient(180deg, #111727, rgba(11, 15, 26, 0) 140px); }
-    .frame { border-radius: 6px; }
     /* Títulos de sección: solo el texto */
     .sec-head { text-align: center; font-family: 'EB Garamond', Georgia, serif; font-weight: 400; font-size: 1.1rem; letter-spacing: 0.02em; color: var(--gold); margin: 1.1rem 0 0.5rem; }
     .dark .sec-head { color: #E3C987; }
@@ -430,18 +424,11 @@
     /* Filas de datos sin separadores */
     .stat-row { border-bottom: 0 !important; padding: 0.15rem 0.1rem; line-height: 1.75; }
     .dark .stat-row dt { color: #9AA0B4; }
-    /* Botones: placas redondeadas con filete de bronce */
-    button:not(.plain)[class*="rounded"] { border-radius: 9999px !important; }
-    .dark button[class*="dark:bg-night-accent"] { background: linear-gradient(180deg, #1F2840, #10162A) !important; color: #F3DE9A !important; border: 1px solid #C9A24B;
-      box-shadow: inset 0 1px 0 rgba(255, 230, 170, 0.22), inset 0 -1px 0 rgba(0, 0, 0, 0.5), 0 0 0 1px #000; text-shadow: none; font-family: 'EB Garamond', Georgia, serif; text-transform: none; letter-spacing: 0.01em; }
-    .dark button[class*="dark:bg-night-accent"]:hover { background: linear-gradient(180deg, #26304C, #131A30) !important; color: #FFE9AE !important; }
-    .dark button:not(.plain)[class*="border-night-border"] { border-color: rgba(201, 162, 75, 0.4) !important; background-image: linear-gradient(180deg, #151B2C, #0B0F1A);
-      box-shadow: inset 0 1px 0 rgba(255, 230, 170, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.5); }
     /* Personaje */
     .char-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.2rem 0.8rem; }
     .dark .char-head .quote { color: #E3C987; }
     .char-doll { gap: 0.6rem 1.2rem !important; }
-    .gslot { width: 3.4rem; height: 3.4rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1rem; border: 1px solid #2A3350; border-radius: 4px;
+    .gslot { width: 3.4rem; height: 3.4rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1rem; border: 1px solid #2A3350;
       background: linear-gradient(180deg, #141B2E, #0B0F1A); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.8); color: inherit; padding: 0; }
     :root:not(.dark) .gslot { background: #EBDFC1; border-color: #CDBB93; box-shadow: none; }
     .gslot.is-full { border-color: var(--r); }
@@ -457,35 +444,9 @@
     .medal-shield .medal-l { margin: 0; font-size: 0.5rem; }
     .medal-shield .medal-v { font-family: 'LexiumDisplay', 'Grenze Gotisch', serif; font-size: 1.9rem; line-height: 1; }
     .medal-t { font-family: 'Fondamento', cursive; font-style: italic; font-size: 0.62rem; color: var(--lc); }
-    /* Atributos: medallones grandes con la abreviatura debajo */
-    .medal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem 0.4rem; max-width: 24rem; margin-left: auto; margin-right: auto; }
-    @media (min-width: 640px) { .medal-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: 40rem; } }
-    .att { display: flex; flex-direction: column; align-items: center; }
-    .att-ring { position: relative; width: 4.4rem; height: 4.4rem; border-radius: 50%; border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center;
-      background: radial-gradient(circle at 50% 35%, var(--glow), var(--cell) 70%); box-shadow: inset 0 0 0 4px var(--cell), inset 0 0 0 5px rgba(201, 162, 75, 0.4); }
-    .att-v { font-family: 'LexiumDisplay', 'Grenze Gotisch', serif; font-size: 2rem; line-height: 1; }
-    .att-plus { position: absolute; right: -0.4rem; top: -0.3rem; width: 1.7rem; height: 1.7rem; border-radius: 50%; border: 1px solid var(--gold); background: var(--cell); color: var(--gold); font-size: 1rem; line-height: 1; }
-    .att-name { margin-top: 0.4rem; padding: 0.1rem 0.7rem; border-top: 1px solid rgba(201, 162, 75, 0.38); border-bottom: 1px solid rgba(201, 162, 75, 0.38); font-family: 'Cinzel', serif; font-size: 0.62rem; letter-spacing: 0.12em; color: var(--gold); }
-    .dark .att-name { color: #E3C987; }
-    /* Zurrón: filtro en píldora, oro a la derecha, rejilla de 6 */
-    .bag-top { display: flex; align-items: center; gap: 0.6rem; }
-    .bag-filter { flex: 1; }
-    .bag-filter select { width: 100%; height: 2.3rem; padding: 0 0.9rem; border-radius: 9999px; border: 1px solid var(--line); background: var(--cell); color: inherit; font-family: 'EB Garamond', Georgia, serif; font-size: 0.95rem; }
-    .dark .bag-filter select { border-color: #2A3350; color: #9AA0B4; }
-    .bag-gold { display: flex; align-items: center; gap: 0.35rem; font-family: 'EB Garamond', Georgia, serif; font-size: 1.1rem; }
-    .bag-gold .gi { color: #E3C987; }
-    .bag-grid { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; gap: 0.32rem !important; }
-    @media (min-width: 640px) { .bag-grid { grid-template-columns: repeat(10, minmax(0, 1fr)) !important; } }
-    .bag-cell { border-radius: 3px; border-width: 1px !important; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.8) !important; }
-    .dark .bag-cell .bag-in { background: linear-gradient(180deg, #141B2E, #0A0E18); }
-    .bag-cell.r-3 { border: 1px solid #D9A441 !important; background: var(--cell) !important; }
-    .dark .bag-cell.is-empty { border-color: #1A2133 !important; background: #0A0E18; opacity: 1; }
-    .bag-cell.is-new::after { inset: auto; right: 3px; top: 3px; width: 6px; height: 6px; border: 0; border-radius: 50%; background: #E3C987; animation: none; }
-    .bag-n { font-family: 'EB Garamond', Georgia, serif; font-size: 0.85rem; color: #fff; }
-    .bag-foot { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; margin-top: 0.6rem; font-size: 0.85rem; color: #9AA0B4; }
     /* Libro de colección como el diario del juego */
     .jlist { display: flex; flex-direction: column; gap: 0.1rem; }
-    .jrow { display: flex; align-items: baseline; gap: 0.7rem; padding: 0.45rem 0.6rem; border-radius: 4px; text-align: left; font-family: 'EB Garamond', Georgia, serif; font-size: 1rem; }
+    .jrow { display: flex; align-items: baseline; gap: 0.7rem; padding: 0.45rem 0.6rem; text-align: left; font-family: 'EB Garamond', Georgia, serif; font-size: 1rem; }
     .jrow.is-on { background: rgba(201, 162, 75, 0.12); }
     .dark .jrow.is-on .jtitle { color: #F3DE9A; }
     .jnum { width: 1.6rem; font-family: 'MedievalSharp', 'Cinzel', serif; color: var(--gold); }
@@ -504,6 +465,19 @@
     .jname { margin-top: 0.25rem; font-size: 0.68rem; line-height: 1.15; color: #9AA0B4; }
     .jq { display: flex; align-items: center; justify-content: center; font-family: 'LexiumDisplay', 'Grenze Gotisch', serif; font-size: 1.3rem; color: #2A3350; border-style: dashed !important; }
     .fade { animation: page-fade 0.3s ease-out; }
+    /* Atributos: tarjetas grandes de canto achaflanado */
+    .ab-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem 0.7rem; max-width: 26rem; margin-left: auto; margin-right: auto; }
+    @media (min-width: 640px) { .ab-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: 46rem; } }
+    .ab-col { display: flex; flex-direction: column; align-items: center; }
+    .ab-card { position: relative; width: 100%; max-width: 7rem; aspect-ratio: 5 / 6; display: flex; flex-direction: column; align-items: center; padding-top: 0.6rem; background: var(--gold);
+      clip-path: polygon(14% 0, 86% 0, 100% 12%, 100% 88%, 86% 100%, 14% 100%, 0 88%, 0 12%); }
+    .ab-card::before { content: ''; position: absolute; inset: 1.5px; background: var(--cell); clip-path: inherit; }
+    .ab-card > * { position: relative; }
+    .ab-abbr { font-family: 'Cinzel', serif; font-size: 0.78rem; letter-spacing: 0.14em; color: var(--gold); }
+    .dark .ab-abbr { color: #E3C987; }
+    .ab-val { font-family: 'LexiumDisplay', 'Grenze Gotisch', serif; font-size: 3rem; line-height: 1; margin-top: 0.2rem; }
+    .ab-mod { position: absolute !important; bottom: 0.55rem; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 0.7rem; padding: 0.05rem 0.5rem; border: 1px solid var(--gold); background: var(--sheet); }
+    .ab-plus { margin-top: 0.45rem; width: 2rem; height: 2rem; border: 1px solid var(--gold); color: var(--gold); font-size: 1.1rem; line-height: 1; }
     /* Duelos */
     .duel-face { display: inline-flex; flex: none; border: 1px solid rgba(201, 162, 75, 0.5); box-shadow: 0 0 0 2px var(--cell); }
     .duel-ranks { display: flex; justify-content: center; flex-wrap: wrap; gap: 1rem 1.4rem; }
@@ -511,17 +485,17 @@
     .duel-rank-n { font-size: 0.85rem; line-height: 1.1; text-align: center; }
     .duel-crown { position: absolute; top: -0.5rem; left: 50%; transform: translateX(-50%); color: #E3C987; font-size: 0.9rem; }
     .duel-mini-shield { width: 2.6rem; height: 2.9rem; } .duel-mini-shield .medal-v { font-size: 1.2rem; }
-    .duel-new { margin-top: 1.2rem; padding: 1rem; border: 1px solid var(--line); border-radius: 6px; background: var(--cell); }
+    .duel-new { margin-top: 1.2rem; padding: 1rem; border: 1px solid var(--line); background: var(--cell); }
     .dark .duel-new { border-color: #2A3350; }
     .duel-pick { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.8rem; margin-top: 0.6rem; }
     .duel-pick-p { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; font-size: 0.85rem; opacity: 0.55; }
     .duel-pick-p.is-on { opacity: 1; } .duel-pick-p.is-on .duel-face { border-color: #E3C987; box-shadow: 0 0 0 2px var(--cell), 0 0 0 3px #E3C987; }
     .duel-stakes { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.9rem; }
-    .duel-stake { padding: 0.3rem 0.8rem; border-radius: 9999px; border: 1px solid var(--line); font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.25rem; }
+    .duel-stake { padding: 0.3rem 0.8rem; border: 1px solid var(--line); font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.25rem; }
     .dark .duel-stake { border-color: #2A3350; color: #9AA0B4; }
     .duel-stake.is-on { border-color: #C9A24B !important; color: #F3DE9A !important; background: rgba(201, 162, 75, 0.12); }
     .duel-stake:disabled { opacity: 0.3; }
-    .duel-card { padding: 0.9rem; border: 1px solid var(--line); border-radius: 6px; background: var(--cell); }
+    .duel-card { padding: 0.9rem; border: 1px solid var(--line); background: var(--cell); }
     .dark .duel-card { border-color: #2A3350; }
     .duel-card.is-call { border-color: #C9A24B !important; }
     .duel-vs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 0.6rem; }
@@ -3328,6 +3302,7 @@
       if (!seen) { markItemsSeen(mine.map(u => u.id)); seen = new Set(mine.map(u => u.id)); } // la primera vez nada es nuevo
       // Una casilla por objeto puesto y por grupo de copias iguales; los consumibles, agrupados
       const cells = [];
+      gearMine.filter(u => u.equipped).forEach(u => cells.push([u]));
       gearGroups(gearMine.filter(u => !u.equipped)).forEach(g => cells.push(g));
       const cons = {};
       mine.filter(u => itemsById[u.item_id].kind === 'consumable').forEach(u => { (cons[u.item_id] = cons[u.item_id] || []).push(u); });
@@ -3351,14 +3326,11 @@
       const sel = bagSel ? cells.find(g => g.some(x => x.id === bagSel)) : null;
       return `
         <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
-          ${flourish('En el zurrón')}
-          ${cells.length || true ? `<div class="bag-top mt-3">
-            <label class="bag-filter"><span class="sr-only">Mostrar</span><select onchange="setBagFilter(this.value)">${tabs.map(([k, label]) => `<option value="${k}"${bagFilter === k ? ' selected' : ''}>${k === 'all' ? 'Mostrando todo' : label}</option>`).join('')}</select></label>
-            <span class="bag-gold">${me.gold} <i class="gi gi-two-coins"></i></span>
-          </div>
-          <div class="bag-grid mt-3">${show.map(cell).join('')}${'<span class="bag-cell is-empty" aria-hidden="true"></span>'.repeat(Math.max(0, (bagFilter === 'all' ? bagCapacity(currentUser.id) : Math.max(30, Math.ceil(show.length / 30) * 30)) - show.length))}</div>
-          <p class="bag-foot">${bagUsed(currentUser.id)} de ${bagCapacity(currentUser.id)} casillas · <button type="button" onclick="buyBagSpace()" class="plain underline">ampliar +${BAG.step} por ${bagNextPrice(currentUser.id)} de oro</button>${me.chests.length ? ` · ${me.chests.length} ${me.chests.length === 1 ? 'cofre' : 'cofres'} por abrir` : ''}${dupes.length ? ` <button type="button" onclick="sellDuplicates()" class="plain text-paper-accent dark:text-night-accent underline ml-auto">Vender repetidos (${dupGold})</button>` : ''}</p>
-`
+          <div class="rule"><span class="quote text-xs">En el zurrón</span></div>
+          ${cells.length ? `<div class="bag-tabs mt-3" role="tablist">${tabs.map(([k, label, icon]) => `<button type="button" onclick="setBagFilter('${k}')" class="plain bag-tab${bagFilter === k ? ' is-on' : ''}" title="${esc(label)}" aria-label="${esc(label)}" aria-pressed="${bagFilter === k}"><i class="gi gi-${icon}"></i>${k === 'all' ? ' <span>Todo</span>' : ''}</button>`).join('')}</div>
+          <div class="bag-grid mt-3">${show.map(cell).join('')}${'<span class="bag-cell is-empty" aria-hidden="true"></span>'.repeat(Math.max(0, bagFilter === 'all' ? bagCapacity(currentUser.id) - bagUsed(currentUser.id) : Math.ceil(show.length / 10) * 10 - show.length))}</div>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-3">Ocupas ${bagUsed(currentUser.id)} de ${bagCapacity(currentUser.id)} casillas (lo equipado no ocupa sitio). <button type="button" onclick="buyBagSpace()" class="plain underline text-paper-accent dark:text-night-accent">Ampliar ${BAG.step} casillas por ${bagNextPrice(currentUser.id)} de oro</button></p>
+          ${dupes.length ? `<p class="text-xs text-paper-muted dark:text-night-muted mt-3">Tienes ${dupes.length} ${dupes.length === 1 ? 'común repetida' : 'comunes repetidas'}: <button type="button" onclick="sellDuplicates()" class="plain underline text-paper-accent dark:text-night-accent">venderlas por ${dupGold} de oro</button> (se queda una de cada).</p>` : ''}`
           : '<p class="quote text-sm text-center mt-4">No llevas nada encima. Los objetos salen de los cofres y de la tienda.</p>'}
         </div>${sel ? bagSheet(sel, me, others) : ''}`;
     }
@@ -4002,33 +3974,48 @@
       const sealed = sealedMap(currentUser.id);
       const n = c.items.filter(id => sealed.has(id)).length, done = n === c.items.length, claimed = collClaimed(currentUser.id, c);
       const all = [...new Set(list.flatMap(x => x.items))], got = all.filter(id => sealed.has(id)).length;
-      const reward = [c.gold ? `<span class="text-paper-ink dark:text-night-ink">${c.gold} de oro</span>` : '', c.epithet && epithetById(c.epithet) ? `el epíteto <span class="quote">«${esc(epithetText(c.epithet, currentUser.id))}»</span>` : '', c.frame && FRAMES[c.frame] ? `el marco «${esc(FRAMES[c.frame].name)}»` : ''].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' y $1');
+      const reward = [c.gold ? `${c.gold} de oro` : '', c.epithet && epithetById(c.epithet) ? `el epíteto «${esc(epithetText(c.epithet, currentUser.id))}»` : '', c.frame && FRAMES[c.frame] ? `el marco «${esc(FRAMES[c.frame].name)}»` : ''].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' y $1');
       const day = ms => new Date(ms).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
       const turn = bookTurn; bookTurn = false;
-      const cell = id => {
+      const plate = id => {
         const it = itemsById[id], col = (RARITY[it.rarity] || RARITY['común']).color, at = sealed.get(id), tier = RARITY_ORDER.indexOf(it.rarity);
-        return at ? `<div class="jcell" title="${esc(it.name + ' (' + it.rarity + '): ' + effectText(it) + '. Sellado el ' + day(at))}">
-            <span class="bag-cell r-${tier}" style="--r:${col}"><span class="bag-in">${art(it.image, it.icon, 'w-9 h-9', 'text-3xl', col)}</span></span><span class="jseal" aria-hidden="true"></span>
-            <span class="jname">${esc(it.name)}</span></div>`
-          : `<div class="jcell is-missing" title="Sin sellar: ${esc(it.rarity)}, ${esc(itemHint(it))}">
-            <span class="bag-cell is-empty jq">?</span><span class="jname">${esc(itemHint(it))}</span></div>`;
+        return at ? `<div class="plate is-sealed r-${tier}" style="--r:${col}" title="${esc(it.name + ': ' + effectText(it))}">
+            <div class="plate-art">${art(it.image, it.icon, 'w-10 h-10', 'text-4xl', col)}</div>
+            <p class="plate-name">${esc(it.name)}</p><p class="plate-note">sellado el ${esc(day(at))}</p>
+            <span class="wax-seal" aria-hidden="true">L</span></div>`
+          : `<div class="plate is-missing" title="Aún sin sellar (${esc(it.rarity)})">
+            <div class="plate-art"><span class="plate-ghost">${art(it.image, it.icon, 'w-10 h-10', 'text-4xl', '#5A4A30')}</span></div>
+            <p class="plate-name">¿?</p><p class="plate-note">${esc(it.rarity)} · ${esc(itemHint(it))}</p></div>`;
       };
+      const left = 2 * idx + 1;
       return `
-        <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
-          <p class="word-title text-3xl text-center leading-none">Libro de colección</p>
-          <p class="text-sm text-paper-muted dark:text-night-muted text-center mt-1">${got} de ${all.length} objetos sellados</p>
-          ${flourish('Capítulos')}
-          <div class="jlist">${list.map((x, i) => { const k = x.items.filter(id => sealed.has(id)).length; return `<button type="button" onclick="setBookCh('${esc(x.id)}')" class="plain jrow${x.id === c.id ? ' is-on' : ''}" aria-pressed="${x.id === c.id}">
-              <span class="jnum">${ROMAN(i + 1)}</span><span class="jtitle">${esc(x.name)}${x.season ? ' <span class="text-xs opacity-70">de temporada</span>' : ''}</span><span class="jprog">${collClaimed(currentUser.id, x) ? '✦' : k + '/' + x.items.length}</span></button>`; }).join('')}</div>
-          <div class="jdiv"></div>
-          <div class="${turn ? 'fade' : ''}">
-            <p class="jkicker">Capítulo ${ROMAN(idx + 1)}</p>
-            <p class="word-title text-3xl text-center leading-tight">${esc(c.name)}</p>
-            <div class="sheet-level mt-3"><span class="xp-bar"><span style="width:${Math.round(n / c.items.length * 100)}%"></span></span><span>${n} / ${c.items.length}</span></div>
-            <div class="jgrid mt-4">${c.items.map(cell).join('')}</div>
-            <p class="text-sm text-paper-muted dark:text-night-muted text-center mt-4">Cada objeto queda sellado aquí la primera vez que lo consigues, aunque luego lo vendas o lo cambies.</p>
-            ${reward ? `<p class="text-sm text-paper-muted dark:text-night-muted text-center mt-2">${claimed ? 'Capítulo completado. Ganaste ' + reward + '.' : 'Al sellar el capítulo: ' + reward + '.'}</p>` : ''}
-            ${done && !claimed && reward ? `<p class="text-center mt-3"><button onclick="claimCollection('${esc(c.id)}')" class="px-4 py-2 rounded-xl text-sm bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg">Reclamar el premio</button></p>` : ''}
+        <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5 tome">
+          ${flourish('Libro de colección')}
+          <div class="tome-tabs" role="tablist" aria-label="Capítulos">${list.map((x, i) => `<button type="button" onclick="setBookCh('${esc(x.id)}')" class="plain tome-tab${x.id === c.id ? ' is-on' : ''}${collClaimed(currentUser.id, x) ? ' is-done' : ''}" title="${esc(x.name)}" aria-label="Capítulo ${ROMAN(i + 1)}: ${esc(x.name)}" aria-pressed="${x.id === c.id}">${ROMAN(i + 1)}</button>`).join('')}</div>
+          <div class="tome-book">
+            <div class="tome-pages">
+              <section class="tome-page tome-left${turn ? ' fade' : ''}">
+                <p class="tome-run">Libro de colección</p><p class="tome-run" style="letter-spacing:.08em;text-transform:none;font-weight:500">${got} de ${all.length} sellados en total</p>
+                <p class="tome-kicker">Capítulo ${ROMAN(idx + 1)}${c.season ? ' · de temporada' : ''}</p>
+                <h3 class="tome-title">${esc(c.name)}</h3>
+                <p class="tome-text">Cada objeto queda sellado en estas páginas la primera vez que lo consigues, aunque luego lo vendas o lo cambies.</p>
+                <div class="tome-progress"><span style="width:${Math.round(n / c.items.length * 100)}%"></span></div>
+                <p class="tome-text"><strong>${n}</strong> de ${c.items.length} sellados</p>
+                <p class="tome-orn">❦</p>
+                ${reward ? `<p class="tome-text">${claimed ? 'Capítulo completado. Ganaste ' + reward + '.' : 'Al sellar el capítulo entero: ' + reward + '.'}</p>` : ''}
+                ${done && !claimed && reward ? `<p class="text-center mt-3"><button onclick="claimCollection('${esc(c.id)}')" class="plain tome-claim">Reclamar el premio</button></p>` : ''}
+                <p class="tome-folio">— ${ROMAN(left).toLowerCase()} —</p>
+              </section>
+              <section class="tome-page tome-right${turn ? ' fade' : ''}">
+                <div class="plates">${c.items.map(plate).join('')}</div>
+                <p class="tome-folio">— ${ROMAN(left + 1).toLowerCase()} —</p>
+              </section>
+            </div>
+          </div>
+          <div class="tome-nav">
+            <button type="button" onclick="bookStep(-1)" class="plain"${idx ? '' : ' disabled'}>‹ Anterior</button>
+            <span>Capítulo ${ROMAN(idx + 1)} de ${ROMAN(list.length)}</span>
+            <button type="button" onclick="bookStep(1)" class="plain"${idx < list.length - 1 ? '' : ' disabled'}>Siguiente ›</button>
           </div>
         </div>`;
     }
@@ -5865,21 +5852,19 @@
       return `
         <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
           ${flourish('Atributos')}
-          <div class="medal-grid mt-3">
-            ${ATTRS.map(a => { const n = me.attrs[a.key] || 0; return `<div class="att">
-              <div class="att-ring" title="${esc(a.name + ': ' + (n ? attrText(a, n) : 'sin puntos') + '. Cada punto: ' + attrText(a, 1))}">
-                <span class="att-v">${n}</span>
-                ${left > 0 ? `<button type="button" onclick="setAttr('${a.key}', 1)" class="plain att-plus" aria-label="Poner un punto en ${a.name}">+</button>` : ''}
+          <p class="text-sm text-center text-paper-muted dark:text-night-muted">${left > 0 ? `<strong class="text-paper-accent dark:text-night-accent">Te ${left === 1 ? 'queda un punto' : 'quedan ' + left + ' puntos'} por repartir.</strong> ` : ''}Cada nivel a partir del 2 te da ${ATTR.perLevel === 1 ? 'un punto' : ATTR.perLevel + ' puntos'}; una vez puestos no se quitan.${over ? ' Tenías más puntos puestos de los que te tocan ahora; los últimos no cuentan.' : ''}</p>
+          <div class="ab-grid mt-4">
+            ${ATTRS.map(a => { const n = me.attrs[a.key] || 0; return `<div class="ab-col">
+              <div class="ab-card" title="${esc(a.name + '. Cada punto: ' + attrText(a, 1))}">
+                <span class="ab-abbr">${a.name.slice(0, 3).toUpperCase().replace('Á', 'A')}</span>
+                <span class="ab-val">${n}</span>
+                <span class="ab-mod">${n ? esc(attrShort(a, n)) : '—'}</span>
               </div>
-              <span class="att-name">${a.name.slice(0, 3).toUpperCase().replace('Á', 'A')}</span>
+              ${left > 0 ? `<button type="button" onclick="setAttr('${a.key}', 1)" class="plain ab-plus" aria-label="Poner un punto en ${a.name}">+</button>` : ''}
             </div>`; }).join('')}
           </div>
-          <dl class="stat-rows mt-4">
-            ${ATTRS.map(a => { const n = me.attrs[a.key] || 0; return `<div class="stat-row"><dt>${a.name}</dt><dd>${n ? esc(attrShort(a, n)) : '<span class="opacity-60">' + esc(attrShort(a, 1)) + ' por punto</span>'}</dd></div>`; }).join('')}
-            <div class="stat-row"><dt>Puntos por repartir</dt><dd>${left > 0 ? `<strong class="text-paper-accent dark:text-night-accent">${left}</strong>` : '0'}</dd></div>
-          </dl>
-          <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-3">Cada nivel a partir del 2 te da ${ATTR.perLevel === 1 ? 'un punto' : ATTR.perLevel + ' puntos'}. Una vez puestos no se quitan; para recolocarlos todos hay que pagar.${over ? ' Tenías más puntos puestos de los que te tocan ahora; los últimos no cuentan.' : ''}</p>
-          ${me.attrSpent ? `<p class="text-center mt-3"><button type="button" onclick="resetAttrs()" class="px-4 py-2 rounded-xl text-sm border border-paper-border dark:border-night-border">Recolocar puntos · ${ATTR.respec} de oro</button></p>` : ''}
+          <dl class="stat-rows mt-4">${ATTRS.map(a => `<div class="stat-row"><dt>${a.name}</dt><dd>${esc(attrShort(a, 1))} por punto</dd></div>`).join('')}</dl>
+          ${me.attrSpent ? `<p class="text-center mt-4"><button type="button" onclick="resetAttrs()" class="px-4 py-2 rounded-xl text-sm border border-paper-border dark:border-night-border">Recolocar puntos · ${ATTR.respec} de oro</button></p>` : ''}
         </div>`;
     }
 
