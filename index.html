@@ -568,6 +568,15 @@
     .tome-seal.is-on { color: #F3E3C0; border-color: #5E1714; background: radial-gradient(circle at 38% 32%, #C2443A, #7A1A16 70%); box-shadow: 0 1px 2px rgba(60, 20, 10, 0.5); }
     .tome-seal:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
     .tome .plates.is-many { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    /* Libro: sellos en dorado y objetos en las dos páginas */
+    .tome-seal.is-on { color: #2A1A0E !important; border-color: #8A6A22 !important; background: radial-gradient(circle at 38% 32%, #F1D58A, #C9A24B 55%, #8A6A22) !important; box-shadow: 0 1px 2px rgba(60, 40, 10, 0.45) !important; }
+    .tome .wax-seal { background: radial-gradient(circle at 38% 32%, #F1D58A, #C9A24B 55%, #8A6A22); color: #3A2410; font-family: 'EB Garamond', Georgia, serif; font-size: 0.7rem; transform: none; box-shadow: 0 1px 2px rgba(60, 40, 10, 0.45); }
+    .tome-left { align-items: stretch !important; }
+    .tome-left > .tome-kick, .tome-left > .tome-title, .tome-left > .tome-orn { text-align: center; }
+    .tome-left .plates { margin-top: 0.4rem; }
+    .tome-end { margin-top: auto; padding-top: 0.8rem; text-align: center; }
+    .tome-end .tome-index-l { margin-top: 0.7rem; }
+    .tome-left, .tome-right { overflow-y: auto !important; scrollbar-width: thin; }
     /* Duelos */
     .duel-face { display: inline-flex; flex: none; border: 1px solid rgba(201, 162, 75, 0.5); box-shadow: 0 0 0 2px var(--cell); }
     .duel-ranks { display: flex; justify-content: center; flex-wrap: wrap; gap: 1rem 1.4rem; }
@@ -4076,12 +4085,14 @@
       const reward = [c.gold ? `${c.gold} de oro` : '', c.epithet && epithetById(c.epithet) ? `el epíteto «${esc(epithetText(c.epithet, currentUser.id))}»` : '', c.frame && FRAMES[c.frame] ? `el marco «${esc(FRAMES[c.frame].name)}»` : ''].filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' y $1');
       const day = ms => new Date(ms).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
       const turn = bookTurn; bookTurn = false;
+      const nLeft = c.items.length <= 3 ? c.items.length : Math.min(9, Math.ceil(c.items.length / 2 / 3) * 3);
+      const leftItems = c.items.slice(0, nLeft), rightItems = c.items.slice(nLeft);
       const plate = id => {
         const it = itemsById[id], col = (RARITY[it.rarity] || RARITY['común']).color, at = sealed.get(id), tier = RARITY_ORDER.indexOf(it.rarity);
         return at ? `<div class="plate is-sealed r-${tier}" style="--r:${col}" title="${esc(it.name + ': ' + effectText(it))}">
             <div class="plate-art">${art(it.image, it.icon, 'w-10 h-10', 'text-4xl', col)}</div>
             <p class="plate-name">${esc(it.name)}</p><p class="plate-note">sellado el ${esc(day(at))}</p>
-            <span class="wax-seal" aria-hidden="true">L</span></div>`
+            <span class="wax-seal" title="Sellado" aria-hidden="true">✦</span></div>`
           : `<div class="plate is-missing" title="Aún sin sellar (${esc(it.rarity)})">
             <div class="plate-art"><span class="plate-ghost">${art(it.image, it.icon, 'w-10 h-10', 'text-4xl', '#5A4A30')}</span></div>
             <p class="plate-name">¿?</p><p class="plate-note">${esc(it.rarity)} · ${esc(itemHint(it))}</p></div>`;
@@ -4095,17 +4106,17 @@
                 <p class="tome-kick">Capítulo ${ROMAN(idx + 1)}${c.season ? ' · de temporada' : ''}</p>
                 <h3 class="tome-title">${esc(c.name)}</h3>
                 <p class="tome-orn">✦</p>
-                <p class="tome-text"><strong>${n}</strong> de ${c.items.length} sellados${done ? '' : n ? `; ${c.items.length - n === 1 ? 'queda uno' : 'quedan ' + (c.items.length - n)}` : ''}.</p>
-                ${reward ? `<p class="tome-text">${claimed ? 'Ganaste' : 'Premio:'} ${reward}.</p>` : ''}
-                ${done && !claimed && reward ? `<p class="mt-3"><button onclick="claimCollection('${esc(c.id)}')" class="plain tome-claim">Reclamar el premio</button></p>` : ''}
-                <div class="tome-index">
+                <div class="plates">${leftItems.map(plate).join('')}</div>
+                <p class="tome-folio">— ${ROMAN(2 * idx + 1).toLowerCase()} —</p>
+              </section>
+              <section class="tome-page tome-right${turn ? ' fade' : ''}">
+                ${rightItems.length ? `<div class="plates">${rightItems.map(plate).join('')}</div>` : ''}
+                <div class="tome-end">
+                  <p class="tome-text"><strong>${n}</strong> de ${c.items.length} sellados${done ? '' : n ? `; ${c.items.length - n === 1 ? 'queda uno' : 'quedan ' + (c.items.length - n)}` : ''}.${reward ? ` ${claimed ? 'Ganaste' : 'Premio:'} ${reward}.` : ''}</p>
+                  ${done && !claimed && reward ? `<p class="mt-2"><button onclick="claimCollection('${esc(c.id)}')" class="plain tome-claim">Reclamar el premio</button></p>` : ''}
                   <p class="tome-index-l">Índice · ${got} de ${all.length} sellados</p>
                   <div class="tome-seals">${list.map((x, i) => { const k = x.items.filter(id => sealed.has(id)).length, full = k === x.items.length; return `<button type="button" onclick="setBookCh('${esc(x.id)}')" class="plain tome-seal${x.id === c.id ? ' is-on' : full ? ' is-done' : ''}" title="${esc(x.name)} · ${k} de ${x.items.length}" aria-label="${esc(x.name)}, ${k} de ${x.items.length}" aria-pressed="${x.id === c.id}">${ROMAN(i + 1)}</button>`; }).join('')}</div>
                 </div>
-              </section>
-              <section class="tome-page tome-right${turn ? ' fade' : ''}">
-                <div class="plates${c.items.length > 9 ? ' is-many' : ''}">${c.items.map(plate).join('')}</div>
-                <p class="tome-folio">— ${ROMAN(2 * idx + 2).toLowerCase()} —</p>
               </section>
             </div>
           </div>
@@ -4315,7 +4326,7 @@
         <div class="${box}">
           <div class="char-head char-head-e"><span class="word-title char-name">${esc(p.display_name)}</span>${epithet ? `<span class="char-epi">${esc(epithetText(epithet, p.id))}</span>` : ''}</div>
           <div class="sheet-level mt-2"><span>Nivel ${s.level}</span><span class="xp-bar"><span style="width:${s.progress}%"></span></span><span class="opacity-70">XP</span></div>
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-1">${xpLine(s)}</p>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-1 text-center">${xpLine(s)}</p>
           <div class="char-doll mt-4">
             <div style="grid-area:s1">${slotBox('pluma')}</div>
             <div style="grid-area:s2">${slotBox('anillo')}</div>
