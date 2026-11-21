@@ -589,20 +589,34 @@
     .duel-pick-p, .duel-rank { width: 5.6rem; min-width: 0 !important; }
     .duel-pick-p > span:last-child, .duel-rank-n { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; width: 100%; text-align: center; line-height: 1.15; overflow-wrap: anywhere; }
     .duel-pick-p.is-on .duel-face { border-color: #C9A24B !important; box-shadow: 0 0 0 2px var(--cell), 0 0 0 3px #C9A24B !important; }
-    /* Libro: tapas del libro en marrón oscuro (sin el tono rojizo) */
-    .tome-book { background: none !important; isolation: isolate; }
-    .tome-book::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--book) center / 100% 100% no-repeat; filter: hue-rotate(14deg) saturate(0.7) brightness(0.85); }
+    /* Libro dibujado con CSS: tapas de cuero marrón oscuro, pergamino claro y tinta oscura */
+    .tome { --ink: #33220F; --ink2: #5E4529; --dark: #24170A; }
+    .tome-book { aspect-ratio: auto !important; max-width: 52rem !important; padding: 0.8rem; isolation: isolate;
+      background: linear-gradient(135deg, #3B2818, #22160C 55%, #2F1F11) !important; border: 1px solid #8A6A22;
+      box-shadow: inset 0 0 0 1px #000, inset 0 0 0 4px #2A1B0E, inset 0 0 0 5px rgba(201, 162, 75, 0.35), 0 6px 18px rgba(0, 0, 0, 0.45); }
+    .tome-pages { position: static !important; display: grid; grid-template-columns: 1fr 1fr; gap: 0 !important; }
+    .tome-page { background: radial-gradient(ellipse at 30% 20%, #FBF3DE, #EFE2C2 65%, #E4D3AC) !important; min-height: 31rem; max-height: 38rem; }
+    .tome-left { box-shadow: inset -22px 0 24px -16px rgba(70, 45, 15, 0.4); }
+    .tome-right { box-shadow: inset 22px 0 24px -16px rgba(70, 45, 15, 0.4); }
+    .tome-left, .tome-right { padding: 2.2rem 2rem 1.8rem !important; }
     @media (max-width: 767px) {
-      .tome-book::before { display: none; }
-      .tome-page { background: none !important; isolation: isolate; }
-      .tome-page::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--book) no-repeat; background-size: 200% 100%; filter: hue-rotate(14deg) saturate(0.7) brightness(0.85); }
-      .tome-left::before { background-position: left center; }
-      .tome-right::before { background-position: right center; }
+      .tome-book { max-width: 30rem !important; padding: 0.55rem; }
+      .tome-pages { grid-template-columns: 1fr; }
+      .tome-page { min-height: 0; max-height: none; }
+      .tome-left { box-shadow: inset 0 -16px 18px -14px rgba(70, 45, 15, 0.35); padding: 1.8rem 1.4rem 1.2rem !important; }
+      .tome-right { box-shadow: inset 0 16px 18px -14px rgba(70, 45, 15, 0.35); padding: 1.4rem 1.4rem 1.5rem !important; }
     }
+    .tome .plate-name { color: var(--ink); }
     /* Marca de sellado: esquina dorada discreta arriba a la derecha */
     .tome .plate { position: relative; }
     .tome .wax-seal { top: 0 !important; right: 0 !important; bottom: auto !important; left: auto !important; width: 1.15rem !important; height: 1.15rem !important; border-radius: 0 !important; background: #C9A24B !important; clip-path: polygon(0 0, 100% 0, 100% 100%); transform: none !important; box-shadow: none !important; display: block !important; font-size: 0 !important; opacity: 0.9; }
     .tome .wax-seal::after { content: '✦'; position: absolute; top: 0.05rem; right: 0.12rem; font-size: 0.45rem; line-height: 1; color: #2A1A0E; }
+    /* Epítetos en fichas compactas */
+    .epi-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; }
+    .epi-chip { position: relative; padding: 0.3rem 0.75rem; border: 1px solid var(--line); font-family: 'Fondamento', cursive; font-style: italic; font-size: 0.95rem; line-height: 1.2; }
+    .epi-chip:hover { border-color: var(--gold); }
+    .epi-chip.is-on { border-color: var(--gold); color: var(--gold); background: rgba(201, 162, 75, 0.1); }
+    .epi-new { margin-left: 0.35rem; font-family: 'EB Garamond', Georgia, serif; font-style: normal; font-size: 0.68rem; color: var(--gold); }
     /* Duelos */
     .duel-face { display: inline-flex; flex: none; border: 1px solid rgba(201, 162, 75, 0.5); box-shadow: 0 0 0 2px var(--cell); }
     .duel-ranks { display: flex; justify-content: center; flex-wrap: wrap; gap: 1rem 1.4rem; }
@@ -4378,7 +4392,7 @@
           ${slotPanel()}
         </div>`;
       const epi = epiReady ? `<div class="${box}">${epithetChooser().replace('<div class="rule mt-6">', '<div class="rule">')}</div>` : '';
-      panel.innerHTML = hero + attrsBlock() + bookBlock() + epi + frameChooser() + classChooser() + achievementsLegend();
+      panel.innerHTML = hero + epi + attrsBlock() + bookBlock() + frameChooser() + classChooser() + achievementsLegend();
     }
 
     function renderGuild() {
@@ -6102,11 +6116,8 @@
       return `
           <div class="rule mt-6"><span class="quote text-xs">Epíteto</span></div>
           <p class="text-sm text-paper-muted dark:text-night-muted mt-3 text-center">Se muestra junto a tu nombre: <span class="text-paper-ink dark:text-night-ink">${esc(displayName(currentUser.id))}</span>.</p>
-          ${owned.length ? `<ul class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">${owned.map(o => `<li class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
-              <span class="flex-1 min-w-0"><span class="word-title text-xl ${o.id === current ? 'text-paper-accent dark:text-night-accent' : ''}">${esc(epithetText(o.id, currentUser.id))}</span>${fresh.includes(o.id) ? ' <span class="text-xs text-paper-accent dark:text-night-accent">nuevo</span>' : ''}
-                <span class="block text-xs text-paper-muted dark:text-night-muted">${esc(o.label)}</span></span>
-              ${o.id === current ? `<button onclick="equipEpithet('')" class="${small}">Quitar</button>` : `<button onclick="equipEpithet('${esc(o.id)}')" class="${smallGold}">Llevar</button>`}
-            </li>`).join('')}</ul>` : '<p class="quote text-sm text-center mt-3">Aún no tienes ninguno.</p>'}
+          ${owned.length ? `<div class="epi-chips mt-3">${owned.map(o => `<button type="button" onclick="equipEpithet('${o.id === current ? '' : esc(o.id)}')" class="plain epi-chip${o.id === current ? ' is-on' : ''}" title="${esc(o.label)}${o.id === current ? ' · pulsa para quitarlo' : ''}" aria-pressed="${o.id === current}">${esc(epithetText(o.id, currentUser.id))}${fresh.includes(o.id) ? '<span class="epi-new">nuevo</span>' : ''}</button>`).join('')}</div>
+            <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-2">${current && owned.some(o => o.id === current) ? esc(owned.find(o => o.id === current).label) + '. Pulsa otro para cambiarlo o el mismo para quitarlo.' : 'Pulsa uno para llevarlo.'}</p>` : '<p class="quote text-sm text-center mt-3">Aún no tienes ninguno.</p>'}
           ${locked.length ? `<details class="mt-3"><summary class="cursor-pointer text-xs text-paper-muted dark:text-night-muted">Por ganar (${locked.length})</summary>
             <ul class="mt-2 space-y-1 text-sm text-paper-muted dark:text-night-muted">${locked.map(a => `<li>${esc(epithetForms(epithetById(a.epithet)))}: ${esc(a.desc.charAt(0).toLowerCase() + a.desc.slice(1))}.</li>`).join('')}
               <li>Y otros que solo salen en los cofres de prestigio.</li></ul></details>` : ''}`;
