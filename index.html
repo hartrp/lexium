@@ -577,6 +577,17 @@
     .tome-end { margin-top: auto; padding-top: 0.8rem; text-align: center; }
     .tome-end .tome-index-l { margin-top: 0.7rem; }
     .tome-left, .tome-right { overflow-y: auto !important; scrollbar-width: thin; }
+    /* Libro: dorado plano de Lexium, sin degradados ni azules */
+    .tome-seal { border-color: #C9A24B !important; color: var(--ink) !important; background: transparent !important; box-shadow: none !important; }
+    .tome-seal.is-done { background: rgba(201, 162, 75, 0.22) !important; }
+    .tome-seal.is-on { background: #C9A24B !important; border-color: #C9A24B !important; color: #2A1A0E !important; box-shadow: none !important; }
+    .tome .wax-seal { background: #C9A24B !important; color: #2A1A0E; box-shadow: none !important; transform: none; }
+    .tome-claim { background: #C9A24B !important; border: 1px solid #C9A24B !important; color: #2A1A0E !important; box-shadow: none !important; }
+    .tome .plate.is-sealed, .tome .plate.is-sealed.r-3 { border: 1px solid rgba(73, 53, 38, 0.55) !important; background: rgba(255, 250, 235, 0.3) !important; }
+    .tome .plate-art .gi, .tome .plate-art i { text-shadow: 0 0 1px rgba(60, 40, 10, 0.55); }
+    .frame.tome { background: #1C130C !important; border-color: #8A6A22 !important; box-shadow: inset 0 0 0 1px #000, inset 0 0 0 4px #1C130C, inset 0 0 0 5px rgba(201, 162, 75, 0.35) !important; }
+    :root:not(.dark) .frame.tome { background: #3A2A1A !important; }
+    .frame.tome > .sec-head { color: #C9A24B !important; }
     /* Duelos */
     .duel-face { display: inline-flex; flex: none; border: 1px solid rgba(201, 162, 75, 0.5); box-shadow: 0 0 0 2px var(--cell); }
     .duel-ranks { display: flex; justify-content: center; flex-wrap: wrap; gap: 1rem 1.4rem; }
@@ -4090,8 +4101,8 @@
       const plate = id => {
         const it = itemsById[id], col = (RARITY[it.rarity] || RARITY['común']).color, at = sealed.get(id), tier = RARITY_ORDER.indexOf(it.rarity);
         return at ? `<div class="plate is-sealed r-${tier}" style="--r:${col}" title="${esc(it.name + ': ' + effectText(it))}">
-            <div class="plate-art">${art(it.image, it.icon, 'w-10 h-10', 'text-4xl', col)}</div>
-            <p class="plate-name">${esc(it.name)}</p><p class="plate-note">sellado el ${esc(day(at))}</p>
+            <div class="plate-art">${art(it.image, it.icon, 'w-10 h-10', 'text-4xl', '#C9A24B')}</div>
+            <p class="plate-name">${esc(it.name)}</p><p class="plate-note">${esc(it.rarity)} · sellado el ${esc(day(at))}</p>
             <span class="wax-seal" title="Sellado" aria-hidden="true">✦</span></div>`
           : `<div class="plate is-missing" title="Aún sin sellar (${esc(it.rarity)})">
             <div class="plate-art"><span class="plate-ghost">${art(it.image, it.icon, 'w-10 h-10', 'text-4xl', '#5A4A30')}</span></div>
