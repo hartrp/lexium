@@ -172,7 +172,7 @@
 
     /* Impresión o PDF: solo las fichas del grimorio, en tinta sobre blanco */
     @media print {
-      header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-character, #view-bag, #view-guild, #view-dm, #dmBossModal, #dmItemModal, #lootModal, #tradeModal, #helpModal, #welcomeModal, #notifModal, .no-print, .ribbon-wrap { display: none !important; }
+      header, #ranksPanel, #dungeonStrip, #dailyPanel, #toast, #authView, #addModal, #settingsModal, #tonesModal, #view-reverse, #view-review, #view-character, #view-bag, #view-guild, #view-dm, #dmBossModal, #dmItemModal, #lootModal, #tradeModal, #helpModal, #welcomeModal, #notifModal, #newsModal, .no-print, .ribbon-wrap { display: none !important; }
       html { font-size: 12px; }
       body::before { display: none !important; }
       body, #view-glossary article { background: #fff !important; background-image: none !important; color: #000 !important; }
@@ -234,6 +234,14 @@
     .coll-item { width: 3rem; height: 3rem; display: flex; align-items: center; justify-content: center; border: 1px solid; background: var(--deep); }
     .coll-item.is-missing { border-color: var(--line) !important; }
     .coll-item.is-missing > * { filter: brightness(0); opacity: 0.45; }
+    /* Grimorio: el propio y el del gremio, como dos pestañas de libro */
+    .grim-tabs { display: flex; gap: 1.5rem; border-bottom: 1px solid var(--line); }
+    .grim-tab { background: transparent; padding: 0.25rem 0 0.5rem; margin-bottom: -1px; border-bottom: 2px solid transparent; opacity: 0.6; display: inline-flex; align-items: baseline; gap: 0.4rem; }
+    .grim-tab:hover { opacity: 0.85; }
+    .grim-tab.is-on { opacity: 1; border-bottom-color: var(--gold); }
+    .grim-new { font-size: 0.7rem; font-style: italic; color: var(--gold); }
+    .grim-head { display: flex; align-items: baseline; gap: 0.6rem; padding-top: 0.75rem; border-bottom: 1px solid var(--line); padding-bottom: 0.3rem; }
+    .grim-head .quote { font-size: 1.05rem; }
     /* Marcos especiales del retrato: sustituyen al marco de nivel y a su color */
     .rank-icon.sf::after { content: ''; position: absolute; inset: -9%; border-radius: 9999px; pointer-events: none; z-index: 1; }
     .rank-icon.sf-escarcha { border: 3px solid #CFE8F5; color: #A9D3EC; box-shadow: 0 0 0 2px rgba(207, 232, 245, 0.35), 0 0 16px rgba(150, 205, 240, 0.55); }
@@ -420,6 +428,7 @@
       <div id="ranksPanel" class="grid grid-cols-3 gap-2 sm:gap-3"></div>
       <div id="dungeonStrip"></div>
       <div id="dailyPanel" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      <div id="grimTabs" class="no-print"></div>
       <div class="no-print grid grid-cols-2 sm:flex sm:flex-row sm:flex-wrap gap-2 sm:gap-3">
         <div class="relative col-span-2 flex-1 sm:basis-full lg:basis-0 lg:min-w-[16rem]">
           <input type="text" id="glossarySearch" oninput="renderGlossary()" placeholder="Busca por palabra culta o por idea llana (ej: 'oscuro', 'triste', 'atardecer')..." class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm focus:outline-none focus:ring-2 focus:ring-paper-ink/20 dark:focus:ring-night-ink/20" />
@@ -781,6 +790,17 @@
     </div>
   </div>
 
+  <div id="newsModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4" onclick="if(event.target===this)closeNews()">
+    <div class="bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border rounded-3xl max-w-lg w-full p-6 shadow-xl max-h-[88vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <h3 class="title-outline text-3xl">Mientras no estabas</h3>
+        <button onclick="closeNews()" class="text-paper-muted hover:text-paper-ink text-xl">✕</button>
+      </div>
+      <div id="newsBody" class="mt-2"></div>
+      <div class="flex justify-end mt-4"><button onclick="closeNews()" class="px-4 py-2 rounded-xl text-xs border border-paper-border dark:border-night-border">Entendido</button></div>
+    </div>
+  </div>
+
   <div id="notifModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4" onclick="if(event.target===this)closeNotifs()">
     <div class="bg-paper-light dark:bg-night-bg border border-paper-border dark:border-night-border rounded-3xl max-w-lg w-full p-6 shadow-xl max-h-[88vh] overflow-y-auto">
       <div class="flex items-center justify-between">
@@ -1121,6 +1141,10 @@
     let framesReady = false;  // true cuando la base de datos ya guarda marcos
     let SEASONS = [];         // temporadas (se recalculan en refreshGuild)
     let dmSeasonDraft = null; // temporadas en edición
+    let grimView = (() => { try { return localStorage.getItem('lexium-grim-view') === 'guild' ? 'guild' : 'mine'; } catch (e) { return 'mine'; } })();
+    let guildNewSince = null; // desde cuándo se marcan como nuevas las palabras del gremio en esta visita
+    let currentTab = 'glossary';
+    let lastLoad = 0;
     let contentReady = false; // true cuando la base de datos ya tiene las tablas de jefes y objetos
     let contentFromDb = false; // true cuando los jefes que se muestran vienen de la base de datos
     let saves = [];          // palabras ajenas guardadas en el grimorio de cada persona: { word_id, user_id, is_favorite, is_used }
@@ -1374,6 +1398,7 @@
     // ---------- CARGA DE DATOS ----------
     async function reloadFromCloud(notify = false) {
       if (!currentUser) return;
+      lastLoad = Date.now();
       const [pRes, wRes, tRes, rRes, lRes, dRes, sRes, bRes, iRes, uiRes, ehRes, glRes, coRes, cuRes, cgRes, duRes, pkRes, trRes, cfRes, aeRes, wsRes, logRes, atRes, epRes, clRes, frRes] = await Promise.all([
         sb.from('profiles').select('*'),
         sb.from('words').select('*').order('created_at', { ascending: false }),
@@ -1468,6 +1493,7 @@
       updateStatus();
       applyAIAccess();
       if (notify) showToast('Grimorio actualizado');
+      checkNews();
     }
 
     // ---------- TEMA Y PESTAÑAS ----------
@@ -1478,6 +1504,7 @@
     }
 
     function switchTab(tab) {
+      currentTab = tab;
       ['glossary', 'reverse', 'review', 'character', 'bag', 'guild', 'dm'].forEach(t => {
         if (t === 'dm') document.getElementById('btnDM').classList.toggle('hidden', !isDM());
         if (t === 'dm' && !isDM()) { document.getElementById('view-dm').classList.add('hidden'); document.getElementById('tab-dm').className = 'hidden'; return; }
@@ -1568,7 +1595,8 @@
     // Vida: tres corazones; se pierde uno por cada decana (10 días) sin actividad. Empieza a contar en esta fecha.
     const LIFE = { start: '2026-11-16T00:00:00', days: 10, hearts: 3 };
     // Duelos: palabras por duelo y prestigio que dan; cada tanto prestigio, un cofre de prestigio
-    const DUEL = { words: 10, win: 3, draw: 2, lose: 1, chestEvery: 10 };
+    // Duelos: quien reta pone un bote y quien acepta lo iguala al jugar; quien gana se lo lleva entero
+    const DUEL = { words: 10, win: 3, draw: 2, lose: 1, chestEvery: 10, maxStake: 200, expireDays: 7 };
     // Clasificación semanal (de lunes a domingo): premio en oro desde la semana indicada
     const WEEK = { start: '2026-11-16', gold: 50 };
 
@@ -1600,7 +1628,8 @@
         rf('LIFE.hearts', 'Corazones', { min: 1, max: 6 }), rf('LIFE.days', 'Días sin actividad para perder uno', { min: 1 }) ] },
       { title: 'Duelos y prestigio', fields: [
         rf('DUEL.words', 'Palabras por duelo', { min: 1, max: 30 }), rf('DUEL.win', 'Prestigio por ganar'), rf('DUEL.draw', 'Prestigio por empatar'), rf('DUEL.lose', 'Prestigio por perder'),
-        rf('DUEL.chestEvery', 'Prestigio para cada cofre de prestigio', { min: 1 }) ] },
+        rf('DUEL.chestEvery', 'Prestigio para cada cofre de prestigio', { min: 1 }),
+        rf('DUEL.maxStake', 'Apuesta máxima de un duelo (oro)', { min: 0 }), rf('DUEL.expireDays', 'Días para aceptar un duelo antes de que caduque', { min: 1 }) ] },
       { title: 'Cofres', note: 'Las probabilidades son pesos: 60, 30, 9 y 1 equivalen a 60 %, 30 %, 9 % y 1 %.', fields:
         ['level', 'boss', 'prestige', 'season'].flatMap(t => [
           ...['común', 'raro', 'épico', 'legendario'].map(r => rf(`CHESTS.${t}.weights.${r}`, `${CHESTS[t].label}: peso de ${r}`)),
@@ -2074,7 +2103,7 @@
       const me = currentUser ? guild[currentUser.id] : null;
       if (!me) return { bag: 0, guild: 0, attrs: 0, train: 0, epithets: 0, advent: 0 };
       const offers = trades.filter(t => t.to_id === currentUser.id && tradeAlive(t)).length;
-      const myDuels = duels.filter(d => !d.declined && ((d.challenger_id === currentUser.id && !d.challenger_done_at) || (d.opponent_id === currentUser.id && !d.opponent_done_at))).length;
+      const myDuels = duels.filter(d => duelResult(d) === 'pending' && ((d.challenger_id === currentUser.id && !d.challenger_done_at) || (d.opponent_id === currentUser.id && !d.opponent_done_at))).length;
       const epis = newEpithets().length;
       const advent = adventPending(currentUser.id);
       return { advent, epithets: epis, bag: me.chests.length + offers, guild: myDuels, attrs: attrsReady && me.attrBudget > me.attrSpent ? 1 : 0,
@@ -2102,6 +2131,7 @@
         c.advent ? row('present', c.advent === 1 ? 'Tienes una casilla del calendario de adviento por abrir.' : `Tienes ${c.advent} casillas del calendario de adviento por abrir.`, 'guild', 'Ir al gremio') : '',
         c.chests ? row('locked-chest', c.chests === 1 ? 'Tienes un cofre por abrir.' : `Tienes ${c.chests} cofres por abrir.`, 'bag', 'Ir al zurrón') : '',
         c.offers ? row('swap-bag', c.offers === 1 ? 'Te han hecho una oferta de intercambio.' : `Te han hecho ${c.offers} ofertas de intercambio.`, 'bag', 'Ir al zurrón') : '',
+        newGuildWords().length ? row('quill-ink', newGuildWords().length === 1 ? 'Hay una palabra nueva en el grimorio del gremio.' : `Hay ${newGuildWords().length} palabras nuevas en el grimorio del gremio.`, 'glossary', 'Verlas') : '',
         c.duels ? row('sword-clash', c.duels === 1 ? 'Tienes un duelo por jugar.' : `Tienes ${c.duels} duelos por jugar.`, 'guild', 'Ir al gremio') : '',
         c.attrs ? row('biceps', left === 1 ? 'Te queda un punto de atributo por repartir.' : `Te quedan ${left} puntos de atributo por repartir.`, 'character', 'Ir a tu personaje') : '',
         c.train ? row('target-dummy', me.trainToday === 0 ? 'Hoy todavía no has entrenado: el primero es gratis.' : 'Aún te queda un entrenamiento gratis hoy.', 'review', 'Entrenar') : ''
@@ -2121,7 +2151,7 @@
       document.getElementById('notifModal').classList.add('hidden');
       document.getElementById('notifModal').classList.remove('flex');
     }
-    function notifGo(tab) { closeNotifs(); switchTab(tab); }
+    function notifGo(tab) { closeNotifs(); if (tab === 'glossary') { setGrimView('guild'); } switchTab(tab); }
     async function notifRefresh() {
       await reloadFromCloud(true);
       document.getElementById('notifBody').innerHTML = notifContent();
@@ -2396,7 +2426,7 @@
 
       // Oro: lo ganado sale de la actividad; lo gastado y lo vendido, del libro de cuentas
       goldEarned += used * GOLD.used + Object.keys(perDay).length * GOLD.day + defeated.reduce((sum, b) => sum + b.reward, 0);
-      stats.gold = Math.max(0, Math.round(goldEarned) + ledger.filter(l => l.user_id === userId).reduce((sum, l) => sum + (Number(l.amount) || 0), 0));
+      stats.gold = Math.max(0, Math.round(goldEarned) + ledger.filter(l => l.user_id === userId).reduce((sum, l) => sum + (Number(l.amount) || 0), 0) + duelGold(userId));
       // Experiencia por semanas, para la clasificación
       stats.weekly = {};
       events.forEach(e => {
@@ -2781,6 +2811,119 @@
         </div>`;
     }
 
+
+
+    // ---------- NOVEDADES ----------
+    // Al cargar (y al volver a la app) se comparan los datos con lo que ya se ha visto en este dispositivo
+    // y se muestra una ventana con lo nuevo: duelos, jefes caídos, misión o logros, y palabras del gremio.
+    function newsKey() { return 'lexium-news-' + currentUser.id; }
+    function newsSnapshot() {
+      const me = guild[currentUser.id];
+      const keys = new Set();
+      dungeonRows.forEach(r => keys.add('boss:' + r.boss + ':' + r.defeated_at));
+      SEASONS.forEach(se => { if (seasonState(se).defeated) keys.add('season:' + se.id); });
+      duels.forEach(d => { keys.add('duel:' + d.id); if (!['pending', 'declined', 'expired'].includes(duelResult(d))) keys.add('duelend:' + d.id); });
+      const now = weekKey(Date.now()), prev = weekKey(Date.now() - 7 * 86400000);
+      [prev, now].forEach(w => { const m = missionFor(w); if (m && missionProgress(m).done) keys.add('mission:' + w); });
+      if (me) ACHIEVEMENTS.forEach((a, i) => { const rank = me.achRanks ? me.achRanks[i] : (me.achievements[i] ? 1 : 0); for (let k = 1; k <= rank; k++) keys.add('ach:' + a.name + ':' + k); });
+      return keys;
+    }
+    function readNewsSeen() { try { const v = JSON.parse(localStorage.getItem(newsKey())); return v && Array.isArray(v.keys) ? v : null; } catch (e) { return null; } }
+    function writeNewsSeen(keys, wordsAt) { try { localStorage.setItem(newsKey(), JSON.stringify({ keys: [...keys], wordsAt })); } catch (e) {} }
+    function checkNews() {
+      if (!currentUser || !guild[currentUser.id] || reviewActive) return;
+      const now = newsSnapshot(), seen = readNewsSeen();
+      if (!seen) { writeNewsSeen(now, latestWordAt()); if (!wordsSeenAt()) markWordsSeen(); return; } // primera vez: nada es nuevo
+      const old = new Set(seen.keys), me = currentUser.id, items = [];
+      const fresh = [...now].filter(k => !old.has(k));
+      fresh.filter(k => k.startsWith('duel:')).forEach(k => {
+        const d = duels.find(x => x.id === k.slice(5));
+        if (!d || d.opponent_id !== me || duelResult(d) !== 'pending') return;
+        items.push({ icon: 'sword-clash', text: `${authorName(d.challenger_id)} te ha retado a un duelo${Number(d.stake) > 0 ? ` con un bote de ${d.stake} de oro: para aceptar lo igualas al jugar` : ', sin apuesta'}.`,
+          buttons: [[`startDuel('${esc(d.id)}')`, 'Jugar ahora', true], [`newsGo('guild')`, 'Verlo en el gremio']] });
+      });
+      fresh.filter(k => k.startsWith('duelend:')).forEach(k => {
+        const d = duels.find(x => x.id === k.slice(8));
+        if (!d || (d.challenger_id !== me && d.opponent_id !== me)) return;
+        const r = duelResult(d), rival = d.challenger_id === me ? d.opponent_id : d.challenger_id, pot = Number(d.stake) || 0;
+        if (d[(d.challenger_id === me ? 'challenger' : 'opponent') + '_done_at'] > d[(d.challenger_id === me ? 'opponent' : 'challenger') + '_done_at']) return; // lo terminé yo: ya lo vi
+        items.push({ icon: 'crossed-swords', text: r === 'draw' ? `Duelo con ${authorName(rival)}: empate${pot ? '; recuperas tu oro' : ''}.`
+          : r === me ? `Has ganado el duelo contra ${authorName(rival)}${pot ? ` y te llevas ${pot * 2} de oro` : ''}.` : `${authorName(rival)} te ha ganado el duelo${pot ? ` y se lleva el bote de ${pot * 2}` : ''}.`, buttons: [] });
+      });
+      fresh.filter(k => k.startsWith('boss:')).forEach(k => {
+        const r = dungeonRows.find(x => 'boss:' + x.boss + ':' + x.defeated_at === k), b = r ? bossAt(r.boss) : null;
+        if (!b) return;
+        const chest = guild[me].chests.some(c => c.tier === 'boss' || c.loot);
+        items.push({ icon: 'crossed-swords', big: true, text: `¡Ha caído ${b.name}!${r.defeated_by ? ' El golpe de gracia fue ' + (r.defeated_by === me ? 'tuyo' : 'de ' + authorName(r.defeated_by)) + '.' : ''}${chest ? ' Tienes su cofre en el zurrón.' : ''}`,
+          buttons: chest ? [[`newsGo('bag')`, 'Ir al zurrón', true]] : [[`newsGo('guild')`, 'Ver la mazmorra']] });
+      });
+      fresh.filter(k => k.startsWith('season:')).forEach(k => {
+        const se = SEASONS.find(s => s.id === k.slice(7));
+        if (!se || !se.boss) return;
+        const helped = guild[me].seasonDamage[se.id] > 0;
+        items.push({ icon: se.boss.icon, big: true, text: `¡Ha caído ${se.boss.name}!${helped ? ' Por ayudar tienes un cofre de temporada' + (se.boss.frame ? ` y el marco «${FRAMES[se.boss.frame].name}»` : '') + '.' : ''}`,
+          buttons: helped ? [[`newsGo('bag')`, 'Ir al zurrón', true]] : [] });
+      });
+      fresh.filter(k => k.startsWith('mission:')).forEach(k => {
+        const m = missionFor(k.slice(8));
+        if (!m) return;
+        const p = missionProgress(m), helped = p.per[me] > 0;
+        items.push({ icon: m.icon, text: `Misión de la semana cumplida: «${m.name}».${helped ? ' Tienes un cofre en el zurrón.' : ' Esta vez no aportaste, así que no hay cofre para ti.'}`,
+          buttons: helped ? [[`newsGo('bag')`, 'Ir al zurrón', true]] : [] });
+      });
+      fresh.filter(k => k.startsWith('ach:')).forEach(k => {
+        const [, name, rank] = k.split(':');
+        const a = ACHIEVEMENTS.find(x => x.name === name);
+        if (!a) return;
+        items.push({ icon: a.icon, text: `Logro${Number(rank) > 1 ? ' (' + (Number(rank) === 2 ? 'plata' : 'oro') + ')' : ''}: «${name}».`, buttons: [[`newsGo('character')`, 'Verlo en Personaje']] });
+      });
+      newEpithets().forEach(e => {
+        const k = 'epi:' + e.id;
+        now.add(k);
+        if (!old.has(k)) items.push({ icon: 'laurel-crown', text: `Epíteto nuevo: «${epithetText(e.id, me)}».`, buttons: [[`newsGo('character')`, 'Elegirlo']] });
+      });
+      old.forEach(k => { if (k.startsWith('epi:')) now.add(k); });
+      const words = newGuildWords(seen.wordsAt || 0);
+      if (words.length) {
+        const by = {};
+        words.forEach(w => { (by[w.author_id] = by[w.author_id] || []).push(w.word); });
+        const list = Object.entries(by).map(([id, ws]) => `${authorName(id)} ha apuntado ${ws.length === 1 ? '«' + ws[0] + '»' : ws.length + ' palabras: ' + ws.slice(0, 4).map(x => '«' + x + '»').join(', ') + (ws.length > 4 ? '…' : '')}`);
+        items.push({ icon: 'quill-ink', text: list.join('. ') + '.', buttons: [[`newsGo('words')`, 'Verlas en el grimorio', true]] });
+      }
+      writeNewsSeen(now, latestWordAt());
+      if (!items.length) return;
+      const small = 'px-3 py-1.5 rounded-xl text-xs border border-paper-border dark:border-night-border';
+      const gold = 'px-3 py-1.5 rounded-xl text-xs bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg';
+      const body = document.getElementById('newsBody'), modal = document.getElementById('newsModal');
+      if (!body || !modal) return;
+      body.innerHTML = `<ul class="divide-y divide-paper-border/60 dark:divide-night-border/60">${items.map(it => `
+          <li class="py-3 flex gap-3">
+            <i class="gi gi-${esc(it.icon)} ${it.big ? 'text-3xl' : 'text-xl'} text-paper-accent dark:text-night-accent shrink-0"></i>
+            <div class="flex-1 min-w-0">
+              <p class="${it.big ? 'word-title text-2xl leading-tight' : 'text-sm leading-relaxed'}">${esc(it.text)}</p>
+              ${it.buttons.length ? `<div class="flex flex-wrap gap-2 mt-2">${it.buttons.map(([call, label, main]) => `<button onclick="closeNews(); ${call}" class="${main ? gold : small}">${esc(label)}</button>`).join('')}</div>` : ''}
+            </div>
+          </li>`).join('')}</ul>`;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+    function closeNews() {
+      const modal = document.getElementById('newsModal');
+      if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    }
+    function newsGo(where) {
+      if (where === 'words') { setGrimView('guild'); switchTab('glossary'); return; }
+      switchTab(where);
+    }
+    // Al volver a la app (o cada pocos minutos con ella abierta) se recargan los datos para ver lo nuevo,
+    // salvo durante un entrenamiento o en el panel de máster, para no perder lo que se esté haciendo.
+    function quietReload(minAge) {
+      if (!currentUser || reviewActive || currentTab === 'dm' || Date.now() - lastLoad < minAge) return;
+      if (typeof document !== 'undefined' && document.visibilityState && document.visibilityState !== 'visible') return;
+      reloadFromCloud(false);
+    }
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') document.addEventListener('visibilitychange', () => quietReload(60000));
+    if (typeof setInterval === 'function') setInterval(() => quietReload(180000), 60000);
 
     // ---------- MARCOS ESPECIALES ----------
     // El aspecto de cada marco está en el CSS (.sf-<id>). Cómo se gana sale de dónde lo haya puesto el máster.
@@ -3650,10 +3793,14 @@
         .filter(p => !currentUser || p.id !== currentUser.id)
         .sort((a, b) => a.display_name.localeCompare(b.display_name, 'es'));
       select.innerHTML =
-        '<option value="all">Todos los autores</option>' +
-        '<option value="mine">Mi grimorio (mías y guardadas)</option>' +
+        '<option value="all">De todo el gremio</option>' +
+        (currentUser ? '<option value="me">Las que apunté yo</option>' : '') +
         others.map(p => `<option value="${esc(p.id)}">De ${esc(p.display_name)}</option>`).join('');
       select.value = [...select.options].some(o => o.value === previous) ? previous : 'all';
+      // Quién la apuntó solo tiene sentido en el grimorio del gremio; las marcas, en el propio
+      select.classList.toggle('hidden', grimView === 'mine');
+      const mark = document.getElementById('glossaryMark');
+      if (mark) { if (grimView !== 'mine') mark.value = 'all'; mark.classList.toggle('hidden', grimView !== 'mine'); }
     }
 
     function renderGlossary() {
@@ -3672,9 +3819,12 @@
       const author = document.getElementById('glossaryAuthorFilter')?.value || 'all';
       const mark = document.getElementById('glossaryMark')?.value || 'all';
 
+      if (grimView === 'guild' && guildNewSince === null) { guildNewSince = wordsSeenAt(); markWordsSeen(); }
+      renderGrimTabs();
       const byAuthor = glossary.filter(item => {
+        if (grimView === 'mine') return myMarks(item).inMine;
         if (author === 'all') return true;
-        if (author === 'mine') return myMarks(item).inMine;
+        if (author === 'me') return currentUser && item.author_id === currentUser.id;
         return item.author_id === author;
       });
       document.getElementById('glossaryCount').textContent = byAuthor.length;
@@ -3686,7 +3836,7 @@
           norm(item.plain).includes(query) ||
           norm(item.definition).includes(query);
         const marks = myMarks(item);
-        const matchesMark = mark === 'all' ||
+        const matchesMark = mark === 'all' || grimView !== 'mine' ||
           (marks.inMine && (mark === 'fav' ? marks.fav : mark === 'used' ? marks.used : !marks.used));
         return matchesTone && matchesQuery && matchesMark;
       });
@@ -3695,7 +3845,9 @@
       if (filtered.length === 0) {
         const empty = glossary.length === 0
           ? 'El grimorio está vacío. Apunta tu primera palabra.'
-          : 'No se encontraron palabras con ese filtro.';
+          : byAuthor.length === 0 && grimView === 'mine'
+            ? 'Tu grimorio está vacío. Apunta tu primera palabra o recoge alguna del grimorio del gremio.'
+            : 'No se encontraron palabras con esa búsqueda.';
         grid.innerHTML = `<div class="col-span-full text-center py-12 text-paper-muted dark:text-night-muted text-sm">${empty}</div>`;
         return;
       }
@@ -3714,7 +3866,7 @@
       else if (sort === 'oldest') sorted.sort(byDate);
       else sorted.sort((a, b) => byDate(b, a));
 
-      grid.innerHTML = sorted.map(item => {
+      const wordCard = item => {
         const mine = currentUser && item.author_id === currentUser.id;
         const name = authorName(item.author_id);
         const marks = myMarks(item);
@@ -3752,6 +3904,9 @@
               ${toneBadges(item)}
               <span class="flex items-center gap-3">${likeBtn}${action}${modTools}</span>
             </div>
+            ${mine ? `<p class="mt-2 text-[11px] italic text-paper-accent dark:text-night-accent">De tu pluma</p>`
+              : saved ? `<p class="mt-2 text-[11px] italic text-paper-muted dark:text-night-muted"><i class="gi gi-book-cover"></i> Recogida de ${esc(name)}</p>`
+              : grimView === 'guild' && guildNewSince && Date.parse(item.created_at) > guildNewSince ? `<p class="mt-2 text-[11px] italic text-paper-accent dark:text-night-accent">Nueva desde tu última visita</p>` : ''}
             <div class="mt-2 flex items-baseline gap-2">
               <h3 class="word-title text-3xl">${fancyWord(item.word)}</h3>
               <span class="text-xs italic text-paper-muted dark:text-night-muted">${esc(item.category)}</span>
@@ -3772,7 +3927,44 @@
             </div>
           </div>
         </article>`;
-      }).join('');
+      };
+      grid.innerHTML = grimSections(sorted).map(s => (s.title ? `<div class="col-span-full grim-head"><span class="quote">${esc(s.title)}</span><span class="text-xs text-paper-muted dark:text-night-muted">${s.items.length}</span></div>` : '') + s.items.map(wordCard).join('')).join('');
+    }
+
+    // Apartados del grimorio: en el propio, lo escrito y lo recogido; en el del gremio, primero lo nuevo
+    function grimSections(sorted) {
+      if (!currentUser) return [{ title: '', items: sorted }];
+      if (grimView === 'mine') {
+        const own = sorted.filter(w => w.author_id === currentUser.id), got = sorted.filter(w => w.author_id !== currentUser.id);
+        return [own.length ? { title: 'Escritas por mí', items: own } : null, got.length ? { title: 'Recogidas de otras personas', items: got } : null].filter(Boolean);
+      }
+      const fresh = sorted.filter(w => w.author_id !== currentUser.id && guildNewSince && Date.parse(w.created_at) > guildNewSince);
+      if (!fresh.length) return [{ title: '', items: sorted }];
+      return [{ title: 'Nuevas desde tu última visita', items: fresh }, { title: 'Todo el gremio', items: sorted.filter(w => !fresh.includes(w)) }];
+    }
+    function wordsSeenAt() {
+      if (!currentUser) return 0;
+      try { return Number(localStorage.getItem('lexium-seen-words-' + currentUser.id)) || 0; } catch (e) { return 0; }
+    }
+    // Lo más reciente entre ahora y la última palabra (por si el reloj del servidor va por delante del dispositivo)
+    function latestWordAt() { return glossary.reduce((m, w) => Math.max(m, Date.parse(w.created_at) || 0), Date.now()); }
+    function markWordsSeen() { if (currentUser) try { localStorage.setItem('lexium-seen-words-' + currentUser.id, String(latestWordAt())); } catch (e) {} }
+    function newGuildWords(since = wordsSeenAt()) { return currentUser ? glossary.filter(w => w.author_id !== currentUser.id && Date.parse(w.created_at) > since) : []; }
+    function renderGrimTabs() {
+      const box = document.getElementById('grimTabs');
+      if (!box || !currentUser) return;
+      const mineN = glossary.filter(w => myMarks(w).inMine).length;
+      const fresh = grimView === 'guild' ? 0 : newGuildWords().length;
+      const tab = (v, label, n, extra = '') => `<button type="button" onclick="setGrimView('${v}')" class="grim-tab${grimView === v ? ' is-on' : ''}" aria-pressed="${grimView === v}">
+          <span class="word-title text-2xl">${label}</span> <span class="text-xs text-paper-muted dark:text-night-muted">${n}</span>${extra}</button>`;
+      box.innerHTML = `<div class="grim-tabs">${tab('mine', 'Mi grimorio', mineN)}${tab('guild', 'Del gremio', glossary.length, fresh ? `<span class="grim-new">${fresh === 1 ? '1 nueva' : fresh + ' nuevas'}</span>` : '')}</div>`;
+    }
+    function setGrimView(v) {
+      if (v !== 'mine' && v !== 'guild') return;
+      if (v === 'guild' && grimView !== 'guild') { guildNewSince = wordsSeenAt(); markWordsSeen(); }
+      grimView = v;
+      try { localStorage.setItem('lexium-grim-view', v); } catch (e) {}
+      renderGlossary();
     }
 
     async function deleteGlossaryWord(id) {
@@ -4474,7 +4666,7 @@
           `Tienes ${LIFE.hearts} corazones. Cada ${LIFE.days} días sin apuntar, guardar ni entrenar pierdes uno; un entrenamiento devuelve uno y una poción te cubre una de esas rachas.`,
           'Sin corazones quedas en reposo: conservas todo, pero lo que hagas no daña al jefe ni cuenta en la clasificación hasta que completes un entrenamiento o alguien te dé una poción.' ]),
         section('Duelos, prestigio y clasificación', [
-          `Con un pergamino de duelo retas a alguien: ${DUEL.words} palabras, las mismas para las dos personas. Gana quien acierta más y, si hay empate, quien tarda menos. Ganar da ${DUEL.win} de prestigio, empatar ${DUEL.draw} y perder ${DUEL.lose}; cada ${DUEL.chestEvery} de prestigio hay un cofre de prestigio, que se abre sin ganzúa.`,
+          `Desde el Gremio retas a alguien y eliges cuánto oro apostar (hasta ${DUEL.maxStake}, o nada). Quien recibe el reto iguala la apuesta al jugar, o lo rechaza sin perder nada. Son ${DUEL.words} palabras, las mismas para las dos personas: gana quien acierta más y, si hay empate, quien tarda menos. Quien gana se lleva el bote; en empate cada parte recupera lo suyo, y si no se juega en ${DUEL.expireDays} días el duelo caduca y se devuelve el oro. Ganar da además ${DUEL.win} de prestigio, empatar ${DUEL.draw} y perder ${DUEL.lose}; cada ${DUEL.chestEvery} de prestigio hay un cofre de prestigio, que se abre sin ganzúa.`,
           `Cada semana, de lunes a domingo, quien más experiencia hace gana ${WEEK.gold} de oro.` ])
       ].join('');
     }
@@ -4492,18 +4684,32 @@
     // Resultado de un duelo: 'declined', 'pending', 'draw' o el id de quien gana (más aciertos; si empatan, menos tiempo)
     function duelResult(d) {
       if (d.declined) return 'declined';
-      if (!d.challenger_done_at || !d.opponent_done_at) return 'pending';
+      if (!d.challenger_done_at || !d.opponent_done_at) return Date.now() - (Date.parse(d.created_at) || Date.now()) > DUEL.expireDays * 86400000 ? 'expired' : 'pending';
       if (d.challenger_hits !== d.opponent_hits) return d.challenger_hits > d.opponent_hits ? d.challenger_id : d.opponent_id;
       if (d.challenger_ms !== d.opponent_ms) return d.challenger_ms < d.opponent_ms ? d.challenger_id : d.opponent_id;
       return 'draw';
     }
 
+    // Oro de las apuestas: quien reta lo pone al retar y quien acepta, al jugar. Si se rechaza o caduca, se devuelve;
+    // en empate, cada parte recupera lo suyo; quien gana se lleva el bote entero.
+    function duelGold(userId) {
+      let gold = 0;
+      duels.forEach(d => {
+        const stake = Math.max(0, Number(d.stake) || 0);
+        const side = d.challenger_id === userId ? 'challenger' : d.opponent_id === userId ? 'opponent' : null;
+        if (!stake || !side) return;
+        const r = duelResult(d);
+        if (r === 'declined' || r === 'expired' || r === 'draw' || (side === 'opponent' && !d.opponent_done_at)) return;
+        gold += r === 'pending' ? -stake : r === userId ? stake : -stake;
+      });
+      return gold;
+    }
     function duelStats(userId) {
       let prestige = 0, duelsWon = 0, duelsPlayed = 0;
       duels.forEach(d => {
         if (d.challenger_id !== userId && d.opponent_id !== userId) return;
         const r = duelResult(d);
-        if (r === 'pending' || r === 'declined') return;
+        if (r === 'pending' || r === 'declined' || r === 'expired') return;
         duelsPlayed++;
         if (r === 'draw') prestige += DUEL.draw;
         else if (r === userId) { duelsWon++; prestige += DUEL.win; }
@@ -4522,17 +4728,18 @@
         const side = d.challenger_id === me ? 'challenger' : 'opponent';
         const rival = side === 'challenger' ? d.opponent_id : d.challenger_id;
         if (d[side + '_done_at']) return `<li class="flex items-center gap-3 py-2.5"><i class="gi gi-hourglass text-xl text-paper-muted dark:text-night-muted"></i>
-          <span class="flex-1 min-w-0">Esperando a ${esc(authorName(rival))} <span class="text-xs text-paper-muted dark:text-night-muted">· tú: ${d[side + '_hits']} de ${(d.word_ids || []).length}</span></span></li>`;
+          <span class="flex-1 min-w-0">Esperando a ${esc(authorName(rival))} <span class="text-xs text-paper-muted dark:text-night-muted">· tú: ${d[side + '_hits']} de ${(d.word_ids || []).length}${Number(d.stake) > 0 ? ` · bote de ${d.stake}` : ''} · caduca en ${Math.max(1, Math.ceil((Date.parse(d.created_at) + DUEL.expireDays * 86400000 - Date.now()) / 86400000))} días</span></span></li>`;
+        const pot = Number(d.stake) > 0 ? ` <span class="text-xs text-paper-muted dark:text-night-muted">· bote de ${d.stake} de oro${side === 'opponent' ? ' (lo igualas al jugar)' : ''}</span>` : ' <span class="text-xs text-paper-muted dark:text-night-muted">· amistoso</span>';
         return `<li class="flex flex-wrap items-center gap-3 py-2.5"><i class="gi gi-tied-scroll text-xl text-paper-accent dark:text-night-accent"></i>
-          <span class="flex-1 min-w-0">${side === 'opponent' ? esc(authorName(rival)) + ' te ha retado' : 'Te falta jugar tu duelo contra ' + esc(authorName(rival))}</span>
+          <span class="flex-1 min-w-0">${side === 'opponent' ? esc(authorName(rival)) + ' te ha retado' : 'Te falta jugar tu duelo contra ' + esc(authorName(rival))}${pot}</span>
           <button onclick="startDuel('${esc(d.id)}')" class="${smallGold}">Jugar</button>
           ${side === 'opponent' ? `<button onclick="declineDuel('${esc(d.id)}')" class="${small}">Rechazar</button>` : ''}</li>`;
       }).join('');
-      const done = duels.filter(d => !['pending', 'declined'].includes(duelResult(d))).slice(-5).reverse().map(d => {
+      const done = duels.filter(d => !['pending', 'declined', 'expired'].includes(duelResult(d))).slice(-5).reverse().map(d => {
         const r = duelResult(d);
         return `<li class="flex items-center gap-2 py-1.5 text-sm"><i class="gi gi-sword-clash text-paper-muted dark:text-night-muted"></i>
           <span class="flex-1 min-w-0 truncate">${esc(authorName(d.challenger_id))} ${d.challenger_hits} – ${d.opponent_hits} ${esc(authorName(d.opponent_id))}</span>
-          <span class="label-caps text-[9px] text-paper-muted dark:text-night-muted">${r === 'draw' ? 'empate' : 'gana ' + esc(authorName(r))}</span></li>`;
+          <span class="text-xs text-paper-muted dark:text-night-muted whitespace-nowrap">${r === 'draw' ? 'empate' : 'gana ' + esc(authorName(r))}${Number(d.stake) > 0 && r !== 'draw' ? ` (+${d.stake * 2} de oro)` : ''}</span></li>`;
       }).join('');
       const people = Object.values(profiles).sort((a, b) => guild[b.id].prestige - guild[a.id].prestige);
       return `
@@ -4543,9 +4750,10 @@
               <p class="word-title text-2xl">${guild[p.id].prestige}</p>
               <p class="text-xs leading-tight text-paper-muted dark:text-night-muted break-words">${esc(p.display_name)}</p></div>`).join('')}
           </div>
+          ${challengeForm()}
           ${open ? `<ul class="mt-4 divide-y divide-paper-border/60 dark:divide-night-border/60">${open}</ul>` : ''}
           ${done ? `<div class="rule mt-4"><span class="quote text-xs">Últimos duelos</span></div><ul class="mt-2">${done}</ul>` : ''}
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-3">Para retar a alguien compra un pergamino de duelo en la tienda y úsalo desde el zurrón. Son ${DUEL.words} palabras, las mismas para las dos personas: gana quien acierte más y, si empatáis, quien tarde menos. Ganar da ${DUEL.win} de prestigio, empatar ${DUEL.draw} y perder ${DUEL.lose}. Cada ${DUEL.chestEvery} de prestigio, un cofre de prestigio que se abre sin ganzúa.</p>
+          <p class="text-xs text-paper-muted dark:text-night-muted mt-3">Quien reta pone un bote de oro (o reta sin apuesta) y juega su parte al momento. Quien recibe el reto lo iguala al jugar, o lo rechaza y no pierde nada. Son ${DUEL.words} palabras, las mismas para las dos: gana quien acierte más y, si empatáis, quien tarde menos. Quien gana se lleva el bote entero; en empate, cada una recupera lo suyo. Si en ${DUEL.expireDays} días no se juega, caduca y se devuelve el oro. Además, ganar da ${DUEL.win} de prestigio, empatar ${DUEL.draw} y perder ${DUEL.lose}; cada ${DUEL.chestEvery} de prestigio, un cofre de prestigio.</p>
         </div>`;
     }
 
@@ -4579,27 +4787,47 @@
       } catch (e) { showToast(e.message); }
     }
 
-    // Gasta un pergamino para retar a alguien: se eligen las palabras y se juega la parte propia al momento
-    async function challenge(userItemId, opponentId) {
-      const u = myItems().find(x => x.id === userItemId);
-      if (!lifeGuard() || !u || itemsById[u.item_id].effect_type !== 'duel') return;
+    function challengeForm() {
+      const me = currentUser ? guild[currentUser.id] : null;
+      const others = Object.values(profiles).filter(p => currentUser && p.id !== currentUser.id).sort((a, b) => a.display_name.localeCompare(b.display_name, 'es'));
+      if (!me || !others.length) return '';
+      const cap = Math.min(DUEL.maxStake, me.gold);
+      const stakes = [...new Set([0, 10, 25, 50, 100, 200, DUEL.maxStake])].filter(v => v <= cap).sort((a, b) => a - b);
+      const field = 'px-3 py-2 rounded-xl bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border text-sm';
+      return `<div class="flex flex-wrap items-end gap-2 mt-4">
+          <div class="flex-1 min-w-[8rem]"><label for="duelRival" class="text-xs">Retar a</label><select id="duelRival" class="w-full ${field}">${others.map(p => `<option value="${esc(p.id)}">${esc(p.display_name)}</option>`).join('')}</select></div>
+          <div class="flex-1 min-w-[8rem]"><label for="duelStake" class="text-xs">Apuesta</label><select id="duelStake" class="w-full ${field}">${stakes.map(v => `<option value="${v}">${v ? v + ' de oro' : 'Sin apuesta'}</option>`).join('')}</select></div>
+          <button onclick="challengeFromForm()" class="px-4 py-2 rounded-xl text-sm bg-paper-ink text-paper-light dark:bg-night-accent dark:text-night-bg">Retar</button>
+        </div>`;
+    }
+    function challengeFromForm() {
+      const rival = document.getElementById('duelRival'), stake = document.getElementById('duelStake');
+      if (rival && rival.value) challenge(rival.value, stake ? Number(stake.value) || 0 : 0);
+    }
+    // Reta a alguien con un bote (0 = sin apuesta): se eligen las palabras y se juega la parte propia al momento
+    async function challenge(opponentId, stake = 0) {
+      if (!lifeGuard() || !currentUser) return;
       if (!profiles[opponentId] || opponentId === currentUser.id) return;
+      stake = Math.max(0, Math.round(Number(stake) || 0));
+      if (stake > DUEL.maxStake) { showToast(`La apuesta máxima es de ${DUEL.maxStake} de oro`); return; }
+      if (stake > guild[currentUser.id].gold) { showToast('No tienes tanto oro para el bote'); return; }
       const pool = glossary.filter(w => str(w.definition));
       if (pool.length < DUEL.words) { showToast(`Hacen falta al menos ${DUEL.words} palabras con definición para un duelo`); return; }
       const busy = duels.some(d => duelResult(d) === 'pending' &&
         [d.challenger_id, d.opponent_id].includes(currentUser.id) && [d.challenger_id, d.opponent_id].includes(opponentId));
       if (busy) { showToast(`Ya tienes un duelo pendiente con ${authorName(opponentId)}`); return; }
-      if (!confirm(`¿Retar a ${authorName(opponentId)}? Gastas el pergamino y juegas tu parte ahora: ${DUEL.words} palabras seguidas, con el tiempo contando.`)) return;
+      const terms = stake ? `Pones ${stake} de oro en el bote; si acepta, lo iguala y quien gane se lleva ${stake * 2}. Si lo rechaza o caduca, recuperas tu oro.` : 'Es un duelo sin apuesta: solo se juega el prestigio.';
+      if (!confirm(`¿Retar a ${authorName(opponentId)}? ${terms} Juegas tu parte ahora: ${DUEL.words} palabras seguidas, con el tiempo contando.`)) return;
       for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [pool[i], pool[j]] = [pool[j], pool[i]];
       }
       try {
-        const { data, error } = await sb.from('duels').insert({ opponent_id: opponentId, word_ids: pool.slice(0, DUEL.words).map(w => w.id) }).select().single();
-        if (error) throw new Error('No se pudo crear el duelo: ' + error.message);
+        const row = { opponent_id: opponentId, word_ids: pool.slice(0, DUEL.words).map(w => w.id) };
+        if (stake) row.stake = stake;
+        const { data, error } = await sb.from('duels').insert(row).select().single();
+        if (error) throw new Error('No se pudo crear el duelo: ' + (/stake/.test(error.message) ? 'falta ejecutar el último schema.sql en Supabase' : error.message));
         duels.push(data);
-        const used = await sb.from('user_items').delete().eq('id', u.id);
-        if (!used.error) userItems = userItems.filter(x => x.id !== u.id);
         renderGlossary();
         startDuel(data.id);
       } catch (e) { showToast(e.message); }
@@ -4609,7 +4837,12 @@
       const d = duels.find(x => x.id === duelId);
       if (!d || !currentUser || d.declined) return;
       const side = d.challenger_id === currentUser.id ? 'challenger' : d.opponent_id === currentUser.id ? 'opponent' : null;
-      if (!side || d[side + '_done_at']) return;
+      if (!side || d[side + '_done_at'] || duelResult(d) === 'expired') return;
+      const stake = Number(d.stake) || 0;
+      if (side === 'opponent' && stake) {
+        if (guild[currentUser.id].gold < stake) { showToast(`Para aceptar tienes que igualar el bote: ${stake} de oro. Si no, puedes rechazarlo sin perder nada.`); return; }
+        if (!confirm(`Al jugar igualas la apuesta: pones ${stake} de oro y quien gane se lleva ${stake * 2}. ¿Jugar ahora?`)) return;
+      }
       const byId = {};
       glossary.forEach(w => { byId[w.id] = w; });
       const deck = (Array.isArray(d.word_ids) ? d.word_ids : []).map(id => byId[id]).filter(Boolean);
@@ -4638,10 +4871,11 @@
       await saveWordResults();
       renderGlossary();
       const r = duelResult(data);
+      const pot = Number(data.stake) || 0;
       lastReviewNote = r === 'pending' ? `Ahora le toca a ${authorName(duel.rival)}.`
-        : r === 'draw' ? `Empate: +${DUEL.draw} de prestigio para cada parte.`
-        : r === currentUser.id ? `¡Has ganado el duelo! +${DUEL.win} de prestigio.`
-        : `Gana ${authorName(duel.rival)}. Te llevas +${DUEL.lose} de prestigio.`;
+        : r === 'draw' ? `Empate: +${DUEL.draw} de prestigio para cada parte${pot ? ' y cada una recupera su oro' : ''}.`
+        : r === currentUser.id ? `¡Has ganado el duelo! +${DUEL.win} de prestigio${pot ? ` y ${pot * 2} de oro` : ''}.`
+        : `Gana ${authorName(duel.rival)}${pot ? ` y se lleva el bote de ${pot * 2}` : ''}. Te llevas +${DUEL.lose} de prestigio.`;
     }
 
     function leaveDuel() {
@@ -4654,7 +4888,7 @@
     async function declineDuel(duelId) {
       const d = duels.find(x => x.id === duelId);
       if (!lifeGuard() || !d || d.opponent_id !== currentUser.id || d.opponent_done_at) return;
-      if (!confirm(`¿Rechazar el duelo de ${authorName(d.challenger_id)}? Nadie gana prestigio.`)) return;
+      if (!confirm(`¿Rechazar el duelo de ${authorName(d.challenger_id)}? Nadie gana prestigio${Number(d.stake) > 0 ? ' y recupera su apuesta' : ''}.`)) return;
       const { data, error } = await sb.from('duels').update({ declined: true }).eq('id', d.id).select().single();
       if (error) { showToast('No se pudo rechazar: ' + error.message); return; }
       duels = duels.map(x => x.id === d.id ? data : x);
@@ -4790,7 +5024,7 @@
               (it.effect_type === 'poison' ? `<button onclick="usePoison('${esc(units[0].id)}')" class="${smallGold}">Usar</button>` : '') +
               (it.effect_type === 'potion' ? (me.life.resting ? '' : `<button onclick="usePotion('${esc(units[0].id)}', '')" class="${smallGold}">Beber</button>`) +
                 others.map(p => `<button onclick="usePotion('${esc(units[0].id)}', '${esc(p.id)}')" class="${small}">Dar a ${esc(p.display_name)}</button>`).join('') : '') +
-              (it.effect_type === 'duel' ? others.map(p => `<button onclick="challenge('${esc(units[0].id)}', '${esc(p.id)}')" class="${smallGold}">Retar a ${esc(p.display_name)}</button>`).join('') : '')); }).join('')}
+              (it.effect_type === 'duel' ? `<span class="text-xs text-paper-muted dark:text-night-muted w-full">Ya no hace falta: ahora se reta desde el Gremio, apostando oro.</span><button onclick="switchTab('guild')" class="${small}">Ir al gremio</button>` : '')); }).join('')}
           </div>` : '<p class="quote text-sm text-center mt-4">No llevas nada más encima.</p>'}
         </div>`;
 
