@@ -501,7 +501,6 @@
     .ab-mod { border-color: rgba(201, 162, 75, 0.38) !important; }
     .dark .ab-mod { color: #CFC6B4; }
     .ab-plus { border-color: #C9A24B; color: #C9A24B; }
-    .tome-left { overflow-y: auto; scrollbar-width: thin; padding: 5% 6% 5% !important; }
     .tome-title-sm { font-size: 1.7rem !important; }
     .tome-tracks { width: 100%; }
     .tome-track { display: flex; align-items: baseline; gap: 0.6rem; width: 100%; padding: 0.35rem 0; border-bottom: 1px solid rgba(73, 53, 38, 0.25); text-align: left; color: var(--ink); }
@@ -512,6 +511,63 @@
     .tome-len { font-family: 'Cormorant Garamond', serif; font-size: 0.85rem; color: var(--ink2); }
     .tome-foot { margin-top: auto; padding-top: 0.7rem; text-align: center; font-family: 'Cormorant Garamond', serif; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink2); }
     .tome .tome-title { text-shadow: none; }
+    /* Propuesta E: un dorado para títulos y nombres, marfil para el texto */
+    .sec-head, .rule > span.quote { font-family: 'LexiumDisplay', 'Grenze Gotisch', serif !important; font-weight: 400; font-style: normal !important; font-size: 1.6rem !important; line-height: 1; letter-spacing: 0; color: var(--gold) !important; text-shadow: 1px 1px 2px var(--deep-shadow); }
+    .sec-head { margin: 1.4rem 0 0.9rem; }
+    .sec-head::after { content: '◆'; display: block; margin-top: 0.35rem; font-size: 0.5rem; opacity: 0.75; }
+    .rule:has(> span.quote) { flex-direction: column; opacity: 1; margin-bottom: 0.4rem; }
+    .rule:has(> span.quote)::after { display: block !important; content: '◆'; flex: none; height: auto; background: none; color: var(--gold); font-size: 0.5rem; opacity: 0.75; }
+    .char-head-e { flex-direction: column; align-items: center; text-align: center; gap: 0.25rem; }
+    .char-name { font-size: 2.3rem; line-height: 1; color: var(--gold); }
+    .big-portrait { width: 10.5rem; height: 15rem; }
+    .gslot { width: 3.9rem !important; height: 3.9rem !important; }
+    .gslot .gi, .gslot i { font-size: 1.9rem; }
+    .char-doll { gap: 0.5rem 0.6rem !important; }
+    @media (min-width: 640px) { .big-portrait { width: 15rem; height: 20rem; } .gslot { width: 4.8rem !important; height: 4.8rem !important; } .gslot .gi, .gslot i { font-size: 2.3rem; } .char-doll { gap: 0.6rem 1.2rem !important; } }
+    .ab-card { justify-content: center; }
+    .btn-gold { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.9rem; border: 1px solid var(--gold); color: var(--gold); background: transparent; font-family: 'EB Garamond', Georgia, serif; font-size: 0.92rem; line-height: 1.2; }
+    .btn-gold:hover:not(:disabled) { background: rgba(201, 162, 75, 0.1); }
+    .btn-gold:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-sm { padding: 0.25rem 0.65rem; font-size: 0.82rem; }
+    .bag-grid { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+    @media (min-width: 640px) { .bag-grid { grid-template-columns: repeat(9, minmax(0, 1fr)) !important; } }
+    .bag-foot { display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; }
+    .set-row { padding: 0.8rem 0; border-top: 1px solid var(--line); }
+    .set-row:first-child { border-top: 0; }
+    .set-row-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.8rem; }
+    .set-row-name { font-family: 'LexiumDisplay', 'Grenze Gotisch', serif; font-size: 1.35rem; line-height: 1; color: var(--gold); }
+    .set-row-n { font-size: 0.8rem; opacity: 0.65; white-space: nowrap; }
+    .set-row.is-on .set-row-n { color: var(--gold); opacity: 1; }
+    .set-row-body { display: flex; align-items: center; gap: 0.8rem; margin-top: 0.5rem; }
+    .set-row-pieces { display: flex; gap: 0.35rem; flex: none; }
+    .set-row-pieces .bag-cell, .set-unknown { width: 2.6rem; height: 2.6rem; cursor: default; }
+    .set-row-pieces .bag-cell.is-gone { opacity: 0.45; }
+    .set-unknown { display: flex; align-items: center; justify-content: center; border: 1px dashed var(--line); font-family: 'LexiumDisplay', 'Grenze Gotisch', serif; opacity: 0.6; }
+    .set-row-text { font-size: 0.85rem; line-height: 1.35; opacity: 0.9; }
+    .shop-feat { position: relative; display: flex; align-items: center; gap: 0.9rem; padding: 1.1rem 0.9rem 0.9rem; margin-top: 0.8rem; border: 1px solid var(--gold); background: var(--cell); box-shadow: inset 0 0 0 3px var(--cell), inset 0 0 0 4px rgba(201, 162, 75, 0.3); }
+    .shop-feat .bag-cell { width: 4rem; flex: none; cursor: default; }
+    .shop-feat-tag { position: absolute; top: -0.7rem; left: 50%; transform: translateX(-50%); padding: 0 0.6rem; white-space: nowrap; font-family: 'LexiumDisplay', 'Grenze Gotisch', serif; font-size: 1rem; color: var(--gold); background: var(--card-bg, #0B0F1A); }
+    :root:not(.dark) .shop-feat-tag { background: #F6EEDB; }
+    .shop-feat-name { font-family: 'LexiumDisplay', 'Grenze Gotisch', serif; font-size: 1.3rem; line-height: 1.05; }
+    .shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+    @media (min-width: 640px) { .shop-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    .shop-item { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.35rem; padding: 0.7rem 0.5rem; border: 1px solid var(--line); background: var(--cell); }
+    .shop-item .bag-cell { width: 3rem; cursor: default; }
+    .shop-item-name { font-size: 0.95rem; line-height: 1.15; }
+    .shop-item .btn-gold { margin-top: auto; }
+    .tome-left { padding: 9% 9% 7% 11% !important; overflow: hidden; }
+    .tome-right { padding: 9% 11% 7% 9% !important; }
+    @media (max-width: 639px) { .tome-left { padding: 14% 10% 11% 17% !important; } .tome-right { padding: 14% 17% 11% 10% !important; } }
+    .tome-kick { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.95rem; color: var(--ink2); }
+    .tome .tome-title { font-size: 1.9rem; }
+    .tome-index { margin-top: auto; padding-top: 0.8rem; width: 100%; }
+    .tome-index-l { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 0.82rem; color: var(--ink2); margin-bottom: 0.4rem; }
+    .tome-seals { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.35rem; }
+    .tome-seal { width: 2rem; height: 2rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'MedievalSharp', cursive; font-size: 0.72rem; color: var(--ink2); border: 1px solid rgba(73, 53, 38, 0.45); }
+    .tome-seal.is-done { color: var(--ink); border-color: var(--ink); background: rgba(73, 53, 38, 0.08); }
+    .tome-seal.is-on { color: #F3E3C0; border-color: #5E1714; background: radial-gradient(circle at 38% 32%, #C2443A, #7A1A16 70%); box-shadow: 0 1px 2px rgba(60, 20, 10, 0.5); }
+    .tome-seal:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+    .tome .plates.is-many { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     /* Duelos */
     .duel-face { display: inline-flex; flex: none; border: 1px solid rgba(201, 162, 75, 0.5); box-shadow: 0 0 0 2px var(--cell); }
     .duel-ranks { display: flex; justify-content: center; flex-wrap: wrap; gap: 1rem 1.4rem; }
@@ -1847,7 +1903,7 @@
     // Bonificación de cada clase, en % extra (la del pícaro es experiencia fija por palabra ajena guardada)
     // Atributos: puntos que da cada nivel a partir del 2 y lo que vale cada punto
     // Zurrón: casillas de partida y ampliaciones (cada una más cara que la anterior)
-    const BAG = { base: 20, step: 10, price: 500, priceUp: 250 };
+    const BAG = { base: 18, step: 10, price: 500, priceUp: 250 };
     const ATTR = { respec: 100, perLevel: 1, fuerza: 2, inteligencia: 0.5, sabiduria: 0.2, destreza: 5, constitucion: 1, carismaOro: 3, carismaTienda: 1 };
     // Probabilidad (%) de que un cofre de prestigio traiga además un epíteto
     const EPI = { prestigeChance: 35 };
@@ -3024,7 +3080,6 @@
       const sf = equippedFrame(p.id);
       return `<div class="big-portrait${sf ? ' sf sf-' + sf : ''}" title="${esc(stats.className || 'Sin clase')}">
           ${src ? `<img src="${esc(src)}" alt="Retrato de ${esc(p.display_name)}" onload="if(this.naturalWidth<=160)this.style.imageRendering='pixelated'">` : `<i class="gi gi-${emblem(stats)}"></i>`}
-          <span class="big-portrait-cls">${esc(stats.className || 'Sin clase')}</span>
         </div>`;
     }
 
@@ -3370,10 +3425,10 @@
       const sel = bagSel ? cells.find(g => g.some(x => x.id === bagSel)) : null;
       return `
         <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
-          <div class="rule"><span class="quote text-xs">En el zurrón</span></div>
+          ${flourish('En el zurrón')}
           ${cells.length ? `<div class="bag-tabs mt-3" role="tablist">${tabs.map(([k, label, icon]) => `<button type="button" onclick="setBagFilter('${k}')" class="plain bag-tab${bagFilter === k ? ' is-on' : ''}" title="${esc(label)}" aria-label="${esc(label)}" aria-pressed="${bagFilter === k}"><i class="gi gi-${icon}"></i>${k === 'all' ? ' <span>Todo</span>' : ''}</button>`).join('')}</div>
-          <div class="bag-grid mt-3">${show.map(cell).join('')}${'<span class="bag-cell is-empty" aria-hidden="true"></span>'.repeat(Math.max(0, bagFilter === 'all' ? bagCapacity(currentUser.id) - bagUsed(currentUser.id) : Math.ceil(show.length / 10) * 10 - show.length))}</div>
-          <p class="text-xs text-paper-muted dark:text-night-muted mt-3">Ocupas ${bagUsed(currentUser.id)} de ${bagCapacity(currentUser.id)} casillas (lo equipado no ocupa sitio). <button type="button" onclick="buyBagSpace()" class="plain underline text-paper-accent dark:text-night-accent">Ampliar ${BAG.step} casillas por ${bagNextPrice(currentUser.id)} de oro</button></p>
+          <div class="bag-grid mt-3">${show.map(cell).join('')}${'<span class="bag-cell is-empty" aria-hidden="true"></span>'.repeat(Math.max(0, bagFilter === 'all' ? bagCapacity(currentUser.id) - bagUsed(currentUser.id) : Math.ceil(show.length / 6) * 6 - show.length))}</div>
+          <div class="bag-foot mt-3"><span class="text-xs text-paper-muted dark:text-night-muted">${bagUsed(currentUser.id)} de ${bagCapacity(currentUser.id)} casillas<br><span class="opacity-80">Lo equipado no ocupa sitio</span></span><button type="button" onclick="buyBagSpace()" class="btn-gold">Ampliar ${BAG.step} · ${bagNextPrice(currentUser.id)} de oro</button></div>
           ${dupes.length ? `<p class="text-xs text-paper-muted dark:text-night-muted mt-3">Tienes ${dupes.length} ${dupes.length === 1 ? 'común repetida' : 'comunes repetidas'}: <button type="button" onclick="sellDuplicates()" class="plain underline text-paper-accent dark:text-night-accent">venderlas por ${dupGold} de oro</button> (se queda una de cada).</p>` : ''}`
           : '<p class="quote text-sm text-center mt-4">No llevas nada encima. Los objetos salen de los cofres y de la tienda.</p>'}
         </div>${sel ? bagSheet(sel, me, others) : ''}`;
@@ -4037,20 +4092,20 @@
           <div class="tome-book">
             <div class="tome-pages">
               <section class="tome-page tome-left${turn ? ' fade' : ''}">
-                <p class="tome-run">Capítulo ${ROMAN(idx + 1)}${c.season ? ' · de temporada' : ''}</p>
+                <p class="tome-kick">Capítulo ${ROMAN(idx + 1)}${c.season ? ' · de temporada' : ''}</p>
                 <h3 class="tome-title">${esc(c.name)}</h3>
                 <p class="tome-orn">✦</p>
-                <div class="plates">${c.items.map(plate).join('')}</div>
-                <p class="tome-text"><strong>${n}</strong> de ${c.items.length} sellados${reward ? ` · ${claimed ? 'ganaste' : 'premio:'} ${reward}` : ''}</p>
-                ${done && !claimed && reward ? `<p class="mt-2"><button onclick="claimCollection('${esc(c.id)}')" class="plain tome-claim">Reclamar el premio</button></p>` : ''}
+                <p class="tome-text"><strong>${n}</strong> de ${c.items.length} sellados${done ? '' : n ? `; ${c.items.length - n === 1 ? 'queda uno' : 'quedan ' + (c.items.length - n)}` : ''}.</p>
+                ${reward ? `<p class="tome-text">${claimed ? 'Ganaste' : 'Premio:'} ${reward}.</p>` : ''}
+                ${done && !claimed && reward ? `<p class="mt-3"><button onclick="claimCollection('${esc(c.id)}')" class="plain tome-claim">Reclamar el premio</button></p>` : ''}
+                <div class="tome-index">
+                  <p class="tome-index-l">Índice · ${got} de ${all.length} sellados</p>
+                  <div class="tome-seals">${list.map((x, i) => { const k = x.items.filter(id => sealed.has(id)).length, full = k === x.items.length; return `<button type="button" onclick="setBookCh('${esc(x.id)}')" class="plain tome-seal${x.id === c.id ? ' is-on' : full ? ' is-done' : ''}" title="${esc(x.name)} · ${k} de ${x.items.length}" aria-label="${esc(x.name)}, ${k} de ${x.items.length}" aria-pressed="${x.id === c.id}">${ROMAN(i + 1)}</button>`; }).join('')}</div>
+                </div>
               </section>
-              <section class="tome-page tome-right">
-                <p class="tome-run">Libro de colección · ${got} de ${all.length} sellados</p>
-                <h3 class="tome-title tome-title-sm">Capítulos</h3>
-                <p class="tome-orn">✦</p>
-                <div class="tome-tracks">${list.map((x, i) => { const k = x.items.filter(id => sealed.has(id)).length; return `<button type="button" onclick="setBookCh('${esc(x.id)}')" class="plain tome-track${x.id === c.id ? ' is-on' : ''}" aria-pressed="${x.id === c.id}">
-                    <span class="tome-num">${ROMAN(i + 1)}.</span><span class="tome-song">${esc(x.name)}${x.season ? '<small>de temporada</small>' : ''}</span><span class="tome-len">${collClaimed(currentUser.id, x) ? '✦' : k + ' / ' + x.items.length}</span></button>`; }).join('')}</div>
-                <p class="tome-foot">Pulsa un capítulo para abrirlo · ✦</p>
+              <section class="tome-page tome-right${turn ? ' fade' : ''}">
+                <div class="plates${c.items.length > 9 ? ' is-many' : ''}">${c.items.map(plate).join('')}</div>
+                <p class="tome-folio">— ${ROMAN(2 * idx + 2).toLowerCase()} —</p>
               </section>
             </div>
           </div>
@@ -4127,21 +4182,19 @@
       return `
         <div class="frame bg-paper-card dark:bg-night-card border border-paper-border dark:border-night-border p-5">
           ${flourish('Conjuntos')}
-          <p class="text-sm text-paper-muted dark:text-night-muted text-center mt-3">Un conjunto son varias piezas que se llevan a la vez, una en cada hueco. Con todas equipadas ganas su bonificación y, la primera vez, su epíteto para siempre.</p>
-          <div class="mt-4 space-y-4">
+          <p class="text-xs text-paper-muted dark:text-night-muted text-center">Con todas las piezas equipadas ganas la bonificación y, la primera vez, el epíteto para siempre.</p>
+          <div class="mt-2">
             ${list.map(s => {
               const on = s.items.every(id => worn.has(id)), n = s.items.filter(id => worn.has(id)).length, epiDone = me.setsDone && me.setsDone.includes(s.id);
-              return `<div class="set-card${on ? ' is-on' : ''}">
-                <div class="flex items-baseline justify-between gap-3"><p class="word-title text-2xl leading-none">${esc(s.name)}</p><p class="text-xs whitespace-nowrap ${on ? 'text-paper-accent dark:text-night-accent' : 'text-paper-muted dark:text-night-muted'}">${n} de ${s.items.length} equipadas</p></div>
-                <div class="set-pieces mt-3">${s.items.map(id => { const it = itemsById[id], col = (RARITY[it.rarity] || RARITY['común']).color, known = sealed.has(id);
-                  return `<div class="set-piece${worn.has(id) ? ' is-worn' : have.has(id) ? '' : ' is-missing'}" title="${esc(known ? it.name : 'Pieza sin descubrir')}">
-                    <span class="bag-cell r-${RARITY_ORDER.indexOf(it.rarity)}${worn.has(id) ? ' is-eq' : ''}" style="--r:${col}"><span class="bag-in">${known ? art(it.image, it.icon, 'w-8 h-8', 'text-2xl', col) : '<span class="text-xl opacity-40">?</span>'}</span></span>
-                    <span class="set-piece-name">${known ? esc(it.name) : '¿?'}<br><span class="opacity-70">${esc(SLOTS[it.slot] || '')}${worn.has(id) ? ' · equipada' : have.has(id) ? ' · en el zurrón' : ''}</span></span>
-                  </div>`; }).join('')}</div>
-                <dl class="stat-rows mt-3" style="max-width:none">
-                  <div class="stat-row"><dt>Bonificación</dt><dd class="${on ? 'text-paper-accent dark:text-night-accent' : ''}">${esc(effectText(s))}${on ? ' (activa)' : ''}</dd></div>
-                  ${s.epithet && epithetById(s.epithet) ? `<div class="stat-row"><dt>Epíteto</dt><dd>«${esc(epithetText(s.epithet, currentUser.id))}»${epiDone ? ' <span class="text-paper-accent dark:text-night-accent">ganado</span>' : ''}</dd></div>` : ''}
-                </dl>
+              const epi = s.epithet && epithetById(s.epithet) ? `<span class="opacity-70">Epíteto:</span> ${esc(epithetText(s.epithet, currentUser.id))}${epiDone ? ' ✦' : ''}` : '';
+              return `<div class="set-row${on ? ' is-on' : ''}">
+                <div class="set-row-head"><span class="set-row-name">${esc(s.name)}</span><span class="set-row-n">${n} de ${s.items.length}${on ? ' · activo' : ''}</span></div>
+                <div class="set-row-body">
+                  <div class="set-row-pieces">${s.items.map(id => { const it = itemsById[id], col = (RARITY[it.rarity] || RARITY['común']).color, known = sealed.has(id);
+                    return known ? `<span class="bag-cell r-${RARITY_ORDER.indexOf(it.rarity)}${worn.has(id) ? ' is-eq' : ''}${!worn.has(id) && !have.has(id) ? ' is-gone' : ''}" style="--r:${col}" title="${esc(it.name + ' · ' + (SLOTS[it.slot] || '') + (worn.has(id) ? ' · equipada' : have.has(id) ? ' · en el zurrón' : ' · ya no la tienes'))}"><span class="bag-in">${art(it.image, it.icon, 'w-6 h-6', 'text-xl', col)}</span></span>`
+                      : '<span class="set-unknown" title="Pieza sin descubrir">?</span>'; }).join('')}</div>
+                  <p class="set-row-text">${esc(effectText(s))}${epi ? '<br>' + epi : ''}</p>
+                </div>
               </div>`; }).join('') || '<p class="quote text-sm text-center">Aún no has encontrado ninguna pieza de un conjunto.</p>'}
           </div>
           ${hidden > 0 ? `<p class="text-xs text-paper-muted dark:text-night-muted text-center mt-4">${hidden === 1 ? 'Queda un conjunto' : 'Quedan ' + hidden + ' conjuntos'} por descubrir: aparecerán cuando consigas su primera pieza.</p>` : ''}
@@ -4260,7 +4313,7 @@
       const row = (k, v) => `<div class="stat-row"><dt>${k}</dt><dd>${v}</dd></div>`;
       const hero = `
         <div class="${box}">
-          <div class="char-head"><span class="word-title text-3xl leading-none">${esc(p.display_name)}</span>${epithet ? `<span class="char-epi">${esc(epithetText(epithet, p.id))}</span>` : ''}</div>
+          <div class="char-head char-head-e"><span class="word-title char-name">${esc(p.display_name)}</span>${epithet ? `<span class="char-epi">${esc(epithetText(epithet, p.id))}</span>` : ''}</div>
           <div class="sheet-level mt-2"><span>Nivel ${s.level}</span><span class="xp-bar"><span style="width:${s.progress}%"></span></span><span class="opacity-70">XP</span></div>
           <p class="text-xs text-paper-muted dark:text-night-muted mt-1">${xpLine(s)}</p>
           <div class="char-doll mt-4">
@@ -5635,7 +5688,7 @@
 
       const chests = me.chests.length ? `
         <div class="${section}">
-          <div class="rule"><span class="quote text-xs">Cofres por abrir</span></div>
+          ${flourish('Cofres por abrir')}
           <ul class="mt-3 divide-y divide-paper-border/60 dark:divide-night-border/60">
             ${me.chests.map(c => `<li class="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
               <i class="gi gi-${CHESTS[c.tier].icon} text-2xl text-paper-accent dark:text-night-accent"></i>
@@ -5663,7 +5716,7 @@
       const sale = it => saleValue(it, me);
       const inventory = `
         <div class="${section}">
-          <div class="rule"><span class="quote text-xs">En el zurrón</span></div>
+          ${flourish('En el zurrón')}
           <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-3">Lo que llevas puesto y tu epíteto están en <button type="button" onclick="switchTab('character')" class="plain underline">tu personaje</button>.</p>
           ${spare.length || Object.keys(consumables).length ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-4">
             ${gearGroups(spare).map(units => { const u = units[0], it = uItem(u), canForge = forgeUnits(units).length >= FORGE.copies && (u.plus || 0) < FORGE.max; return itemCard(it,
@@ -5682,25 +5735,28 @@
         </div>`;
 
       const stock = Object.values(itemsById).filter(it => it.for_sale && it.price > 0 && it.kind !== 'relic').sort((a, b) => a.price - b.price);
-      const shop = `
-        <div class="${section}">
-          <div class="rule"><span class="quote text-xs">Tienda</span></div>
-          ${stock.length ? `<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-4">
-            ${stock.map(it => itemCard(it, `<button onclick="buyItem('${esc(it.id)}')" class="${me.gold >= priceFor(it, me) ? smallGold : small}"${me.gold >= priceFor(it, me) ? '' : ' disabled'}>${priceFor(it, me)} de oro</button>`)).join('')}
-          </div>` : '<p class="quote text-sm text-center mt-4">La tienda está vacía.</p>'}
-        </div>`;
-
       const f = featuredItem();
       const boughtIt = f && ledger.some(l => l.user_id === currentUser.id && l.reason === 'Objeto de la semana ' + f.week);
+      const fr = f ? (RARITY[f.item.rarity] || RARITY['común']).color : '';
       const weekly = f ? `
+          <div class="shop-feat">
+            <span class="shop-feat-tag">Objeto de la semana</span>
+            <span class="bag-cell r-${RARITY_ORDER.indexOf(f.item.rarity)}" style="--r:${fr}"><span class="bag-in">${art(f.item.image, f.item.icon, 'w-10 h-10', 'text-4xl', fr)}</span></span>
+            <div class="min-w-0 flex-1"><p class="shop-feat-name">${esc(f.item.name)}</p><p class="text-sm opacity-85">${esc(effectText(f.item))}</p><p class="text-xs text-paper-muted dark:text-night-muted">Hasta el domingo · uno por persona</p></div>
+          </div>
+          <p class="text-right mt-2">${boughtIt ? '<span class="text-xs text-paper-muted dark:text-night-muted">Ya lo has comprado</span>' : `<button onclick="buyFeatured()" class="btn-gold"${me.gold >= priceFor(f, me) ? '' : ' disabled'}>Comprar · ${priceFor(f, me)} de oro</button>`}</p>` : '';
+      const shop = `
         <div class="${section}">
-          <div class="rule"><span class="quote text-xs">Objeto de la semana</span></div>
-          <div class="max-w-[14rem] mx-auto mt-4">${itemCard(f.item, boughtIt
-            ? '<span class="text-xs text-paper-muted dark:text-night-muted">Ya lo has comprado</span>'
-            : `<button onclick="buyFeatured()" class="${me.gold >= priceFor(f, me) ? smallGold : small}"${me.gold >= priceFor(f, me) ? '' : ' disabled'}>${priceFor(f, me)} de oro</button>`)}</div>
-          <p class="text-xs text-paper-muted dark:text-night-muted text-center mt-3">Solo hasta el domingo, y uno por persona.</p>
-        </div>` : '';
-      panel.innerHTML = purse + chests + tradesBlock() + grid + setsBlock() + weekly + shop;
+          ${flourish('Tienda')}
+          ${weekly}
+          ${stock.length ? `<div class="shop-grid mt-4">
+            ${stock.map(it => { const col = (RARITY[it.rarity] || RARITY['común']).color, pr = priceFor(it, me); return `<div class="shop-item" title="${esc(effectText(it))}">
+              <span class="bag-cell r-${RARITY_ORDER.indexOf(it.rarity)}" style="--r:${col}"><span class="bag-in">${art(it.image, it.icon, 'w-8 h-8', 'text-3xl', col)}</span></span>
+              <p class="shop-item-name">${esc(it.name)}</p><p class="text-xs text-paper-muted dark:text-night-muted">${esc(effectText(it))}</p>
+              <button onclick="buyItem('${esc(it.id)}')" class="btn-gold btn-sm"${me.gold >= pr ? '' : ' disabled'}>${pr} de oro</button></div>`; }).join('')}
+          </div>` : (f ? '' : '<p class="quote text-sm text-center mt-4">La tienda está vacía.</p>')}
+        </div>`;
+      panel.innerHTML = purse + chests + tradesBlock() + grid + setsBlock() + shop;
     }
 
     // Precio de la tienda para una persona (con su descuento) y lo que le dan al vender
@@ -5896,12 +5952,11 @@
               <div class="ab-card" title="${esc(a.name + '. Cada punto: ' + attrText(a, 1))}">
                 <span class="ab-abbr">${a.name.slice(0, 3).toUpperCase().replace('Á', 'A')}</span>
                 <span class="ab-val">${n}</span>
-                ${n ? `<span class="ab-mod">${esc(attrShort(a, n))}</span>` : ''}
               </div>
               ${left > 0 ? `<button type="button" onclick="setAttr('${a.key}', 1)" class="plain ab-plus" aria-label="Poner un punto en ${a.name}">+</button>` : ''}
             </div>`; }).join('')}
           </div>
-          <dl class="stat-rows mt-4">${ATTRS.map(a => `<div class="stat-row"><dt>${a.name}</dt><dd>${esc(attrShort(a, 1))} por punto</dd></div>`).join('')}</dl>
+          <dl class="stat-rows mt-4">${ATTRS.map(a => `<div class="stat-row"><dt>${a.name}</dt><dd>${me.attrs[a.key] ? esc(attrShort(a, me.attrs[a.key])) : `<span class="opacity-60">${esc(attrShort(a, 1))} por punto</span>`}</dd></div>`).join('')}</dl>
           ${me.attrSpent ? `<p class="text-center mt-4"><button type="button" onclick="resetAttrs()" class="px-4 py-2 rounded-xl text-sm border border-paper-border dark:border-night-border">Recolocar puntos · ${ATTR.respec} de oro</button></p>` : ''}
         </div>`;
     }
